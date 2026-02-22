@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple
 
 from google import genai
 from google.genai import types
@@ -14,7 +14,6 @@ SYSTEM_RULES = (
     "If unsure, use null/empty arrays. Do not invent facts."
 )
 
-# New SDK client: reads GEMINI_API_KEY automatically
 client = genai.Client()
 
 
@@ -42,10 +41,6 @@ def _strip_code_fences(s: str) -> str:
 
 
 def _resp_text(resp) -> str:
-    """
-    Prefer resp.text, but keep a fallback that concatenates parts if needed.
-    The new SDK returns pydantic objects; structure can vary slightly by model.
-    """
     try:
         t = getattr(resp, "text", None)
         if isinstance(t, str) and t.strip():
@@ -54,7 +49,6 @@ def _resp_text(resp) -> str:
         pass
 
     try:
-        # Fallback: candidates[0].content.parts[*].text
         cands = getattr(resp, "candidates", None) or []
         if cands:
             parts = getattr(cands[0].content, "parts", None) or []
@@ -70,7 +64,6 @@ def parse_json_loose(s: str) -> Dict[str, Any]:
     if not s:
         raise ValueError("Empty model output")
 
-    # Strict attempt first
     try:
         out = json.loads(s)
         if not isinstance(out, dict):
@@ -79,7 +72,6 @@ def parse_json_loose(s: str) -> Dict[str, Any]:
     except Exception:
         pass
 
-    # Fallback: extract first JSON object by brace matching
     start = s.find("{")
     if start == -1:
         raise ValueError(f"No JSON object found. First 300 chars: {s[:300]}")
@@ -119,28 +111,20 @@ def _looks_truncated_json(s: str) -> bool:
     s = _strip_code_fences((s or "").strip())
     if not s:
         return True
-
     if s.count("{") > s.count("}"):
         return True
-
     if s.endswith((",", ":", "[", "{")):
         return True
-
     if s.endswith('"'):
         return True
-
     return False
 
 
 def _call_gemini(prompt: str, *, temperature: float = 0.0, max_output_tokens: int = 4096) -> str:
-    """
-    Single place to call Gemini (new google.genai SDK).
-    Retries once if output looks truncated or suspiciously short.
-    """
     cfg = types.GenerateContentConfig(
         temperature=temperature,
         max_output_tokens=max_output_tokens,
-        # If you later want stricter JSON mode, you can try:
+        # Optional to try later:
         # response_mime_type="application/json",
     )
 
@@ -192,7 +176,6 @@ def _normalize_receipt_fields(extracted: Dict[str, Any], doc: Dict[str, Any]) ->
     if not isinstance(extracted.get("cost_items"), list):
         extracted["cost_items"] = []
 
-    # billing[] -> cost_items[]
     billing = extracted.get("billing")
     if (not extracted["cost_items"]) and isinstance(billing, list) and billing:
         service_date = extracted.get("doc_date") or (str(doc.get("doc_date")) if doc.get("doc_date") else None)
@@ -210,7 +193,6 @@ def _normalize_receipt_fields(extracted: Dict[str, Any], doc: Dict[str, Any]) ->
             )
         extracted["cost_items"] = items
 
-    # Infer totals.paid if missing
     totals = extracted.get("totals")
     if not isinstance(totals, dict):
         totals = {}
@@ -272,6 +254,283 @@ def _normalize_discount_labels(extracted: Dict[str, Any]) -> Dict[str, Any]:
 
     return extracted
 
+
+def _to_title_case(s: str) -> str:
+    return " ".join(s.strip().split()).title()
+
+
+def _normalize_lab_value_text_title_case(extracted: Dict[str, Any]) -> Dict[str, Any]:
+    labs = extracted.get("labs")
+    if not isinstance(labs, list) or not labs:
+        return extracted
+
+    for lab in labs:
+        results = lab.get("results")
+        if not isinstance(results, list):
+            continue
+
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+
+            vt = r.get("value_text")
+            vn = r.get("value_num")
+
+            if vn is not None:
+                continue
+            if not isinstance(vt, str) or not vt.strip():
+                continue
+
+            s = vt.strip()
+            if s.isupper() or s.replace(" ", "").isupper():
+                r["value_text"] = _to_title_case(s)
+
+    return extracted
+
+
+def _normalize_lab_analytes(extracted: Dict[str, Any]) -> Dict[str, Any]:
+    labs = extracted.get("labs")
+    if not isinstance(labs, list) or not labs:
+        return extracted
+
+    analyte_map = {
+        "blood / hemoglobin": "Blood (Hemoglobin)",
+        "blood/hemoglobin": "Blood (Hemoglobin)",
+        "blood hemoglobin": "Blood (Hemoglobin)",
+        "wbc": "WBC",
+        "rbc": "RBC",
+    }
+
+    for lab in labs:
+        results = lab.get("results")
+        if not isinstance(results, list):
+            continue
+
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+
+            a = r.get("analyte")
+            if not isinstance(a, str) or not a.strip():
+                continue
+
+            key = " ".join(a.strip().lower().split())
+            r["analyte"] = analyte_map.get(key, a.strip())
+
+    return extracted
+
+
+def _summary_from_labs(extracted: Dict[str, Any]) -> Optional[str]:
+    """
+    Deterministic summary generator (used when per-panel fallback doesn’t provide a summary).
+    Produces a compact string highlighting common items like T4 + 4Dx results.
+    """
+    labs = extracted.get("labs")
+    if not isinstance(labs, list) or not labs:
+        return None
+
+    highlights: List[str] = []
+
+    def add_once(prefix: str, value: str) -> None:
+        s = f"{prefix} {value}".strip()
+        if s and s not in highlights:
+            highlights.append(s)
+
+    for lab in labs:
+        if not isinstance(lab, dict):
+            continue
+        results = lab.get("results")
+        if not isinstance(results, list):
+            continue
+
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+            analyte = (r.get("analyte") or "").strip()
+            a = analyte.lower()
+            vt = r.get("value_text")
+            if not isinstance(vt, str) or not vt.strip():
+                continue
+            val = vt.strip()
+
+            if "t4" in a:
+                add_once("T4", val)
+            elif "heartworm" in a:
+                add_once("Heartworm", val)
+            elif "ehrlich" in a:
+                add_once("Ehrlichia", val)
+            elif "anaplas" in a:
+                add_once("Anaplasma", val)
+            elif "lyme" in a:
+                add_once("Lyme", val)
+
+    if highlights:
+        return "; ".join(highlights[:6])
+
+    panels = sorted(
+        {(lab.get("panel") or "").strip() for lab in labs if isinstance(lab, dict) and (lab.get("panel") or "").strip()}
+    )
+    if panels:
+        return "Panels: " + ", ".join(panels)
+
+    return None
+
+
+def _apply_post_normalizations(extracted: Dict[str, Any], doc: Dict[str, Any]) -> Dict[str, Any]:
+    extracted = _coerce_ids(extracted, doc)
+    extracted = _normalize_receipt_fields(extracted, doc)
+    extracted = _normalize_discount_labels(extracted)
+    extracted = _normalize_lab_analytes(extracted)
+    extracted = _normalize_lab_value_text_title_case(extracted)
+
+    # Fill summary if missing and labs exist (common in per-panel fallback)
+    if extracted.get("summary") in (None, ""):
+        s = _summary_from_labs(extracted)
+        if s:
+            extracted["summary"] = s
+
+    return extracted
+
+
+# -----------------------------
+# Lab per-panel fallback (prevents truncation)
+# -----------------------------
+
+def _merge_labs(dst_labs: List[Dict[str, Any]], src_labs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Merge labs arrays by (panel, lab_date). Dedup results by (analyte, value_text, value_num, unit).
+    """
+    def key_lab(l: Dict[str, Any]) -> Tuple[str, str]:
+        return (str(l.get("panel") or ""), str(l.get("lab_date") or ""))
+
+    index: Dict[Tuple[str, str], Dict[str, Any]] = {key_lab(l): l for l in dst_labs if isinstance(l, dict)}
+
+    for lab in src_labs:
+        if not isinstance(lab, dict):
+            continue
+        k = key_lab(lab)
+        if k not in index:
+            index[k] = lab
+            continue
+
+        existing = index[k]
+        ex_results = existing.get("results")
+        if not isinstance(ex_results, list):
+            ex_results = []
+            existing["results"] = ex_results
+
+        new_results = lab.get("results")
+        if not isinstance(new_results, list):
+            continue
+
+        seen = set()
+        for r in ex_results:
+            if not isinstance(r, dict):
+                continue
+            seen.add((r.get("analyte"), r.get("value_text"), r.get("value_num"), r.get("unit")))
+
+        for r in new_results:
+            if not isinstance(r, dict):
+                continue
+            sig = (r.get("analyte"), r.get("value_text"), r.get("value_num"), r.get("unit"))
+            if sig in seen:
+                continue
+            ex_results.append(r)
+            seen.add(sig)
+
+    return list(index.values())
+
+
+def _extract_lab_panels(raw_text: str, doc: Dict[str, Any]) -> List[str]:
+    """
+    Tiny call: return the list of panel names present.
+    """
+    schema = {"doc_id": doc["id"], "panels": ["Hematology", "Chemistry", "Urinalysis", "Endocrinology", "Serology", "Other"]}
+
+    prompt = (
+        f"{SYSTEM_RULES}\n"
+        "TASK: Identify the lab panel names present in the TEXT.\n"
+        "Return ONLY JSON matching the schema.\n"
+        "Do not include any other keys.\n\n"
+        f"documents.id: {doc['id']}\n"
+        f"doc_date: {doc.get('doc_date')}\n\n"
+        "SCHEMA:\n"
+        f"{json.dumps(schema)}\n\n"
+        "TEXT:\n"
+        f"{raw_text[:120000]}"
+    )
+
+    text = _call_gemini(prompt, temperature=0.0, max_output_tokens=512)
+    out = parse_json_loose(text)
+
+    panels = out.get("panels") if isinstance(out, dict) else []
+    if not isinstance(panels, list):
+        return []
+
+    cleaned = []
+    for p in panels:
+        if isinstance(p, str) and p.strip():
+            cleaned.append(" ".join(p.strip().split()).title())
+
+    seen = set()
+    uniq = []
+    for p in cleaned:
+        if p.lower() in seen:
+            continue
+        seen.add(p.lower())
+        uniq.append(p)
+
+    return uniq
+
+
+def _extract_single_panel(raw_text: str, doc: Dict[str, Any], panel: str) -> Dict[str, Any]:
+    """
+    Extract ONE panel only. Keeps output small and avoids truncation.
+    """
+    schema = {
+        "doc_id": doc["id"],
+        "labs": [
+            {
+                "panel": panel,
+                "lab_date": str(doc.get("doc_date")) if doc.get("doc_date") else None,
+                "results": [
+                    {
+                        "analyte": "",
+                        "value_text": None,
+                        "value_num": None,
+                        "unit": None,
+                        "ref_low": None,
+                        "ref_high": None,
+                        "flag": None,
+                    }
+                ],
+            }
+        ],
+    }
+
+    prompt = (
+        f"{SYSTEM_RULES}\n"
+        f"TASK: Extract ONLY the '{panel}' panel from the TEXT.\n"
+        "STRICT RULES:\n"
+        "- Return ONLY JSON matching the schema.\n"
+        "- Include ONLY analytes belonging to this panel.\n"
+        "- Keep output compact.\n"
+        "- doc_id MUST match.\n\n"
+        f"documents.id: {doc['id']}\n"
+        f"doc_date: {doc.get('doc_date')}\n\n"
+        "SCHEMA:\n"
+        f"{json.dumps(schema)}\n\n"
+        "TEXT:\n"
+        f"{raw_text[:120000]}"
+    )
+
+    text = _call_gemini(prompt, temperature=0.0, max_output_tokens=2048)
+    return parse_json_loose(text)
+
+
+# -----------------------------
+# Receipt retry
+# -----------------------------
 
 def _retry_cost_items_only(raw_text: str, doc: Dict[str, Any], extracted: Dict[str, Any]) -> Dict[str, Any]:
     retry_schema = {
@@ -428,8 +687,9 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
     try:
         extracted = parse_json_loose(text)
     except Exception as e:
-        # Receipt fallback: salvage via narrower prompt (cost_items + totals)
         dt = (doc.get("doc_type") or "").lower()
+
+        # Receipt fallback
         if dt in {"receipt", "invoice"}:
             fallback_base: Dict[str, Any] = {
                 "doc_id": doc["id"],
@@ -447,14 +707,49 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
                 "confidence": 0.0,
                 "notes": "fallback: primary extraction returned truncated/non-JSON; used receipt-only retry",
             }
-
             fallback = _retry_cost_items_only(raw_text, doc, fallback_base)
-            fallback = _coerce_ids(fallback, doc)
-            fallback = _normalize_receipt_fields(fallback, doc)
-            fallback = _normalize_discount_labels(fallback)
-
+            fallback = _apply_post_normalizations(fallback, doc)
             if not _cost_items_empty(fallback):
                 return fallback
+
+        # Lab report fallback: per-panel extraction and merge
+        if dt in {"lab_report", "lab"}:
+            panels = _extract_lab_panels(raw_text, doc)
+            if not panels:
+                panels = ["Hematology", "Chemistry", "Urinalysis", "Endocrinology", "Serology", "Other"]
+
+            labs_all: List[Dict[str, Any]] = []
+            notes = []
+
+            for p in panels:
+                try:
+                    outp = _extract_single_panel(raw_text, doc, p)
+                    lp = outp.get("labs") if isinstance(outp, dict) else []
+                    if isinstance(lp, list) and lp:
+                        labs_all = _merge_labs(labs_all, lp)
+                except Exception:
+                    notes.append(f"{p.lower()}_failed")
+
+            if labs_all:
+                fallback_lab: Dict[str, Any] = {
+                    "doc_id": doc["id"],
+                    "pet_id": doc.get("pet_id"),
+                    "doc_type": doc.get("doc_type"),
+                    "doc_date": str(doc.get("doc_date")) if doc.get("doc_date") else None,
+                    "source_org": doc.get("source_org"),
+                    "title": doc.get("title"),
+                    "invoice_id": None,
+                    "summary": None,
+                    "events": [],
+                    "cost_items": [],
+                    "totals": {"paid": None, "currency": "USD"},
+                    "labs": labs_all,
+                    "confidence": 0.0,
+                    "notes": "fallback: primary extraction truncated; used per-panel lab extraction"
+                             + (f" ({','.join(notes)})" if notes else ""),
+                }
+                fallback_lab = _apply_post_normalizations(fallback_lab, doc)
+                return fallback_lab
 
         cleaned = _strip_code_fences(text)
         raise RuntimeError(
@@ -462,14 +757,12 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
             f"First 300 chars: {cleaned[:300]} | Last 300 chars: {cleaned[-300:]}"
         ) from e
 
-    extracted = _coerce_ids(extracted, doc)
-    extracted = _normalize_receipt_fields(extracted, doc)
-    extracted = _normalize_discount_labels(extracted)
+    extracted = _apply_post_normalizations(extracted, doc)
 
+    # Receipt: if still empty, retry narrower prompt
     if _is_receipt(doc, extracted) and _cost_items_empty(extracted):
         extracted = _retry_cost_items_only(raw_text, doc, extracted)
-        extracted = _normalize_receipt_fields(extracted, doc)
-        extracted = _normalize_discount_labels(extracted)
+        extracted = _apply_post_normalizations(extracted, doc)
 
     return extracted
 
