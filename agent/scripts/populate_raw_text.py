@@ -44,9 +44,16 @@ def populate_raw_text(doc_id: str, expires_in: int = 600):
         raise RuntimeError("Extracted text is too short (may be scanned/OCR needed).")
 
     sb.table("documents").update({"raw_text": text}).eq("id", doc_id).execute()
-    return {"doc_id": doc_id, "raw_text_len": len(text), "signed_url_used": True}
-
+    return {"doc_id": doc_id, "raw_text_len": len(text), "signed_url_used": True}   
+    
 if __name__ == "__main__":
-    doc_id = sys.argv[1]
-    out = populate_raw_text(doc_id)
-    print(out)
+    doc_ids = sys.argv[1:]
+    if not doc_ids:
+        raise SystemExit("Usage: python scripts/populate_raw_text.py <doc_id1> [doc_id2 ...]")
+
+    for doc_id in doc_ids:
+        try:
+            out = populate_raw_text(doc_id)
+            print(out)
+        except Exception as e:
+            print({"doc_id": doc_id, "error": str(e)})
