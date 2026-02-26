@@ -72,3 +72,5 @@ tmp/
 scratch/
 agent/scripts/*.csv
 agent/scripts/*.txt
+agent/secrets
+agent/.tokens/
