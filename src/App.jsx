@@ -1,5 +1,11 @@
-import VerifyDocs from "./pages/VerifyDocs.jsx"
+import Header from "./components/Header.jsx"
+import VerifyDocs from "./pages/VerifyDocs/VerifyDocs.jsx"
 
 export default function App() {
-    return <VerifyDocs />
+    return (
+        <>
+            <Header />
+            <VerifyDocs />
+        </>
+    )
 }

@@ -1,1 +1,49 @@
 @import "tailwindcss";
+
+
+@theme {
+    --color-tomo-text: #9ca3af;
+    --color-tomo-text-h: #f3f4f6;
+    --color-tomo-bg: #16171d;
+    --color-tomo-border: #2e303a;
+    --color-tomo-code: #1f2028;
+    --color-tomo-accent: #c084fc;
+
+    /* “Specials” that aren’t plain colors */
+    --tomo-accent-bg: rgba(192, 132, 252, 0.15);
+    --tomo-accent-border: rgba(192, 132, 252, 0.5);
+    --tomo-surface: rgba(47, 48, 58, 0.5);
+    --tomo-shadow:  rgba(0, 0, 0, 0.4) 0 10px 15px -3px,
+                    rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+    /* Optional: font token */
+    --font-primary: "Manrope", sans-serif;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}   
+
+.tomo-theme {
+    font-family: var(--font-primary);
+    background: var(--color-tomo-bg);
+    color: var(--color-tomo-text);
+}
+
+/* Small, reusable utilities for the “specials” */
+.tomo-surface {
+    background: var(--tomo-surface);
+    border: 1px solid var(--color-tomo-border);
+    box-shadow: var(--tomo-shadow);
+}
+
+.tomo-accent-surface {
+    background: var(--tomo-accent-bg);
+    border: 1px solid var(--tomo-accent-border);
+}
+
+/* Optional: code block styling */
+.tomo-code {
+    background: var(--color-tomo-code);
+}
