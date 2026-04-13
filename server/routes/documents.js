@@ -173,14 +173,14 @@ router.post("/documents/:docId/approve", async (req, res) => {
         // 4) Build insert payloads
         const eventsToInsert = Array.isArray(extracted.events)
         ? extracted.events
-            .filter((e) => e && typeof e === "object" && e.event_type && eevent_date)
+            .filter((e) => e && typeof e === "object" && e.event_type && e.event_date)
             .map((e) => ({
                 pet_id: petId,
                 doc_id: docId,
                 event_type: e.event_type,
                 event_date: e.event_date,
                 status: "verified",
-                details_json: normalizeEventDetails(e.event_type, edetails_json),
+                details_json: normalizeEventDetails(e.event_type, e.details_json),
             }))
         : []
 
