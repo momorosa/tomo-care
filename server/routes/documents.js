@@ -4,53 +4,85 @@ import { sbAdmin } from "../supabase.js"
 const router = express.Router()
 
 // List documents for left panel
+// router.get("/pets/:petId/documents", async (req, res) => {
+//     const { petId } = req.params
+//     const { status = "all", limit = "50" } = req.query
+
+//     let q = sbAdmin
+//         .from("documents")
+//         .select("id, doc_type, title, doc_date, source_org, status, created_at,     file_url, remarks, raw_text, text_extracted")
+//         .eq("pet_id", petId)
+//         .order("doc_date", { ascending: false })
+//         .order("created_at", { ascending: false })
+//         .limit(Number(limit))
+
+//     if (status !== "all") q = q.eq("status", status)
+
+//     const { data, error } = await q
+//     if (error) return res.status(500).json({ error: error.message })
+
+//     // Add lightweight booleans + counts for UI (simple approach; optimize later)
+//     const docIds = data.map(d => d.id)
+//     const counts = { events: {}, labs: {}, cost_items: {} }
+
+//     async function countBy(table, key) {
+//         const { data: rows, error: err } = await sbAdmin
+//             .from(table)
+//             .select("doc_id", { count: "exact", head: false })
+//             .in("doc_id", docIds)
+
+//         // Supabase JS count doesn’t group; easiest is a second query per doc later.
+//         // For MVP: return 0 and show counts only on detail view.
+//         return err ? {} : {}
+//     }
+
+//     const list = data.map(d => ({
+//         id: d.id,
+//         doc_type: d.doc_type,
+//         title: d.title,
+//         doc_date: d.doc_date,
+//         source_org: d.source_org,
+//         status: d.status,
+//         created_at: d.created_at,
+//         file_url: d.file_url,
+//         remarks: d.remarks,
+//         has_raw_text: !!(d.raw_text && d.raw_text.length > 0),
+//         has_jsonb: !!(d.text_extracted && Object.keys(d.text_extracted).length > 0),
+//     }))
+
+//     res.json({ documents: list })
+// })
+// List documents for left panel (lightweight: no raw_text/text_extracted)
 router.get("/pets/:petId/documents", async (req, res) => {
-    const { petId } = req.params
-    const { status = "all", limit = "50" } = req.query
+  const { petId } = req.params
+  const { status = "all", limit = "50" } = req.query
 
-    let q = sbAdmin
-        .from("documents")
-        .select("id, doc_type, title, doc_date, source_org, status, created_at,     file_url, remarks, raw_text, text_extracted")
-        .eq("pet_id", petId)
-        .order("doc_date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(Number(limit))
+  let q = sbAdmin
+    .from("documents")
+    .select("id, doc_type, title, doc_date, source_org, status, created_at, file_url, remarks")
+    .eq("pet_id", petId)
+    .order("doc_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(Number(limit))
 
-    if (status !== "all") q = q.eq("status", status)
+  if (status !== "all") q = q.eq("status", status)
 
-    const { data, error } = await q
-    if (error) return res.status(500).json({ error: error.message })
+  const { data, error } = await q
+  if (error) return res.status(500).json({ error: error.message })
 
-    // Add lightweight booleans + counts for UI (simple approach; optimize later)
-    const docIds = data.map(d => d.id)
-    const counts = { events: {}, labs: {}, cost_items: {} }
+  const list = (data || []).map((d) => ({
+    id: d.id,
+    doc_type: d.doc_type,
+    title: d.title,
+    doc_date: d.doc_date,
+    source_org: d.source_org,
+    status: d.status,
+    created_at: d.created_at,
+    file_url: d.file_url,
+    remarks: d.remarks,
+  }))
 
-    async function countBy(table, key) {
-        const { data: rows, error: err } = await sbAdmin
-            .from(table)
-            .select("doc_id", { count: "exact", head: false })
-            .in("doc_id", docIds)
-
-        // Supabase JS count doesn’t group; easiest is a second query per doc later.
-        // For MVP: return 0 and show counts only on detail view.
-        return err ? {} : {}
-    }
-
-    const list = data.map(d => ({
-        id: d.id,
-        doc_type: d.doc_type,
-        title: d.title,
-        doc_date: d.doc_date,
-        source_org: d.source_org,
-        status: d.status,
-        created_at: d.created_at,
-        file_url: d.file_url,
-        remarks: d.remarks,
-        has_raw_text: !!(d.raw_text && d.raw_text.length > 0),
-        has_jsonb: !!(d.text_extracted && Object.keys(d.text_extracted).length > 0),
-    }))
-
-    res.json({ documents: list })
+  res.json({ documents: list })
 })
 
 // Get doc detail (right panel)
@@ -244,6 +276,39 @@ router.post("/documents/:docId/approve", async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err?.message || "Unexpected error" })
     }
+})
+
+// Update candidate truth (Phase 0.5 edit flow)
+// Saves documents.text_extracted only (no materialization).
+// Intended usage:
+// - Save draft: status = "needs_review"
+// - Save & verify: client calls this, then calls POST /approve
+router.patch("/documents/:docId/text-extracted", async (req, res) => {
+  const { docId } = req.params
+  const { text_extracted, remarks = null, status = "needs_review" } = req.body || {}
+
+  if (!text_extracted || typeof text_extracted !== "object") {
+    return res.status(400).json({ error: "text_extracted must be a JSON object." })
+  }
+
+  // Optional: restrict allowed statuses to keep things sane
+  const allowed = new Set(["ingested", "needs_review", "verified", "rejected"])
+  const nextStatus = allowed.has(status) ? status : "needs_review"
+
+  const { data, error } = await sbAdmin
+    .from("documents")
+    .update({
+      text_extracted,
+      remarks,
+      status: nextStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", docId)
+    .select("id, status, updated_at")
+    .single()
+
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true, doc: data })
 })
 
 export default router

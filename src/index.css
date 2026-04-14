@@ -20,6 +20,46 @@
     --font-primary: "Manrope", sans-serif;
 }
 
+@layer components {
+  /* Base button */
+  .tomo-btn {
+    @apply inline-flex items-center justify-center rounded-full text-xs px-3 py-1.5 transition-colors;
+  }
+
+  /* Secondary actions: outline, quiet */
+  .tomo-btn-secondary {
+    @apply border border-tomo-border text-tomo-text hover:text-tomo-text-h;
+    background: transparent;
+  }
+
+  /* Primary action: accent surface */
+  .tomo-btn-primary {
+    @apply text-tomo-accent font-medium;
+    background: var(--tomo-accent-bg);
+    border: 1px solid var(--tomo-accent-border);
+  }
+
+  /* Tabs / mode controls (segmented, not CTA) */
+  .tomo-tab {
+    @apply text-xs px-3 py-1.5 rounded-full border border-tomo-border text-tomo-text transition-colors;
+    background: transparent;
+  }
+
+  .tomo-tab--active {
+    @apply text-tomo-text-h;
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(243, 244, 246, 0.35); /* subtle highlight, not accent */
+  }
+
+  .tomo-section-label {
+    @apply text-[11px] uppercase tracking-[0.12em] text-tomo-text;
+  }
+
+  .tomo-subtle-row {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
 html, body {
     margin: 0;
     padding: 0;
