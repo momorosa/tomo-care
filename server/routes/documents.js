@@ -91,7 +91,8 @@ router.get("/documents/:docId", async (req, res) => {
 
     const { data: doc, error } = await sbAdmin
         .from("documents")
-        .select("id, pet_id, doc_type, title, doc_date, source_org, status, file_url,   raw_text, text_extracted, remarks")
+        .select("id, pet_id, doc_type, title, doc_date, source_org, status, file_url, raw_text, text_extracted, triage_result, remarks")
+        
         .eq("id", docId)
         .single()
 
@@ -136,7 +137,7 @@ router.get("/documents/:docId/view-url", async (req, res) => {
     res.json({ url: data.signedUrl })
 })
 
-// Approve + auto-materialize (Phase 0.5 PoC)
+// Approve + auto-materialize (Phase 1 PoC)
 // - documents.status: ingested -> verified
 // - materialized rows: status = "verified" (simple PoC)
 // - normalize Librela subtype during event materialization (aligns with reminder/calendar flow)
@@ -278,7 +279,7 @@ router.post("/documents/:docId/approve", async (req, res) => {
     }
 })
 
-// Update candidate truth (Phase 0.5 edit flow)
+// Update candidate truth (Phase 1 edit flow)
 // Saves documents.text_extracted only (no materialization).
 // Intended usage:
 // - Save draft: status = "needs_review"
