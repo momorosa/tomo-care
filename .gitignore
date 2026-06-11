@@ -59,6 +59,7 @@ logs/
 *.log
 tmp/
 scratch/
+server/tmp/
 
 # Agent script outputs (custom)
 agent/scripts/*.csv
