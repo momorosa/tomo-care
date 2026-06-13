@@ -1,4 +1,5 @@
-import express from "express";
+import express from "express"
+import { sbAdmin } from "../supabase.js"
 import { processGmailInbox } from "../gmail/processGmailDocuments.js"
 
 const router = express.Router()
@@ -23,9 +24,22 @@ router.post("/gmail/check-inbox", async (req, res) => {
             dryRun: Boolean(dryRun),
         })
 
-        const processedToReview = result.processedDocuments.filter(
-            (doc) => doc.status === "needs_review"
-        )
+        const reviewReadyIds = result.processedDocuments
+            .filter((doc) => doc.status === "needs_review")
+            .map((doc) => doc.documentId)
+
+        let reviewDocuments = []
+
+        if (reviewReadyIds.length > 0) {
+            const { data, error } = await sbAdmin
+                .from("documents")
+                .select("id, title, doc_type, source_org, status, created_at, updated_at")
+                .in("id", reviewReadyIds)
+
+            if (error) throw error;
+
+            reviewDocuments = data || []
+        }
 
         const failedDocuments = result.processedDocuments.filter(
             (doc) => doc.status === "failed"
@@ -36,8 +50,9 @@ router.post("/gmail/check-inbox", async (req, res) => {
             dryRun: Boolean(dryRun),
             emailsFound: result.ingestSummary?.emailsFound ?? null,
             documentsCreated: result.documentsCreated,
-            processedToReview: processedToReview.length,
+            processedToReview: reviewDocuments.length,
             failed: failedDocuments.length,
+            reviewDocuments,
             result,
         })
     } catch (error) {
