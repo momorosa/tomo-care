@@ -24,9 +24,12 @@ router.post("/gmail/check-inbox", async (req, res) => {
             dryRun: Boolean(dryRun),
         })
 
-        const reviewReadyIds = result.processedDocuments
+        const processedDocuments = result.processedDocuments || []
+
+        const reviewReadyIds = processedDocuments
             .filter((doc) => doc.status === "needs_review")
             .map((doc) => doc.documentId)
+            .filter(Boolean)
 
         let reviewDocuments = []
 
@@ -36,22 +39,32 @@ router.post("/gmail/check-inbox", async (req, res) => {
                 .select("id, title, doc_type, source_org, status, created_at, updated_at")
                 .in("id", reviewReadyIds)
 
-            if (error) throw error;
+            if (error) throw error
 
             reviewDocuments = data || []
         }
 
-        const failedDocuments = result.processedDocuments.filter(
+        const failedDocuments = processedDocuments.filter(
             (doc) => doc.status === "failed"
         )
+
+        const skippedDuplicates =
+            result.ingestSummary?.skippedDuplicates ??
+            result.skippedDuplicates ??
+            0
 
         res.json({
             ok: failedDocuments.length === 0,
             dryRun: Boolean(dryRun),
+
             emailsFound: result.ingestSummary?.emailsFound ?? null,
-            documentsCreated: result.documentsCreated,
+            documentsCreated: result.documentsCreated ?? 0,
             processedToReview: reviewDocuments.length,
+            skippedDuplicates,
+
             failed: failedDocuments.length,
+            failedDocuments,
+
             reviewDocuments,
             result,
         })

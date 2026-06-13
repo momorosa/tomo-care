@@ -7,6 +7,8 @@ import WorkingPanel, { validateExtracted } from "./WorkingPanel.jsx"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 
+const EMPTY_COUNTS = { events: 0, labs: 0, cost_items: 0 }
+
 export default function VerifyDocs() {
     const { docId } = useParams()
     const navigate = useNavigate()
@@ -15,7 +17,7 @@ export default function VerifyDocs() {
     const [selectedId, setSelectedId] = useState(null)
 
     const [detail, setDetail] = useState(null)
-    const [counts, setCounts] = useState({ events: 0, labs: 0, cost_items: 0 })
+    const [counts, setCounts] = useState(EMPTY_COUNTS)
     const [viewUrl, setViewUrl] = useState(null)
 
     const [tab, setTab] = useState("fields")
@@ -30,6 +32,7 @@ export default function VerifyDocs() {
     // Toast
     const [toast, setToast] = useState(null)
     const toastTimeoutRef = useRef(null)
+
     function showToast(message) {
         setToast(message)
         window.clearTimeout(toastTimeoutRef.current)
@@ -49,7 +52,7 @@ export default function VerifyDocs() {
     const [dirty, setDirty] = useState(false)
     const [validationErrors, setValidationErrors] = useState({})
 
-    // Per-field accept tracking (Phase 1 triage)
+    // Per-field accept tracking
     const [acceptedPaths, setAcceptedPaths] = useState(new Set())
 
     function markDirty() {
@@ -64,6 +67,18 @@ export default function VerifyDocs() {
         setValidationErrors({})
     }
 
+    function resetSelectedDocumentState() {
+        setSelectedId(null)
+        setDetail(null)
+        setCounts(EMPTY_COUNTS)
+        setViewUrl(null)
+        setError("")
+        setTriageResult(null)
+        setTriageLoading(false)
+        setAcceptedPaths(new Set())
+        resetEditState()
+    }
+
     function startEdit() {
         setDraftExtracted(structuredClone(detail?.text_extracted || {}))
         setValidationErrors({})
@@ -75,25 +90,40 @@ export default function VerifyDocs() {
         resetEditState()
     }
 
-    // Accept a single triaged field
     function acceptField(path) {
         setAcceptedPaths((prev) => new Set([...prev, path]))
     }
 
-    // Accept all auto-confirmed fields at once
     function acceptAllConfirmed() {
         if (!triageResult?.fields) return
+
         const confirmed = triageResult.fields
             .filter((f) => f.state === "auto-confirmed")
             .map((f) => f.path)
+
         setAcceptedPaths((prev) => new Set([...prev, ...confirmed]))
     }
 
-    // If the user switches docs, reset everything
+    // ----------------------------
+    // Route drives selection
+    // /review = no selected document
+    // /review/:docId = selected document
+    // ----------------------------
+    useEffect(() => {
+        if (!docId) {
+            resetSelectedDocumentState()
+            return
+        }
+
+        setSelectedId(docId)
+    }, [docId])
+
+    // If the selected document changes, reset document-specific UI state.
     useEffect(() => {
         resetEditState()
         setTriageResult(null)
         setAcceptedPaths(new Set())
+        setTab("fields")
     }, [selectedId])
 
     // ----------------------------
@@ -101,12 +131,16 @@ export default function VerifyDocs() {
     // ----------------------------
     async function refreshSelectedDoc() {
         if (!selectedId) return
+
         const d = await fetch(`/api/documents/${selectedId}`).then((r) => r.json())
         if (d?.error) throw new Error(d.error)
-        setDetail(d.doc || d)
-        setCounts(d.counts || { events: 0, labs: 0, cost_items: 0 })
-        if (d.doc?.triage_result || d.triage_result) {
-            setTriageResult(d.doc?.triage_result || d.triage_result)
+
+        const nextDoc = d.doc || d
+        setDetail(nextDoc)
+        setCounts(d.counts || EMPTY_COUNTS)
+
+        if (nextDoc?.triage_result) {
+            setTriageResult(nextDoc.triage_result)
         }
     }
 
@@ -119,21 +153,26 @@ export default function VerifyDocs() {
     // ----------------------------
     // Triage
     // ----------------------------
-    async function runTriage(docId) {
+    async function runTriage(id) {
+        if (!id) return
+
         setTriageLoading(true)
+
         try {
-            const r = await fetch(`/api/documents/${docId}/triage`, {
+            const r = await fetch(`/api/documents/${id}/triage`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ force: false }),
             })
+
             const j = await r.json()
+
             if (!r.ok || j.error) {
                 console.error("[triage]", j.error)
-                // Fail-safe: no triage = everything needs confirmation (handled in WorkingPanel)
                 setTriageResult(null)
                 return
             }
+
             setTriageResult(j.triage_result)
         } catch (e) {
             console.error("[triage] fetch error:", e)
@@ -143,57 +182,52 @@ export default function VerifyDocs() {
         }
     }
 
-    useEffect(() => {
-        if (!docId) return
-        setSelectedId(docId)
-    }, [docId])
-
     // ----------------------------
-    // 1) Load document list (left panel)
+    // 1) Load document list
+    // Important:
+    // Do NOT auto-select a document here.
+    // /review must stay empty until the user selects a document.
     // ----------------------------
     useEffect(() => {
         let ignore = false
+
         setLoading(true)
+        setError("")
 
         fetch(`/api/pets/${PET_ID}/documents?status=all&limit=50`)
             .then((r) => r.json())
             .then((j) => {
                 if (ignore) return
-
                 const list = j.documents || j.data || []
                 setDocs(list)
-
-                // If route has a docId, URL wins.
-                if (docId) {
-                    setSelectedId(docId)
-                    return
-                }
-
-                // Otherwise /review should open the first actionable document.
-                const firstPending = list.find((d) => d.status !== "verified")
-                const nextId = firstPending?.id || list[0]?.id || null
-
-                if (nextId) {
-                    setSelectedId(nextId)
-                    navigate(`/review/${nextId}`, { replace: true })
-                }
             })
             .catch((e) => setError(e.message))
-            .finally(() => setLoading(false))
+            .finally(() => {
+                if (!ignore) setLoading(false)
+            })
 
         return () => {
             ignore = true
         }
-    }, [docId, navigate])
+    }, [])
 
     // ----------------------------
     // 2) Load selected doc detail + signed URL + triage
     // ----------------------------
     useEffect(() => {
-        if (!selectedId) return
+        if (!selectedId) {
+            setDetail(null)
+            setCounts(EMPTY_COUNTS)
+            setViewUrl(null)
+            setTriageResult(null)
+            return
+        }
+
         let ignore = false
+
         setError("")
         setDetail(null)
+        setCounts(EMPTY_COUNTS)
         setViewUrl(null)
         setTriageResult(null)
 
@@ -207,18 +241,20 @@ export default function VerifyDocs() {
                 if (u?.error) throw new Error(u.error)
 
                 const doc = d.doc || d
+
                 setDetail(doc)
-                setCounts(d.counts || { events: 0, labs: 0, cost_items: 0 })
+                setCounts(d.counts || EMPTY_COUNTS)
                 setViewUrl(u.url)
 
-                // Load cached triage or run it
                 if (doc.triage_result) {
                     setTriageResult(doc.triage_result)
                 } else if (doc.text_extracted && doc.raw_text && doc.status !== "verified") {
                     runTriage(doc.id)
                 }
             })
-            .catch((e) => setError(e.message))
+            .catch((e) => {
+                if (!ignore) setError(e.message)
+            })
 
         return () => {
             ignore = true
@@ -230,6 +266,7 @@ export default function VerifyDocs() {
     // ----------------------------
     async function approveDoc() {
         if (!selectedId) return
+
         setApproving(true)
         setError("")
 
@@ -244,15 +281,23 @@ export default function VerifyDocs() {
             if (!r.ok || j.error) throw new Error(j.error || "Approve failed")
 
             setCounts(j.materialized || counts)
+
             setDocs((prev) =>
-                prev.map((x) => (x.id === selectedId ? { ...x, status: "verified" } : x))
+                prev.map((x) =>
+                    x.id === selectedId ? { ...x, status: "verified" } : x
+                )
             )
-            setDetail((prev) => (prev ? { ...prev, status: "verified" } : prev))
+
+            setDetail((prev) =>
+                prev ? { ...prev, status: "verified" } : prev
+            )
 
             await refreshSelectedDoc()
 
             showToast(
-                `Verified · events ${j.materialized?.events ?? 0} · costs ${j.materialized?.cost_items ?? 0}`
+                `Verified · events ${j.materialized?.events ?? 0} · costs ${
+                    j.materialized?.cost_items ?? 0
+                }`
             )
         } catch (e) {
             setError(e.message)
@@ -262,7 +307,7 @@ export default function VerifyDocs() {
     }
 
     // ----------------------------
-    // Inline edit handlers (candidate truth)
+    // Inline edit handlers
     // ----------------------------
     function onUpdateInvoiceId(value) {
         setDraftExtracted((prev) => ({ ...(prev || {}), invoice_id: value }))
@@ -287,7 +332,7 @@ export default function VerifyDocs() {
             next.events.push({
                 status: "completed",
                 event_type: "injection",
-                event_date: next.doc_date || "",
+                event_date: next.doc_date || detail?.doc_date || "",
                 details_json: { description: "" },
             })
             return next
@@ -325,7 +370,7 @@ export default function VerifyDocs() {
                 amount: 0,
                 category: "other",
                 currency: "USD",
-                service_date: next.doc_date || "",
+                service_date: next.doc_date || detail?.doc_date || "",
             })
             return next
         })
@@ -346,6 +391,7 @@ export default function VerifyDocs() {
     // ----------------------------
     async function saveDraft() {
         if (!selectedId || !draftExtracted) return
+
         setError("")
 
         const errs = validateExtracted(draftExtracted)
@@ -361,19 +407,28 @@ export default function VerifyDocs() {
                     status: "needs_review",
                 }),
             })
+
             const j = await r.json()
             if (!r.ok || j.error) throw new Error(j.error || "Save failed")
 
             setDetail((prev) =>
-                prev ? { ...prev, text_extracted: draftExtracted, status: "needs_review" } : prev
+                prev
+                    ? {
+                          ...prev,
+                          text_extracted: draftExtracted,
+                          status: "needs_review",
+                      }
+                    : prev
             )
+
             setDocs((prev) =>
-                prev.map((d) => (d.id === selectedId ? { ...d, status: "needs_review" } : d))
+                prev.map((d) =>
+                    d.id === selectedId ? { ...d, status: "needs_review" } : d
+                )
             )
 
             setDirty(false)
 
-            // Re-run triage after editing extraction
             setTriageResult(null)
             runTriage(selectedId)
 
@@ -385,6 +440,7 @@ export default function VerifyDocs() {
 
     async function saveAndVerify() {
         if (!selectedId || !draftExtracted) return
+
         setError("")
 
         const errs = validateExtracted(draftExtracted)
@@ -397,8 +453,10 @@ export default function VerifyDocs() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     text_extracted: draftExtracted,
+                    status: "needs_review",
                 }),
             })
+
             const j1 = await r1.json()
             if (!r1.ok || j1.error) throw new Error(j1.error || "Save failed")
 
@@ -412,23 +470,32 @@ export default function VerifyDocs() {
     const extracted = detail?.text_extracted || {}
     const rawText = detail?.raw_text || ""
 
-    // Compute how many flagged fields still need review
     const unreviewedCount = useMemo(() => {
         if (!triageResult?.fields) return 0
+
         return triageResult.fields.filter(
             (f) =>
-                (f.state === "needs-confirmation" || f.state === "unreadable-source") &&
+                (f.state === "needs-confirmation" ||
+                    f.state === "unreadable-source") &&
                 !acceptedPaths.has(f.path)
         ).length
     }, [triageResult, acceptedPaths])
 
-    // Approve is allowed only when:
-    // - a doc is selected and not already verified
-    // - triage has run and all flagged fields are accepted (or triage is unavailable / fail-safe)
-    const hasTriage = triageResult && Array.isArray(triageResult.fields) && triageResult.fields.length > 0
-    const isFailSafe = triageResult?.fail_safe === true || (triageResult && triageResult.overall_confidence === "low" && triageResult.fields?.length === 0)
+    const hasTriage =
+        triageResult &&
+        Array.isArray(triageResult.fields) &&
+        triageResult.fields.length > 0
+
+    const isFailSafe =
+        triageResult?.fail_safe === true ||
+        (triageResult &&
+            triageResult.overall_confidence === "low" &&
+            triageResult.fields?.length === 0)
+
     const triageBlocksApprove = hasTriage && !isFailSafe && unreviewedCount > 0
+
     const currentStatus = detail?.status || selectedDoc?.status
+
     const canApprove =
         !!selectedId &&
         currentStatus !== "verified" &&
@@ -450,7 +517,9 @@ export default function VerifyDocs() {
 
                 {toast && (
                     <div className="fixed top-5 right-5 z-50 tomo-surface px-4 py-3 rounded-xl">
-                        <p className="text-tomo-text-h text-sm font-medium">{toast}</p>
+                        <p className="text-tomo-text-h text-sm font-medium">
+                            {toast}
+                        </p>
                     </div>
                 )}
 
@@ -472,10 +541,13 @@ export default function VerifyDocs() {
                         setTab={setTab}
                         extracted={extracted}
                         rawText={rawText}
-                        detailJson={detail?.text_extracted ? JSON.stringify(detail.text_extracted, null, 2) : ""}
+                        detailJson={
+                            detail?.text_extracted
+                                ? JSON.stringify(detail.text_extracted, null, 2)
+                                : ""
+                        }
                         counts={counts}
                         error={error}
-                        // edit props
                         editMode={editMode}
                         draftExtracted={draftExtracted}
                         dirty={dirty}
@@ -491,7 +563,6 @@ export default function VerifyDocs() {
                         onUpdateCostItem={onUpdateCostItem}
                         onAddCostItem={onAddCostItem}
                         onRemoveCostItem={onRemoveCostItem}
-                        // triage props (Phase 1)
                         triageResult={triageResult}
                         triageLoading={triageLoading}
                         acceptedPaths={acceptedPaths}
