@@ -218,14 +218,25 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            className="tomo-btn tomo-btn-primary shrink-0"
-                            onClick={checkInbox}
-                            disabled={checkingInbox}
-                        >
-                            {checkingInbox ? "Checking inbox..." : "Check inbox"}
-                        </button>
+                        <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
+                            <button
+                                type="button"
+                                className="tomo-btn tomo-btn-primary gap-2"
+                                onClick={checkInbox}
+                                disabled={checkingInbox}
+                            >
+                                {checkingInbox && (
+                                    <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                                )}
+                                {checkingInbox ? "Checking inbox…" : "Check inbox"}
+                            </button>
+
+                            {checkingInbox && (
+                                <p className="text-[11px] text-tomo-text">
+                                    This can take up to ~30s.
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </section>
 

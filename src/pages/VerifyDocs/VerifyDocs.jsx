@@ -25,35 +25,32 @@ export default function VerifyDocs() {
     const [approving, setApproving] = useState(false)
     const [error, setError] = useState("")
 
-    // Triage
     const [triageResult, setTriageResult] = useState(null)
     const [triageLoading, setTriageLoading] = useState(false)
 
-    // Toast
     const [toast, setToast] = useState(null)
     const toastTimeoutRef = useRef(null)
 
-    function showToast(message) {
-        setToast(message)
-        window.clearTimeout(toastTimeoutRef.current)
-        toastTimeoutRef.current = window.setTimeout(() => setToast(null), 2500)
-    }
+    const [editMode, setEditMode] = useState(false)
+    const [draftExtracted, setDraftExtracted] = useState(null)
+    const [dirty, setDirty] = useState(false)
+    const [validationErrors, setValidationErrors] = useState({})
+
+    const [acceptedPaths, setAcceptedPaths] = useState(new Set())
 
     const selectedDoc = useMemo(
         () => docs.find((d) => d.id === selectedId) || null,
         [docs, selectedId]
     )
 
-    // ----------------------------
-    // Edit Mode State
-    // ----------------------------
-    const [editMode, setEditMode] = useState(false)
-    const [draftExtracted, setDraftExtracted] = useState(null)
-    const [dirty, setDirty] = useState(false)
-    const [validationErrors, setValidationErrors] = useState({})
+    const currentStatus = detail?.status || selectedDoc?.status || null
+    const isVerified = currentStatus === "verified"
 
-    // Per-field accept tracking
-    const [acceptedPaths, setAcceptedPaths] = useState(new Set())
+    function showToast(message) {
+        setToast(message)
+        window.clearTimeout(toastTimeoutRef.current)
+        toastTimeoutRef.current = window.setTimeout(() => setToast(null), 2500)
+    }
 
     function markDirty() {
         setDirty(true)
@@ -80,6 +77,8 @@ export default function VerifyDocs() {
     }
 
     function startEdit() {
+        if (isVerified) return
+
         setDraftExtracted(structuredClone(detail?.text_extracted || {}))
         setValidationErrors({})
         setDirty(false)
@@ -91,10 +90,12 @@ export default function VerifyDocs() {
     }
 
     function acceptField(path) {
+        if (isVerified) return
         setAcceptedPaths((prev) => new Set([...prev, path]))
     }
 
     function acceptAllConfirmed() {
+        if (isVerified) return
         if (!triageResult?.fields) return
 
         const confirmed = triageResult.fields
@@ -104,11 +105,6 @@ export default function VerifyDocs() {
         setAcceptedPaths((prev) => new Set([...prev, ...confirmed]))
     }
 
-    // ----------------------------
-    // Route drives selection
-    // /review = no selected document
-    // /review/:docId = selected document
-    // ----------------------------
     useEffect(() => {
         if (!docId) {
             resetSelectedDocumentState()
@@ -118,7 +114,6 @@ export default function VerifyDocs() {
         setSelectedId(docId)
     }, [docId])
 
-    // If the selected document changes, reset document-specific UI state.
     useEffect(() => {
         resetEditState()
         setTriageResult(null)
@@ -126,9 +121,6 @@ export default function VerifyDocs() {
         setTab("fields")
     }, [selectedId])
 
-    // ----------------------------
-    // API helpers
-    // ----------------------------
     async function refreshSelectedDoc() {
         if (!selectedId) return
 
@@ -136,6 +128,7 @@ export default function VerifyDocs() {
         if (d?.error) throw new Error(d.error)
 
         const nextDoc = d.doc || d
+
         setDetail(nextDoc)
         setCounts(d.counts || EMPTY_COUNTS)
 
@@ -150,9 +143,6 @@ export default function VerifyDocs() {
         navigate(`/review/${id}`)
     }
 
-    // ----------------------------
-    // Triage
-    // ----------------------------
     async function runTriage(id) {
         if (!id) return
 
@@ -182,12 +172,6 @@ export default function VerifyDocs() {
         }
     }
 
-    // ----------------------------
-    // 1) Load document list
-    // Important:
-    // Do NOT auto-select a document here.
-    // /review must stay empty until the user selects a document.
-    // ----------------------------
     useEffect(() => {
         let ignore = false
 
@@ -211,9 +195,6 @@ export default function VerifyDocs() {
         }
     }, [])
 
-    // ----------------------------
-    // 2) Load selected doc detail + signed URL + triage
-    // ----------------------------
     useEffect(() => {
         if (!selectedId) {
             setDetail(null)
@@ -230,6 +211,8 @@ export default function VerifyDocs() {
         setCounts(EMPTY_COUNTS)
         setViewUrl(null)
         setTriageResult(null)
+        setTriageLoading(false)
+        setAcceptedPaths(new Set())
 
         Promise.all([
             fetch(`/api/documents/${selectedId}`).then((r) => r.json()),
@@ -248,7 +231,11 @@ export default function VerifyDocs() {
 
                 if (doc.triage_result) {
                     setTriageResult(doc.triage_result)
-                } else if (doc.text_extracted && doc.raw_text && doc.status !== "verified") {
+                } else if (
+                    doc.text_extracted &&
+                    doc.raw_text &&
+                    doc.status !== "verified"
+                ) {
                     runTriage(doc.id)
                 }
             })
@@ -261,11 +248,9 @@ export default function VerifyDocs() {
         }
     }, [selectedId])
 
-    // ----------------------------
-    // Approve + materialize
-    // ----------------------------
     async function approveDoc() {
         if (!selectedId) return
+        if (isVerified) return
 
         setApproving(true)
         setError("")
@@ -292,6 +277,12 @@ export default function VerifyDocs() {
                 prev ? { ...prev, status: "verified" } : prev
             )
 
+            if (triageResult?.fields) {
+                setAcceptedPaths(
+                    new Set(triageResult.fields.map((field) => field.path))
+                )
+            }
+
             await refreshSelectedDoc()
 
             showToast(
@@ -306,9 +297,6 @@ export default function VerifyDocs() {
         }
     }
 
-    // ----------------------------
-    // Inline edit handlers
-    // ----------------------------
     function onUpdateInvoiceId(value) {
         setDraftExtracted((prev) => ({ ...(prev || {}), invoice_id: value }))
         markDirty()
@@ -322,6 +310,7 @@ export default function VerifyDocs() {
             next.events[index] = { ...cur, ...patch }
             return next
         })
+
         markDirty()
     }
 
@@ -337,6 +326,7 @@ export default function VerifyDocs() {
             })
             return next
         })
+
         markDirty()
     }
 
@@ -346,6 +336,7 @@ export default function VerifyDocs() {
             next.events = (next.events || []).filter((_, i) => i !== index)
             return next
         })
+
         markDirty()
     }
 
@@ -357,6 +348,7 @@ export default function VerifyDocs() {
             next.cost_items[index] = { ...cur, ...patch }
             return next
         })
+
         markDirty()
     }
 
@@ -374,6 +366,7 @@ export default function VerifyDocs() {
             })
             return next
         })
+
         markDirty()
     }
 
@@ -383,19 +376,19 @@ export default function VerifyDocs() {
             next.cost_items = (next.cost_items || []).filter((_, i) => i !== index)
             return next
         })
+
         markDirty()
     }
 
-    // ----------------------------
-    // Save draft / Save & verify
-    // ----------------------------
     async function saveDraft() {
         if (!selectedId || !draftExtracted) return
+        if (isVerified) return
 
         setError("")
 
         const errs = validateExtracted(draftExtracted)
         setValidationErrors(errs)
+
         if (Object.keys(errs).length) return
 
         try {
@@ -430,6 +423,7 @@ export default function VerifyDocs() {
             setDirty(false)
 
             setTriageResult(null)
+            setAcceptedPaths(new Set())
             runTriage(selectedId)
 
             showToast("Saved draft")
@@ -440,11 +434,13 @@ export default function VerifyDocs() {
 
     async function saveAndVerify() {
         if (!selectedId || !draftExtracted) return
+        if (isVerified) return
 
         setError("")
 
         const errs = validateExtracted(draftExtracted)
         setValidationErrors(errs)
+
         if (Object.keys(errs).length) return
 
         try {
@@ -471,6 +467,7 @@ export default function VerifyDocs() {
     const rawText = detail?.raw_text || ""
 
     const unreviewedCount = useMemo(() => {
+        if (isVerified) return 0
         if (!triageResult?.fields) return 0
 
         return triageResult.fields.filter(
@@ -479,7 +476,7 @@ export default function VerifyDocs() {
                     f.state === "unreadable-source") &&
                 !acceptedPaths.has(f.path)
         ).length
-    }, [triageResult, acceptedPaths])
+    }, [triageResult, acceptedPaths, isVerified])
 
     const hasTriage =
         triageResult &&
@@ -492,13 +489,12 @@ export default function VerifyDocs() {
             triageResult.overall_confidence === "low" &&
             triageResult.fields?.length === 0)
 
-    const triageBlocksApprove = hasTriage && !isFailSafe && unreviewedCount > 0
-
-    const currentStatus = detail?.status || selectedDoc?.status
+    const triageBlocksApprove =
+        !isVerified && hasTriage && !isFailSafe && unreviewedCount > 0
 
     const canApprove =
         !!selectedId &&
-        currentStatus !== "verified" &&
+        !isVerified &&
         !triageLoading &&
         !triageBlocksApprove
 
@@ -548,6 +544,7 @@ export default function VerifyDocs() {
                         }
                         counts={counts}
                         error={error}
+                        isVerified={isVerified}
                         editMode={editMode}
                         draftExtracted={draftExtracted}
                         dirty={dirty}
