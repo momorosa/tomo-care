@@ -4,6 +4,7 @@ import VerifyHeader from "./VerifyHeader.jsx"
 import ReviewQueuePanel from "./ReviewQueuePanel.jsx"
 import SourcePreviewPanel from "./SourcePreviewPanel.jsx"
 import WorkingPanel, { validateExtracted } from "./WorkingPanel.jsx"
+import PostVerifyActionsModal from "./PostVerifyActionsModal.jsx"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 
@@ -30,6 +31,7 @@ export default function VerifyDocs() {
 
     const [toast, setToast] = useState(null)
     const toastTimeoutRef = useRef(null)
+    const [showPostVerifyActions, setShowPostVerifyActions] = useState(false)
 
     const [editMode, setEditMode] = useState(false)
     const [draftExtracted, setDraftExtracted] = useState(null)
@@ -50,6 +52,36 @@ export default function VerifyDocs() {
         setToast(message)
         window.clearTimeout(toastTimeoutRef.current)
         toastTimeoutRef.current = window.setTimeout(() => setToast(null), 2500)
+    }
+
+    function looksLikeLibrela(doc) {
+        const extracted = doc?.text_extracted || {}
+
+        const haystack = [
+            extracted.summary,
+            ...(Array.isArray(extracted.events)
+                ? extracted.events.map((event) => event?.details_json?.description)
+                : []),
+            ...(Array.isArray(extracted.cost_items)
+                ? extracted.cost_items.map((item) => item?.label)
+                : []),
+        ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+
+        return haystack.includes("librela")
+    }
+
+    // Post-verify action handlers (wired into PostVerifyActionsModal)
+    function handleCreateLibrelaReminder() {
+        showToast("Reminder action coming next")
+        setShowPostVerifyActions(false)
+    }
+
+    function handleCreateInsuranceClaimReminder() {
+        showToast("Insurance claim reminder coming next")
+        setShowPostVerifyActions(false)
     }
 
     function markDirty() {
@@ -73,7 +105,10 @@ export default function VerifyDocs() {
         setTriageResult(null)
         setTriageLoading(false)
         setAcceptedPaths(new Set())
-        resetEditState()
+        setEditMode(false)
+        setDraftExtracted(null)
+        setDirty(false)
+        setValidationErrors({})
     }
 
     function startEdit() {
@@ -290,6 +325,8 @@ export default function VerifyDocs() {
                     j.materialized?.cost_items ?? 0
                 }`
             )
+
+            setShowPostVerifyActions(true)
         } catch (e) {
             setError(e.message)
         } finally {
@@ -506,7 +543,6 @@ export default function VerifyDocs() {
                     approving={approving}
                     canApprove={canApprove}
                     onApprove={approveDoc}
-                    onSyncCalendar={() => {}}
                     unreviewedCount={unreviewedCount}
                     triageLoading={triageLoading}
                 />
@@ -518,6 +554,15 @@ export default function VerifyDocs() {
                         </p>
                     </div>
                 )}
+
+                <PostVerifyActionsModal
+                    open={showPostVerifyActions}
+                    onClose={() => setShowPostVerifyActions(false)}
+                    documentTitle={detail?.title || selectedDoc?.title}
+                    isLibrela={looksLikeLibrela(detail)}
+                    onCreateLibrelaReminder={handleCreateLibrelaReminder}
+                    onCreateInsuranceClaimReminder={handleCreateInsuranceClaimReminder}
+                />
 
                 <div className="mt-4 grid grid-cols-12 gap-4 flex-1 min-h-0">
                     <ReviewQueuePanel

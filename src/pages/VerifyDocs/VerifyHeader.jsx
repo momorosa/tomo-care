@@ -3,7 +3,6 @@ export default function VerifyHeader({
   approving,
   canApprove,
   onApprove,
-  onSyncCalendar,
   unreviewedCount = 0,
   triageLoading = false,
 }) {
@@ -34,21 +33,12 @@ export default function VerifyHeader({
           >
             {approving ? "Approving…" : "Approve"}
           </button>
-
-          <button
-            className="px-4 py-2 rounded-lg border border-tomo-border text-tomo-text hover:text-tomo-text-h disabled:opacity-40
-              hover:cursor-pointer disabled:hover:cursor-not-allowed"
-            onClick={onSyncCalendar}
-            disabled
-            title="Phase 1 action (separate approval): sync reminder to Google Calendar"
-          >
-            Sync to calendar
-          </button>
         </div>
 
         {showHint && (
           <p className="text-[11px] text-amber-300/80">
-            Review {unreviewedCount} flagged field{unreviewedCount > 1 ? "s" : ""} to approve
+            Review {unreviewedCount} flagged field
+            {unreviewedCount > 1 ? "s" : ""} to approve
           </p>
         )}
 
