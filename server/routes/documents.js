@@ -3,86 +3,45 @@ import { sbAdmin } from "../supabase.js"
 
 const router = express.Router()
 
-// List documents for left panel
-// router.get("/pets/:petId/documents", async (req, res) => {
-//     const { petId } = req.params
-//     const { status = "all", limit = "50" } = req.query
+// Shared by /approve and /text-extracted: pick the first value that looks like
+// a valid YYYY-MM-DD date, falling back through the given candidates.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-//     let q = sbAdmin
-//         .from("documents")
-//         .select("id, doc_type, title, doc_date, source_org, status, created_at,     file_url, remarks, raw_text, text_extracted")
-//         .eq("pet_id", petId)
-//         .order("doc_date", { ascending: false })
-//         .order("created_at", { ascending: false })
-//         .limit(Number(limit))
+function firstValidDate(...values) {
+    return values.find((value) => typeof value === "string" && DATE_RE.test(value)) || null
+}
 
-//     if (status !== "all") q = q.eq("status", status)
-
-//     const { data, error } = await q
-//     if (error) return res.status(500).json({ error: error.message })
-
-//     // Add lightweight booleans + counts for UI (simple approach; optimize later)
-//     const docIds = data.map(d => d.id)
-//     const counts = { events: {}, labs: {}, cost_items: {} }
-
-//     async function countBy(table, key) {
-//         const { data: rows, error: err } = await sbAdmin
-//             .from(table)
-//             .select("doc_id", { count: "exact", head: false })
-//             .in("doc_id", docIds)
-
-//         // Supabase JS count doesn’t group; easiest is a second query per doc later.
-//         // For MVP: return 0 and show counts only on detail view.
-//         return err ? {} : {}
-//     }
-
-//     const list = data.map(d => ({
-//         id: d.id,
-//         doc_type: d.doc_type,
-//         title: d.title,
-//         doc_date: d.doc_date,
-//         source_org: d.source_org,
-//         status: d.status,
-//         created_at: d.created_at,
-//         file_url: d.file_url,
-//         remarks: d.remarks,
-//         has_raw_text: !!(d.raw_text && d.raw_text.length > 0),
-//         has_jsonb: !!(d.text_extracted && Object.keys(d.text_extracted).length > 0),
-//     }))
-
-//     res.json({ documents: list })
-// })
 // List documents for left panel (lightweight: no raw_text/text_extracted)
 router.get("/pets/:petId/documents", async (req, res) => {
-  const { petId } = req.params
-  const { status = "all", limit = "50" } = req.query
+    const { petId } = req.params
+    const { status = "all", limit = "50" } = req.query
 
-  let q = sbAdmin
-    .from("documents")
-    .select("id, doc_type, title, doc_date, source_org, status, created_at, file_url, remarks")
-    .eq("pet_id", petId)
-    .order("doc_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(Number(limit))
+    let q = sbAdmin
+        .from("documents")
+        .select("id, doc_type, title, doc_date, source_org, status, created_at, file_url, remarks")
+        .eq("pet_id", petId)
+        .order("doc_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(Number(limit))
 
-  if (status !== "all") q = q.eq("status", status)
+    if (status !== "all") q = q.eq("status", status)
 
-  const { data, error } = await q
-  if (error) return res.status(500).json({ error: error.message })
+    const { data, error } = await q
+    if (error) return res.status(500).json({ error: error.message })
 
-  const list = (data || []).map((d) => ({
-    id: d.id,
-    doc_type: d.doc_type,
-    title: d.title,
-    doc_date: d.doc_date,
-    source_org: d.source_org,
-    status: d.status,
-    created_at: d.created_at,
-    file_url: d.file_url,
-    remarks: d.remarks,
-  }))
+    const list = (data || []).map((d) => ({
+        id: d.id,
+        doc_type: d.doc_type,
+        title: d.title,
+        doc_date: d.doc_date,
+        source_org: d.source_org,
+        status: d.status,
+        created_at: d.created_at,
+        file_url: d.file_url,
+        remarks: d.remarks,
+    }))
 
-  res.json({ documents: list })
+    res.json({ documents: list })
 })
 
 // Get doc detail (right panel)
@@ -92,17 +51,16 @@ router.get("/documents/:docId", async (req, res) => {
     const { data: doc, error } = await sbAdmin
         .from("documents")
         .select("id, pet_id, doc_type, title, doc_date, source_org, status, file_url, raw_text, text_extracted, triage_result, remarks")
-        
         .eq("id", docId)
         .single()
 
     if (error) return res.status(404).json({ error: error.message })
 
-    // counts for “materialized outputs”
+    // counts for "materialized outputs"
     const [events, labs, costItems] = await Promise.all([
-        sbAdmin.from("events").select("id", { count: "exact", head: true }).eq("doc_id",    docId),
-        sbAdmin.from("labs").select("id", { count: "exact", head: true }).eq("doc_id",  docId),
-        sbAdmin.from("cost_items").select("id", { count: "exact", head: true }).eq  ("doc_id", docId),
+        sbAdmin.from("events").select("id", { count: "exact", head: true }).eq("doc_id", docId),
+        sbAdmin.from("labs").select("id", { count: "exact", head: true }).eq("doc_id", docId),
+        sbAdmin.from("cost_items").select("id", { count: "exact", head: true }).eq("doc_id", docId),
     ])
 
     res.json({
@@ -125,7 +83,7 @@ router.get("/documents/:docId/view-url", async (req, res) => {
         .eq("id", docId)
         .single()
 
-    if (error || !doc?.file_url) return res.status(404).json({ error: "Missing    file_url" })
+    if (error || !doc?.file_url) return res.status(404).json({ error: "Missing file_url" })
 
     // file_url stores stable storage key, ex: `${pet_id}/2025-04-16/receipt.pdf`
     const { data, error: signErr } = await sbAdmin
@@ -142,7 +100,6 @@ router.get("/documents/:docId/view-url", async (req, res) => {
 // - materialized rows: status = "verified" (simple PoC)
 // - normalize Librela subtype during event materialization (aligns with reminder/calendar flow)
 // - keep calendar sync as a separate explicit action (not triggered here)
-
 router.post("/documents/:docId/approve", async (req, res) => {
     const { docId } = req.params
     const { verifiedBy = "rosa", notes = "" } = req.body || {}
@@ -151,7 +108,7 @@ router.post("/documents/:docId/approve", async (req, res) => {
         // 1) Load doc + extracted JSON
         const { data: doc, error } = await sbAdmin
             .from("documents")
-            .select("id, pet_id, doc_type, doc_date, source_org, title, status,     text_extracted")
+            .select("id, pet_id, doc_type, doc_date, source_org, title, status, text_extracted")
             .eq("id", docId)
             .single()
 
@@ -159,16 +116,34 @@ router.post("/documents/:docId/approve", async (req, res) => {
 
         const extracted = doc.text_extracted
         if (!extracted || typeof extracted !== "object" || Object.keys(extracted).length === 0) {
-            return res.status(400).json({ error: "No text_extracted found for this    document." })
+            return res.status(400).json({ error: "No text_extracted found for this document." })
         }
 
         const petId = doc.pet_id
         const nowIso = new Date().toISOString()
 
+        // Promote the extracted doc date back onto the document, falling back to the
+        // first event/cost-item date, then whatever doc_date was already stored.
+        const approvedDocDate = firstValidDate(
+            extracted.doc_date,
+            extracted.events?.[0]?.event_date,
+            extracted.cost_items?.[0]?.service_date,
+            doc.doc_date
+        )
+
         // 2) Mark doc verified (doc-level gate)
+        const docUpdate = {
+            status: "verified",
+            remarks: notes,
+        }
+
+        if (approvedDocDate) {
+            docUpdate.doc_date = approvedDocDate
+        }
+
         const { error: upErr } = await sbAdmin
             .from("documents")
-            .update({ status: "verified", remarks: notes })
+            .update(docUpdate)
             .eq("id", docId)
 
         if (upErr) return res.status(500).json({ error: upErr.message })
@@ -205,17 +180,17 @@ router.post("/documents/:docId/approve", async (req, res) => {
 
         // 4) Build insert payloads
         const eventsToInsert = Array.isArray(extracted.events)
-        ? extracted.events
-            .filter((e) => e && typeof e === "object" && e.event_type && e.event_date)
-            .map((e) => ({
-                pet_id: petId,
-                doc_id: docId,
-                event_type: e.event_type,
-                event_date: e.event_date,
-                status: "verified",
-                details_json: normalizeEventDetails(e.event_type, e.details_json),
-            }))
-        : []
+            ? extracted.events
+                .filter((e) => e && typeof e === "object" && e.event_type && e.event_date)
+                .map((e) => ({
+                    pet_id: petId,
+                    doc_id: docId,
+                    event_type: e.event_type,
+                    event_date: e.event_date,
+                    status: "verified",
+                    details_json: normalizeEventDetails(e.event_type, e.details_json),
+                }))
+            : []
 
         const costItemsToInsert = Array.isArray(extracted.cost_items)
         ? extracted.cost_items
@@ -223,7 +198,7 @@ router.post("/documents/:docId/approve", async (req, res) => {
             .map((ci) => ({
                 pet_id: petId,
                 doc_id: docId,
-                service_date: ci.service_date || extracted.doc_date || doc.doc_date,
+                service_date: ci.service_date || extracted.doc_date ||  approvedDocDate || doc.doc_date,
                 category: ci.category || "other",
                 item_name: ci.label || "Unknown item",
                 quantity: null,
@@ -237,7 +212,6 @@ router.post("/documents/:docId/approve", async (req, res) => {
                 verified_by: verifiedBy,
             }))
         : []
-
         // Labs scaffold: your current receipt example has labs: []
         // When you start materializing labs, you'll flatten panels/results into rows in `labs`.
         const labsToInsert = [] // keep PoC simple for now
@@ -285,31 +259,43 @@ router.post("/documents/:docId/approve", async (req, res) => {
 // - Save draft: status = "needs_review"
 // - Save & verify: client calls this, then calls POST /approve
 router.patch("/documents/:docId/text-extracted", async (req, res) => {
-  const { docId } = req.params
-  const { text_extracted, remarks = null, status = "needs_review" } = req.body || {}
+    const { docId } = req.params
+    const { text_extracted, remarks = null, status = "needs_review" } = req.body || {}
 
-  if (!text_extracted || typeof text_extracted !== "object") {
-    return res.status(400).json({ error: "text_extracted must be a JSON object." })
-  }
+    if (!text_extracted || typeof text_extracted !== "object") {
+        return res.status(400).json({ error: "text_extracted must be a JSON object." })
+    }
 
-  // Optional: restrict allowed statuses to keep things sane
-  const allowed = new Set(["ingested", "needs_review", "verified", "rejected"])
-  const nextStatus = allowed.has(status) ? status : "needs_review"
+    // Optional: restrict allowed statuses to keep things sane
+    const allowed = new Set(["ingested", "needs_review", "verified", "rejected"])
+    const nextStatus = allowed.has(status) ? status : "needs_review"
 
-  const { data, error } = await sbAdmin
-    .from("documents")
-    .update({
-      text_extracted,
-      remarks,
-      status: nextStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", docId)
-    .select("id, status, updated_at")
-    .single()
+    const nextDocDate = firstValidDate(
+        text_extracted.doc_date,
+        text_extracted.events?.[0]?.event_date,
+        text_extracted.cost_items?.[0]?.service_date
+    )
 
-  if (error) return res.status(500).json({ error: error.message })
-  res.json({ ok: true, doc: data })
+    const updatePayload = {
+        text_extracted,
+        remarks,
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+    }
+
+    if (nextDocDate) {
+        updatePayload.doc_date = nextDocDate
+    }
+
+    const { data, error } = await sbAdmin
+        .from("documents")
+        .update(updatePayload)
+        .eq("id", docId)
+        .select("id, status, updated_at")
+        .single()
+
+    if (error) return res.status(500).json({ error: error.message })
+    res.json({ ok: true, doc: data })
 })
 
 export default router

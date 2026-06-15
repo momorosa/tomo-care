@@ -1,31 +1,67 @@
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import NotificationCard from "../../components/NotificationCard.jsx"
+
+const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 
 function normalizeReviewDocuments(result) {
-    return (
-        result?.reviewDocuments ||
-        result?.documentsReadyForReview ||
-        result?.processedDocuments ||
-        result?.documents ||
-        []
-    ).filter((doc) => doc?.id)
+    if (!result?.reviewDocuments || !Array.isArray(result.reviewDocuments)) {
+        return []
+    }
+
+    return result.reviewDocuments.filter((doc) => doc?.id)
 }
 
 function CheckResultSummary({ result }) {
     if (!result) return null
 
     const reviewDocuments = normalizeReviewDocuments(result)
+
     const emailsFound = result.emailsFound ?? 0
     const documentsCreated = result.documentsCreated ?? 0
     const processedToReview = result.processedToReview ?? reviewDocuments.length
-    const skippedDuplicates = result.skippedDuplicates ?? 0
-    const failures = result.failures || result.errors || []
+
+    const skippedDuplicates =
+        result.skippedDuplicates ??
+        result.result?.ingestSummary?.skippedDuplicates ??
+        0
+
+    const failures =
+        result.failedDocuments ||
+        result.failures ||
+        result.errors ||
+        []
+
+    const hasNewReview = processedToReview > 0
+    const safeSkip =
+        emailsFound > 0 &&
+        skippedDuplicates > 0 &&
+        processedToReview === 0 &&
+        documentsCreated === 0
 
     return (
-        <div className="tomo-surface rounded-2xl p-5">
-            <p className="tomo-section-label mb-3">Inbox check result</p>
+        <section className="tomo-surface rounded-2xl p-5">
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p className="tomo-section-label mb-2">Inbox check</p>
+                    <h2 className="text-lg font-semibold text-tomo-text-h">
+                        {hasNewReview
+                            ? "I found something for you to review."
+                            : safeSkip
+                              ? "I found that one already."
+                              : "I did not find anything new."}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
+                        {hasNewReview
+                            ? "I processed the source PDF and prepared it for verification. Nothing has been added to Momo’s trusted care record yet."
+                            : safeSkip
+                              ? "The matching document already exists, so I skipped it safely and left verified records untouched."
+                              : "No new canonical vet PDFs were ready to process this time."}
+                    </p>
+                </div>
+            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
                 <SummaryItem label="Emails found" value={emailsFound} />
                 <SummaryItem label="Documents created" value={documentsCreated} />
                 <SummaryItem label="Ready for review" value={processedToReview} />
@@ -37,34 +73,21 @@ function CheckResultSummary({ result }) {
                     <p className="text-sm font-medium text-red-200">
                         Some documents failed to process.
                     </p>
+
                     <ul className="mt-2 space-y-1 text-xs text-red-100/80">
                         {failures.map((failure, index) => (
                             <li key={index}>
                                 {typeof failure === "string"
                                     ? failure
-                                    : failure?.message || JSON.stringify(failure)}
+                                    : failure?.message ||
+                                      failure?.error ||
+                                      JSON.stringify(failure)}
                             </li>
                         ))}
                     </ul>
                 </div>
             )}
-
-            {emailsFound > 0 &&
-                skippedDuplicates > 0 &&
-                processedToReview === 0 &&
-                documentsCreated === 0 && (
-                    <p className="mt-4 text-sm text-tomo-text">
-                        TomoCare found an existing document and skipped it safely. No
-                        verified records were moved back into review.
-                    </p>
-                )}
-
-            {emailsFound === 0 && (
-                <p className="mt-4 text-sm text-tomo-text">
-                    No new PDF attachments were found in the inbox.
-                </p>
-            )}
-        </div>
+        </section>
     )
 }
 
@@ -77,57 +100,50 @@ function SummaryItem({ label, value }) {
     )
 }
 
-function ReviewNotificationCard({ document, reviewCount }) {
+export default function Dashboard() {
     const navigate = useNavigate()
 
-    if (!document) return null
-
-    return (
-        <div className="tomo-accent-surface rounded-2xl p-5 border border-tomo-accent/30">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <p className="tomo-section-label mb-2">Needs your review</p>
-
-                    <h2 className="text-xl font-semibold text-tomo-text-h">
-                        New document ready for review
-                    </h2>
-
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
-                        TomoCare found and processed a new document. Review it before
-                        adding it to Momo’s trusted care record.
-                    </p>
-
-                    {reviewCount > 1 && (
-                        <p className="mt-2 text-xs text-tomo-text">
-                            {reviewCount} documents are ready. This button opens the first
-                            one.
-                        </p>
-                    )}
-                </div>
-
-                <button
-                    type="button"
-                    className="tomo-btn tomo-btn-primary shrink-0"
-                    onClick={() => navigate(`/review/${document.id}`)}
-                >
-                    Review now
-                </button>
-            </div>
-        </div>
-    )
-}
-
-export default function Dashboard() {
-    const [checkingInbox, setCheckingInbox] = useState(false)
+    const [pendingReviewDocs, setPendingReviewDocs] = useState([])
     const [result, setResult] = useState(null)
+    const [checkingInbox, setCheckingInbox] = useState(false)
     const [error, setError] = useState("")
 
-    const reviewDocuments = useMemo(
+    const loadPendingReviewDocs = useCallback(async () => {
+        try {
+            const response = await fetch(
+                `/api/pets/${PET_ID}/documents?status=needs_review&limit=10`
+            )
+
+            const data = await response.json()
+
+            if (!response.ok || data.error) {
+                throw new Error(data.error || "Could not load pending review documents")
+            }
+
+            setPendingReviewDocs(data.documents || [])
+        } catch (err) {
+            console.error("[dashboard] pending review load failed:", err)
+        }
+    }, [])
+
+    useEffect(() => {
+        loadPendingReviewDocs()
+    }, [loadPendingReviewDocs])
+
+    const latestReviewDocuments = useMemo(
         () => normalizeReviewDocuments(result),
         [result]
     )
 
+    const reviewDocuments =
+        latestReviewDocuments.length > 0
+            ? latestReviewDocuments
+            : pendingReviewDocs
+
     const firstReviewDocument = reviewDocuments[0] || null
+    const cardIsFromInboxCheck = latestReviewDocuments.length > 0
+
+    const hasPendingReview = reviewDocuments.length > 0
 
     async function checkInbox() {
         setCheckingInbox(true)
@@ -147,6 +163,12 @@ export default function Dashboard() {
             }
 
             setResult(data)
+
+            if (data.reviewDocuments?.length > 0) {
+                setPendingReviewDocs(data.reviewDocuments)
+            } else {
+                await loadPendingReviewDocs()
+            }
         } catch (err) {
             setError(err.message)
         } finally {
@@ -157,24 +179,43 @@ export default function Dashboard() {
     return (
         <main className="min-h-[calc(100svh-64px)] bg-tomo-bg text-tomo-text">
             <div className="mx-auto max-w-[1120px] px-6 py-8 md:px-8 md:py-10">
-                <section className="tomo-surface rounded-3xl p-6 md:p-8">
-                    <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+                <section className="relative overflow-hidden rounded-3xl border border-tomo-border bg-white/[0.03] p-6 md:p-8">
+                    <div className="pointer-events-none absolute right-[-120px] top-[-120px] h-72 w-72 rounded-full bg-tomo-accent/10 blur-3xl" />
+
+                    <div className="relative flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                         <div>
                             <p className="tomo-section-label mb-3">
-                                TomoCare dashboard
+                                Momo’s care desk
                             </p>
 
                             <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-tomo-text-h md:text-4xl">
-                                Momo’s care record, checked and prepared before anything
-                                becomes trusted.
+                                Hi Rosa, I’m here to help keep Momo’s care on track.
                             </h1>
 
                             <p className="mt-4 max-w-2xl text-sm leading-6 text-tomo-text">
-                                TomoCare can check the inbox, process canonical vet PDFs,
-                                and route new candidate records into verification. You stay
-                                in control before anything becomes part of Momo’s trusted
-                                care history.
+                                I can check the inbox for vet PDFs, prepare the record,
+                                and bring anything new to you before it becomes part of
+                                Momo’s trusted care history.
                             </p>
+
+                            <div className="mt-5 flex flex-wrap gap-2">
+                                <StatusChip
+                                    label="Inbox"
+                                    value={checkingInbox ? "Checking now" : "Ready"}
+                                />
+                                <StatusChip
+                                    label="Review queue"
+                                    value={
+                                        hasPendingReview
+                                            ? `${reviewDocuments.length} waiting`
+                                            : "Clear"
+                                    }
+                                />
+                                <StatusChip
+                                    label="Actions"
+                                    value="Approval-gated"
+                                />
+                            </div>
                         </div>
 
                         <button
@@ -194,39 +235,81 @@ export default function Dashboard() {
                             <p className="text-sm font-medium text-red-200">
                                 Inbox check failed
                             </p>
-                            <p className="mt-1 text-sm text-red-100/80">{error}</p>
+                            <p className="mt-1 text-sm text-red-100/80">
+                                {error}
+                            </p>
                         </div>
                     )}
 
-                    <ReviewNotificationCard
-                        document={firstReviewDocument}
-                        reviewCount={reviewDocuments.length}
-                    />
+                    {firstReviewDocument && (
+                        <NotificationCard
+                            eyebrow="Needs your review"
+                            title="New document ready for review"
+                            body={
+                                cardIsFromInboxCheck
+                                    ? "I found and processed a new document. Please review it before I add it to Momo’s trusted care record."
+                                    : "A document is waiting in the verification queue. Please review it before I add it to Momo’s trusted care record."
+                            }
+                            meta={[
+                                firstReviewDocument.title,
+                                firstReviewDocument.source_org,
+                                firstReviewDocument.doc_type,
+                                reviewDocuments.length > 1
+                                    ? `${reviewDocuments.length} documents ready`
+                                    : null,
+                            ]}
+                            actionLabel="Review now"
+                            onAction={() =>
+                                navigate(`/review/${firstReviewDocument.id}`)
+                            }
+                        />
+                    )}
 
                     <CheckResultSummary result={result} />
 
-                    <section className="grid gap-4 md:grid-cols-3">
+                    {/* <section className="grid gap-4 md:grid-cols-3">
                         <DashboardCard
-                            label="Trusted truth"
-                            title="Verified records"
-                            body="Only approved documents become trusted rows for reminders, timelines, and future actions."
+                            label="Right now"
+                            title={
+                                hasPendingReview
+                                    ? "One thing needs your eyes"
+                                    : "Nothing needs review"
+                            }
+                            body={
+                                hasPendingReview
+                                    ? "I prepared the document, but you decide what becomes trusted."
+                                    : "The review queue is clear. You can check the inbox whenever you want me to look again."
+                            }
                         />
 
                         <DashboardCard
-                            label="Candidate truth"
-                            title="Needs review"
-                            body="Newly processed documents wait here until the source and extraction are checked side by side."
+                            label="Care memory"
+                            title="Trusted records stay separate"
+                            body="Verified events, costs, and labs become the record I can use later. Draft extractions stay out until you approve them."
                         />
 
                         <DashboardCard
-                            label="Next action"
-                            title="Approval gate"
-                            body="TomoCare can prepare next steps, but external actions stay approval-gated."
+                            label="Next layer"
+                            title="Prepared, not autonomous"
+                            body="I can help prepare reminders and messages later, but anything external will stay behind your approval gate."
                         />
-                    </section>
+                    </section> */}
                 </div>
             </div>
         </main>
+    )
+}
+
+function StatusChip({ label, value }) {
+    return (
+        <div className="rounded-full border border-tomo-border bg-white/[0.03] px-3 py-1.5">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-tomo-text">
+                {label}
+            </span>
+            <span className="ml-2 text-xs font-medium text-tomo-text-h">
+                {value}
+            </span>
+        </div>
     )
 }
 
@@ -234,8 +317,12 @@ function DashboardCard({ label, title, body }) {
     return (
         <div className="tomo-surface rounded-2xl p-5">
             <p className="tomo-section-label mb-3">{label}</p>
-            <h3 className="text-base font-semibold text-tomo-text-h">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-tomo-text">{body}</p>
+            <h3 className="text-base font-semibold text-tomo-text-h">
+                {title}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-tomo-text">
+                {body}
+            </p>
         </div>
     )
 }
