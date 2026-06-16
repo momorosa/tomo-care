@@ -46,7 +46,12 @@ def get_calendar_service() -> Any:
     if not creds or not creds.valid:
         # For local dev: open browser OAuth flow once, then token is reused.
         flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, SCOPES)
-        creds = flow.run_local_server(port=0)
+        # creds = flow.run_local_server(port=0)
+        creds = flow.run_local_server(
+            port=0,
+            access_type="offline",
+            prompt="consent",
+        )
         with open(token_path, "w") as f:
             f.write(creds.to_json())
 
