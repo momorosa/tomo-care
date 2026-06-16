@@ -27,6 +27,14 @@ function addDays(dateString, days) {
     return formatIsoDate(date)
 }
 
+function getReminderTimingState({ reminderDate, dueDate }) {
+    const today = formatIsoDate(new Date())
+
+    if (dueDate < today) return "overdue"
+    if (reminderDate < today) return "reminder_window_passed"
+    return "upcoming"
+}
+
 function looksLikeLibrelaEvent(event) {
     const details = event?.details_json || {}
 
@@ -47,7 +55,6 @@ function looksLikeLibrelaEvent(event) {
 
     return haystack.includes("librela")
 }
-
 
 async function findVerifiedLibrelaInjectionForDoc({ docId, petId }) {
     const { data, error } = await sbAdmin
@@ -121,6 +128,10 @@ router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
         const anchorDate = injection.event_date
         const dueDate = addDays(anchorDate, DUE_INTERVAL_DAYS)
         const reminderDate = addDays(dueDate, -REMIND_BEFORE_DAYS)
+        const timingState = getReminderTimingState({
+            reminderDate,
+            dueDate,
+        })
         const nowIso = new Date().toISOString()
 
         const payload = {
@@ -142,6 +153,7 @@ router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
                 anchor_event_id: injection.id,
                 anchor_event_date: anchorDate,
                 due_date: dueDate,
+                timing_state: timingState,
 
                 source_document_id: doc.id,
                 source_document_title: doc.title,
@@ -200,6 +212,7 @@ router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
                 event_date: reminderRow.event_date,
                 status: reminderRow.status,
                 due_date: reminderRow.details_json?.due_date,
+                timing_state: reminderRow.details_json?.timing_state,
                 anchor_event_date: reminderRow.details_json?.anchor_event_date,
                 rule_version: reminderRow.details_json?.rule_version,
                 calendar_sync_status:
