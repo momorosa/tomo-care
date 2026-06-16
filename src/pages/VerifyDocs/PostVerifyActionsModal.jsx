@@ -3,6 +3,7 @@ export default function PostVerifyActionsModal({
     onClose,
     documentTitle,
     isLibrela = false,
+    librelaLoading = false,
     onCreateLibrelaReminder,
     onCreateInsuranceClaimReminder,
 }) {
@@ -41,12 +42,14 @@ export default function PostVerifyActionsModal({
                         title="Create Librela reminder"
                         body={
                             isLibrela
-                                ? "Calculate Momo’s next expected dose and create a reminder before it is due."
-                                : "Available when the verified document includes a Librela injection."
-                        }
-                        disabled={!isLibrela}
-                        onClick={onCreateLibrelaReminder}
-                    />
+                            ? "Calculate Momo’s next expected dose and create a reminder before it is due."
+                            : "Available when the verified document includes a Librela injection."
+                    }
+                    disabled={!isLibrela}
+                    loading={librelaLoading}
+                    loadingLabel="Creating…"
+                    onClick={onCreateLibrelaReminder}
+                />
 
                     <ActionButton
                         title="Remind me to file insurance claim"
@@ -75,16 +78,25 @@ export default function PostVerifyActionsModal({
     )
 }
 
-function ActionButton({ title, body, disabled = false, onClick }) {
+function ActionButton({
+    title,
+    body,
+    disabled = false,
+    loading = false,
+    loadingLabel = "Working…",
+    onClick,
+}) {
+    const isDisabled = disabled || loading
+
     return (
         <button
             type="button"
             className={`w-full rounded-2xl border p-4 text-left transition-colors ${
-                disabled
+                isDisabled
                     ? "cursor-not-allowed border-tomo-border bg-white/[0.02] opacity-50"
                     : "border-tomo-border bg-white/[0.03] hover:border-purple-300/40 hover:bg-white/[0.05]"
             }`}
-            disabled={disabled}
+            disabled={isDisabled}
             onClick={onClick}
         >
             <div className="flex items-start justify-between gap-4">
@@ -97,17 +109,9 @@ function ActionButton({ title, body, disabled = false, onClick }) {
                     </p>
                 </div>
 
-                {!disabled && (
-                    <span className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-tomo-text">
-                        Choose
-                    </span>
-                )}
-
-                {disabled && (
-                    <span className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-tomo-text">
-                        Soon
-                    </span>
-                )}
+                <span className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-tomo-text">
+                    {loading ? loadingLabel : disabled ? "Soon" : "Choose"}
+                </span>
             </div>
         </button>
     )

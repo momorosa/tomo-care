@@ -32,6 +32,7 @@ export default function VerifyDocs() {
     const [toast, setToast] = useState(null)
     const toastTimeoutRef = useRef(null)
     const [showPostVerifyActions, setShowPostVerifyActions] = useState(false)
+    const [postVerifyActionLoading, setPostVerifyActionLoading] = useState(null)
 
     const [editMode, setEditMode] = useState(false)
     const [draftExtracted, setDraftExtracted] = useState(null)
@@ -56,27 +57,65 @@ export default function VerifyDocs() {
 
     function looksLikeLibrela(doc) {
         const extracted = doc?.text_extracted || {}
-
         const haystack = [
-            extracted.summary,
-            ...(Array.isArray(extracted.events)
-                ? extracted.events.map((event) => event?.details_json?.description)
-                : []),
-            ...(Array.isArray(extracted.cost_items)
-                ? extracted.cost_items.map((item) => item?.label)
-                : []),
+            doc?.title,
+            doc?.doc_type,
+            JSON.stringify(extracted),
         ]
             .filter(Boolean)
             .join(" ")
             .toLowerCase()
-
+    
         return haystack.includes("librela")
     }
 
-    // Post-verify action handlers (wired into PostVerifyActionsModal)
-    function handleCreateLibrelaReminder() {
-        showToast("Reminder action coming next")
-        setShowPostVerifyActions(false)
+    function formatDisplayDate(value) {
+        if (!value) return "date pending"
+
+        return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        })
+    }
+
+
+    async function handleCreateLibrelaReminder() {
+        if (!selectedId) return
+
+        setPostVerifyActionLoading("librela")
+        setError("")
+
+        try {
+            const r = await fetch(
+                `/api/documents/${selectedId}/actions/librela-reminder`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ requestedBy: "rosa" }),
+                }
+            )
+
+            const j = await r.json()
+
+            if (!r.ok || j.error) {
+                throw new Error(j.error || "Failed to create Librela reminder")
+            }        
+
+            const reminderDate = formatDisplayDate(j.reminder?.event_date)
+            const dueDate = formatDisplayDate(j.reminder?.due_date)
+
+            showToast(
+                `Librela reminder ${j.action} · remind ${reminderDate} · due ${dueDate}`
+            )
+
+            setShowPostVerifyActions(false)
+        } catch (e) {
+            setError(e.message)
+            showToast("Could not create Librela reminder")
+        } finally {
+            setPostVerifyActionLoading(null)
+        }
     }
 
     function handleCreateInsuranceClaimReminder() {
@@ -282,6 +321,19 @@ export default function VerifyDocs() {
             ignore = true
         }
     }, [selectedId])
+
+    // Temporary visual QA helper:
+    // Open the post-verification action modal with ?previewPostVerify=1
+    useEffect(() => {
+        if (!detail) return
+
+        const params = new URLSearchParams(window.location.search)
+        const shouldPreview = params.get("previewPostVerify") === "1"
+
+        if (shouldPreview) {
+            setShowPostVerifyActions(true)
+        }
+    }, [detail])
 
     async function approveDoc() {
         if (!selectedId) return
@@ -560,6 +612,7 @@ export default function VerifyDocs() {
                     onClose={() => setShowPostVerifyActions(false)}
                     documentTitle={detail?.title || selectedDoc?.title}
                     isLibrela={looksLikeLibrela(detail)}
+                    librelaLoading={postVerifyActionLoading === "librela"}
                     onCreateLibrelaReminder={handleCreateLibrelaReminder}
                     onCreateInsuranceClaimReminder={handleCreateInsuranceClaimReminder}
                 />
