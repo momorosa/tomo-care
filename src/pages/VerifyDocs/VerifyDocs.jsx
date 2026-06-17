@@ -118,9 +118,49 @@ export default function VerifyDocs() {
         }
     }
 
-    function handleCreateInsuranceClaimReminder() {
-        showToast("Insurance claim reminder coming next")
-        setShowPostVerifyActions(false)
+    async function handleCreateInsuranceClaimReminder() {
+        if (!selectedId) return
+
+        setPostVerifyActionLoading("insurance")
+        setError("")
+
+        try {
+            const r = await fetch(
+                `/api/documents/${selectedId}/actions/insurance-claim-reminder`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        requestedBy: "rosa",
+                        insuranceProvider: "Nationwide",
+                    }),
+                }
+            )
+
+            const j = await r.json()
+
+            if (!r.ok || j.error) {
+                throw new Error(
+                    j.error || "Failed to create insurance claim reminder"
+                )
+            }
+
+            const reminderDate = formatDisplayDate(j.reminder?.event_date)
+            const deadlineDate = formatDisplayDate(
+                j.reminder?.claim_deadline_date
+            )
+
+            showToast(
+                `Insurance reminder ${j.action} · file ${reminderDate} · deadline ${deadlineDate}`
+            )
+
+            setShowPostVerifyActions(false)
+        } catch (e) {
+            setError(e.message)
+            showToast("Could not create insurance claim reminder")
+        } finally {
+            setPostVerifyActionLoading(null)
+        }
     }
 
     function markDirty() {
@@ -613,6 +653,7 @@ export default function VerifyDocs() {
                     documentTitle={detail?.title || selectedDoc?.title}
                     isLibrela={looksLikeLibrela(detail)}
                     librelaLoading={postVerifyActionLoading === "librela"}
+                    insuranceClaimLoading={postVerifyActionLoading === "insurance"}
                     onCreateLibrelaReminder={handleCreateLibrelaReminder}
                     onCreateInsuranceClaimReminder={handleCreateInsuranceClaimReminder}
                 />

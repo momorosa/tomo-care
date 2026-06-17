@@ -5,6 +5,7 @@ export default function PostVerifyActionsModal({
     isLibrela = false,
     librelaLoading = false,
     onCreateLibrelaReminder,
+    insuranceClaimLoading = false,
     onCreateInsuranceClaimReminder,
 }) {
     if (!open) return null
@@ -53,7 +54,9 @@ export default function PostVerifyActionsModal({
 
                     <ActionButton
                         title="Remind me to file insurance claim"
-                        body="Create a reminder so this receipt does not get missed for reimbursement."
+                        body="Create a reminder to file the Nationwide claim. Target: within 30 days of treatment. Final eligibility window: 180 days."
+                        loading={insuranceClaimLoading}
+                        loadingLabel="Creating…"
                         onClick={onCreateInsuranceClaimReminder}
                     />
 
