@@ -24,6 +24,17 @@ const INSURANCE_RULE_VERSION = "insurance_claim_v1"
 
 const CALENDAR_SYNC_ALLOWED_TIMING_STATES = new Set(["upcoming", "due_now"])
 
+const TIMING_STATE_BLOCK_MESSAGES = {
+    overdue:
+        "This reminder is overdue and will not be synced to Google Calendar.",
+    reminder_window_passed:
+        "The reminder window for this event has already passed and will not be synced to Google Calendar.",
+    claim_window_expired:
+        "This insurance claim window has expired and will not be synced to Google Calendar.",
+    unknown:
+        "This reminder's timing could not be determined, so it will not be synced to Google Calendar.",
+}
+
 const DOCUMENT_COLUMNS =
     "id, pet_id, title, doc_type, doc_date, source_org, status"
 
@@ -65,21 +76,47 @@ function getReminderTimingState({ reminderDate, dueDate }) {
     return "upcoming"
 }
 
+function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
+    const today = formatIsoDate(new Date())
+
+    if (claimDeadlineDate < today) return "claim_window_expired"
+    if (targetSubmitDate <= today) return "due_now"
+    return "upcoming"
+}
+
+// Recomputes a reminder's timing state from today's date plus the anchor
+// dates stored on the row. details_json.timing_state is a cache we refresh
+// here, not the source of truth: it's set once at creation/update time and
+// would otherwise go stale the moment real time passes it by, letting an
+// actually-overdue reminder slip through the calendar-sync eligibility
+// check below. Dispatches on subtype because Librela and insurance-claim
+// reminders use different rules (and different state vocabularies).
 function resolveReminderTimingState(event) {
     const details = event?.details_json || {}
 
-    if (details.timing_state) {
-        return details.timing_state
+    if (details.subtype === INSURANCE_CLAIM_SUBTYPE) {
+        if (!details.target_submit_date || !details.claim_deadline_date) {
+            return "unknown"
+        }
+
+        return getInsuranceClaimTimingState({
+            targetSubmitDate: details.target_submit_date,
+            claimDeadlineDate: details.claim_deadline_date,
+        })
     }
 
-    if (!event?.event_date || !details.due_date) {
-        return "unknown"
+    if (details.subtype === LIBRELA_SUBTYPE) {
+        if (!event?.event_date || !details.due_date) {
+            return "unknown"
+        }
+
+        return getReminderTimingState({
+            reminderDate: event.event_date,
+            dueDate: details.due_date,
+        })
     }
 
-    return getReminderTimingState({
-        reminderDate: event.event_date,
-        dueDate: details.due_date,
-    })
+    return "unknown"
 }
 
 function looksLikeLibrelaEvent(event) {
@@ -636,8 +673,10 @@ router.post(
                 details.calendar_sync_status || "not_synced"
             const timingState = resolveReminderTimingState(event)
 
-            // Backfill timing_state on the row if it was never persisted.
-            if (!details.timing_state && timingState !== "unknown") {
+            // Persist the freshly computed state whenever it differs from
+            // what's cached — covers both the backfill case (never set) and
+            // the staleness case (set, but time has since moved past it).
+            if (timingState !== details.timing_state) {
                 details = { ...details, timing_state: timingState }
 
                 const { error: updateTimingErr } = await sbAdmin
@@ -663,11 +702,10 @@ router.post(
             if (!CALENDAR_SYNC_ALLOWED_TIMING_STATES.has(timingState)) {
                 return res.status(409).json({
                     ok: false,
-                    reason: "timing_state_not_upcoming",
+                    reason: "timing_state_not_eligible",
                     error:
-                        timingState === "overdue"
-                            ? "This reminder is overdue and will not be synced to Google Calendar."
-                            : "This reminder is not eligible for Google Calendar sync.",
+                        TIMING_STATE_BLOCK_MESSAGES[timingState] ||
+                        "This reminder is not eligible for Google Calendar sync.",
                     timing_state: timingState,
                     reminder: {
                         id: event.id,
