@@ -9,9 +9,8 @@ async function jsonOrThrow(res, fallbackMessage) {
 }
 
 export async function fetchDocumentList(petId) {
-    const j = await fetch(
-        `/api/pets/${petId}/documents?status=all&limit=50`
-    ).then((r) => r.json())
+    const r = await fetch(`/api/pets/${petId}/documents?status=all&limit=50`)
+    const j = await jsonOrThrow(r, "Failed to fetch documents")
 
     return j.documents || j.data || []
 }

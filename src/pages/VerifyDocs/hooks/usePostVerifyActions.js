@@ -3,14 +3,25 @@ import * as api from "../api.js"
 import { formatDisplayDate } from "../utils.js"
 
 // Owns the post-verification action modal: whether it's open and which action
-// (if any) is currently in flight. Reminder creation is delegated to the API
-// module; results are surfaced via the page's toast / error setters.
+// is currently in flight. Reminder creation is delegated to the API module;
+// results are surfaced through the page's toast / error setters.
 export function usePostVerifyActions({ selectedId, showToast, setError }) {
     const [showPostVerifyActions, setShowPostVerifyActions] = useState(false)
     const [postVerifyActionLoading, setPostVerifyActionLoading] = useState(null)
 
+    const actionInFlight = Boolean(postVerifyActionLoading)
+
+    function openPostVerifyActions() {
+        setShowPostVerifyActions(true)
+    }
+
+    function closePostVerifyActions() {
+        if (actionInFlight) return
+        setShowPostVerifyActions(false)
+    }
+
     async function handleCreateLibrelaReminder() {
-        if (!selectedId) return
+        if (!selectedId || actionInFlight) return
 
         setPostVerifyActionLoading("librela")
         setError("")
@@ -35,7 +46,7 @@ export function usePostVerifyActions({ selectedId, showToast, setError }) {
     }
 
     async function handleCreateInsuranceClaimReminder() {
-        if (!selectedId) return
+        if (!selectedId || actionInFlight) return
 
         setPostVerifyActionLoading("insurance")
         setError("")
@@ -44,7 +55,9 @@ export function usePostVerifyActions({ selectedId, showToast, setError }) {
             const j = await api.createInsuranceClaimReminder(selectedId)
 
             const reminderDate = formatDisplayDate(j.reminder?.event_date)
-            const deadlineDate = formatDisplayDate(j.reminder?.claim_deadline_date)
+            const deadlineDate = formatDisplayDate(
+                j.reminder?.claim_deadline_date
+            )
 
             showToast(
                 `Insurance reminder ${j.action} · file ${reminderDate} · deadline ${deadlineDate}`
@@ -61,8 +74,11 @@ export function usePostVerifyActions({ selectedId, showToast, setError }) {
 
     return {
         showPostVerifyActions,
-        setShowPostVerifyActions,
+        setShowPostVerifyActions, // keep for now if VerifyDocs still calls it directly
+        openPostVerifyActions,
+        closePostVerifyActions,
         postVerifyActionLoading,
+        actionInFlight,
         handleCreateLibrelaReminder,
         handleCreateInsuranceClaimReminder,
     }

@@ -196,7 +196,7 @@ export default function VerifyDocs() {
                 }`
             )
 
-            postVerify.setShowPostVerifyActions(true)
+            postVerify.openPostVerifyActions()
         } catch (e) {
             setError(e.message)
         } finally {
@@ -289,7 +289,7 @@ export default function VerifyDocs() {
 
                 <PostVerifyActionsModal
                     open={postVerify.showPostVerifyActions}
-                    onClose={() => postVerify.setShowPostVerifyActions(false)}
+                    onClose={postVerify.closePostVerifyActions}
                     documentTitle={detail?.title || selectedDoc?.title}
                     isLibrela={looksLikeLibrela(detail)}
                     librelaLoading={postVerify.postVerifyActionLoading === "librela"}

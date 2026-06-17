@@ -3,12 +3,34 @@ export default function PostVerifyActionsModal({
     onClose,
     documentTitle,
     isLibrela = false,
+    recommendations = null,
     librelaLoading = false,
-    onCreateLibrelaReminder,
     insuranceClaimLoading = false,
+    onCreateLibrelaReminder,
     onCreateInsuranceClaimReminder,
 }) {
     if (!open) return null
+
+    const actionInFlight = librelaLoading || insuranceClaimLoading
+
+    const librelaRecommendation = recommendations?.librelaReminder || {
+        show: true,
+        disabled: !isLibrela,
+        badge: isLibrela ? "Recommended" : null,
+    }
+
+    const insuranceClaimRecommendation =
+        recommendations?.insuranceClaimReminder || {
+            show: true,
+            disabled: false,
+            badge: null,
+        }
+
+    const appointmentDraftRecommendation = recommendations?.appointmentDraft || {
+        show: true,
+        disabled: true,
+        badge: "Coming next",
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -24,8 +46,8 @@ export default function PostVerifyActionsModal({
 
                     <p className="mt-3 text-sm leading-6 text-tomo-text">
                         This document is now part of Momo’s trusted care record.
-                        TomoCare can prepare the next step, and you stay in control
-                        of what happens.
+                        TomoCare can prepare the next step, and you stay in
+                        control of what happens.
                     </p>
 
                     {documentTitle && (
@@ -41,20 +63,25 @@ export default function PostVerifyActionsModal({
                 <div className="space-y-3">
                     <ActionButton
                         title="Create Librela reminder"
+                        badge={librelaRecommendation.badge}
                         body={
-                            isLibrela
-                            ? "Calculate Momo’s next expected dose and create a reminder before it is due."
-                            : "Available when the verified document includes a Librela injection."
-                    }
-                    disabled={!isLibrela}
-                    loading={librelaLoading}
-                    loadingLabel="Creating…"
-                    onClick={onCreateLibrelaReminder}
-                />
+                            librelaRecommendation.disabled
+                                ? "Available when the verified document includes a Librela injection."
+                                : "Calculate Momo’s next expected dose and create a reminder before it is due."
+                        }
+                        hidden={!librelaRecommendation.show}
+                        disabled={librelaRecommendation.disabled}
+                        loading={librelaLoading}
+                        loadingLabel="Creating…"
+                        onClick={onCreateLibrelaReminder}
+                    />
 
                     <ActionButton
                         title="Remind me to file insurance claim"
+                        badge={insuranceClaimRecommendation.badge}
                         body="Create a reminder to file the Nationwide claim. Target: within 30 days of treatment. Final eligibility window: 180 days."
+                        hidden={!insuranceClaimRecommendation.show}
+                        disabled={insuranceClaimRecommendation.disabled}
                         loading={insuranceClaimLoading}
                         loadingLabel="Creating…"
                         onClick={onCreateInsuranceClaimReminder}
@@ -62,7 +89,9 @@ export default function PostVerifyActionsModal({
 
                     <ActionButton
                         title="Draft next appointment request"
+                        badge={appointmentDraftRecommendation.badge}
                         body="Coming next: TomoCare will draft a message for SoMa Animal Hospital."
+                        hidden={!appointmentDraftRecommendation.show}
                         disabled
                     />
                 </div>
@@ -70,8 +99,9 @@ export default function PostVerifyActionsModal({
                 <div className="mt-6 flex justify-end">
                     <button
                         type="button"
-                        className="tomo-btn tomo-btn-secondary"
+                        className="tomo-btn tomo-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={onClose}
+                        disabled={actionInFlight}
                     >
                         Not now
                     </button>
@@ -84,11 +114,15 @@ export default function PostVerifyActionsModal({
 function ActionButton({
     title,
     body,
+    badge,
+    hidden = false,
     disabled = false,
     loading = false,
     loadingLabel = "Working…",
     onClick,
 }) {
+    if (hidden) return null
+
     const isDisabled = disabled || loading
 
     return (
@@ -103,10 +137,19 @@ function ActionButton({
             onClick={onClick}
         >
             <div className="flex items-start justify-between gap-4">
-                <div>
-                    <p className="text-sm font-semibold text-tomo-text-h">
-                        {title}
-                    </p>
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-tomo-text-h">
+                            {title}
+                        </p>
+
+                        {badge && (
+                            <span className="rounded-full border border-purple-300/30 bg-purple-300/10 px-2 py-0.5 text-[10px] font-medium text-purple-200">
+                                {badge}
+                            </span>
+                        )}
+                    </div>
+
                     <p className="mt-1 text-xs leading-5 text-tomo-text">
                         {body}
                     </p>
