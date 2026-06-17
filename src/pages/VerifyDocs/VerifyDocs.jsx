@@ -12,6 +12,7 @@ import { useToast } from "./hooks/useToast.js"
 import { useTriage } from "./hooks/useTriage.js"
 import { useDraftEditor } from "./hooks/useDraftEditor.js"
 import { usePostVerifyActions } from "./hooks/usePostVerifyActions.js"
+import { getPostVerifyRecommendations } from "./recommendations.js"
 
 export default function VerifyDocs() {
     const { docId } = useParams()
@@ -32,6 +33,11 @@ export default function VerifyDocs() {
     const selectedDoc = useMemo(
         () => docs.find((d) => d.id === selectedId) || null,
         [docs, selectedId]
+    )
+
+    const postVerifyRecommendations = useMemo(
+        () => getPostVerifyRecommendations(detail),
+        [detail]
     )
 
     const currentStatus = detail?.status || selectedDoc?.status || null
@@ -292,7 +298,10 @@ export default function VerifyDocs() {
                     onClose={postVerify.closePostVerifyActions}
                     documentTitle={detail?.title || selectedDoc?.title}
                     isLibrela={looksLikeLibrela(detail)}
-                    librelaLoading={postVerify.postVerifyActionLoading === "librela"}
+                    recommendations={postVerifyRecommendations}
+                    librelaLoading={
+                        postVerify.postVerifyActionLoading === "librela"
+                    }
                     insuranceClaimLoading={
                         postVerify.postVerifyActionLoading === "insurance"
                     }
