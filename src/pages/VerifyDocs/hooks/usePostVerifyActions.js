@@ -1,17 +1,56 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import * as api from "../api.js"
 import { formatDisplayDate } from "../utils.js"
 
-// Owns the post-verification action modal: whether it's open and which action
-// is currently in flight. Reminder creation is delegated to the API module;
-// results are surfaced through the page's toast / error setters.
+const INITIAL_ACTION_STATUS = {
+    librela: {
+        phase: "idle",
+        message: "",
+        calendarUrl: null,
+        reminderId: null,
+    },
+    insurance: {
+        phase: "idle",
+        message: "",
+        calendarUrl: null,
+        reminderId: null,
+    },
+}
+
+function isWorking(status) {
+    return status?.phase === "creating" || status?.phase === "syncing"
+}
+
+function getWorkingActionKey(statusMap) {
+    if (isWorking(statusMap.librela)) return "librela"
+    if (isWorking(statusMap.insurance)) return "insurance"
+    return null
+}
+
 export function usePostVerifyActions({ selectedId, showToast, setError }) {
     const [showPostVerifyActions, setShowPostVerifyActions] = useState(false)
-    const [postVerifyActionLoading, setPostVerifyActionLoading] = useState(null)
+    const [postVerifyActionStatus, setPostVerifyActionStatus] =
+        useState(INITIAL_ACTION_STATUS)
+
+    const postVerifyActionLoading = useMemo(
+        () => getWorkingActionKey(postVerifyActionStatus),
+        [postVerifyActionStatus]
+    )
 
     const actionInFlight = Boolean(postVerifyActionLoading)
 
+    function setActionStatus(actionKey, nextStatus) {
+        setPostVerifyActionStatus((current) => ({
+            ...current,
+            [actionKey]: {
+                ...current[actionKey],
+                ...nextStatus,
+            },
+        }))
+    }
+
     function openPostVerifyActions() {
+        setPostVerifyActionStatus(INITIAL_ACTION_STATUS)
         setShowPostVerifyActions(true)
     }
 
@@ -20,65 +59,120 @@ export function usePostVerifyActions({ selectedId, showToast, setError }) {
         setShowPostVerifyActions(false)
     }
 
-    async function handleCreateLibrelaReminder() {
+    async function createAndSyncReminder({
+        actionKey,
+        createReminder,
+        createdToast,
+    }) {
         if (!selectedId || actionInFlight) return
 
-        setPostVerifyActionLoading("librela")
         setError("")
 
+        setActionStatus(actionKey, {
+            phase: "creating",
+            message: "Creating reminder…",
+            calendarUrl: null,
+            reminderId: null,
+        })
+
         try {
-            const j = await api.createLibrelaReminder(selectedId)
+            const createResult = await createReminder()
+            const reminder = createResult.reminder
 
-            const reminderDate = formatDisplayDate(j.reminder?.event_date)
-            const dueDate = formatDisplayDate(j.reminder?.due_date)
+            setActionStatus(actionKey, {
+                phase: "syncing",
+                message: "Adding to Google Calendar…",
+                reminderId: reminder?.id || null,
+            })
 
-            showToast(
-                `Librela reminder ${j.action} · remind ${reminderDate} · due ${dueDate}`
+            const syncResult = await api.syncReminderToGoogleCalendar(
+                reminder.id
             )
 
-            setShowPostVerifyActions(false)
+            if (syncResult.blocked) {
+                setActionStatus(actionKey, {
+                    phase: "saved_only",
+                    message:
+                        syncResult.error ||
+                        "Reminder saved in TomoCare, but it was not eligible for Google Calendar sync.",
+                    calendarUrl: null,
+                    reminderId: reminder.id,
+                })
+
+                showToast("Reminder saved in TomoCare, but not synced to Calendar")
+                return
+            }
+
+            const calendarUrl =
+                syncResult.google_calendar?.html_link || null
+
+            setActionStatus(actionKey, {
+                phase: "synced",
+                message: "Added to Google Calendar.",
+                calendarUrl,
+                reminderId: reminder.id,
+            })
+
+            showToast(createdToast(syncResult, createResult))
         } catch (e) {
             setError(e.message)
-            showToast("Could not create Librela reminder")
-        } finally {
-            setPostVerifyActionLoading(null)
+
+            setActionStatus(actionKey, {
+                phase: "error",
+                message: e.message,
+                calendarUrl: null,
+            })
+
+            showToast("Could not complete reminder action")
         }
     }
 
+    async function handleCreateLibrelaReminder() {
+        await createAndSyncReminder({
+            actionKey: "librela",
+            createReminder: () => api.createLibrelaReminder(selectedId),
+            createdToast: (syncResult, createResult) => {
+                const reminderDate = formatDisplayDate(
+                    createResult.reminder?.event_date
+                )
+                const dueDate = formatDisplayDate(
+                    createResult.reminder?.due_date
+                )
+
+                return `Librela reminder synced · remind ${reminderDate} · due ${dueDate}`
+            },
+        })
+    }
+
     async function handleCreateInsuranceClaimReminder() {
-        if (!selectedId || actionInFlight) return
+        await createAndSyncReminder({
+            actionKey: "insurance",
+            createReminder: () =>
+                api.createInsuranceClaimReminder(selectedId),
+            createdToast: (syncResult, createResult) => {
+                const reminderDate = formatDisplayDate(
+                    createResult.reminder?.event_date
+                )
+                const deadlineDate = formatDisplayDate(
+                    createResult.reminder?.claim_deadline_date
+                )
 
-        setPostVerifyActionLoading("insurance")
-        setError("")
-
-        try {
-            const j = await api.createInsuranceClaimReminder(selectedId)
-
-            const reminderDate = formatDisplayDate(j.reminder?.event_date)
-            const deadlineDate = formatDisplayDate(
-                j.reminder?.claim_deadline_date
-            )
-
-            showToast(
-                `Insurance reminder ${j.action} · file ${reminderDate} · deadline ${deadlineDate}`
-            )
-
-            setShowPostVerifyActions(false)
-        } catch (e) {
-            setError(e.message)
-            showToast("Could not create insurance claim reminder")
-        } finally {
-            setPostVerifyActionLoading(null)
-        }
+                return `Insurance reminder synced · file ${reminderDate} · deadline ${deadlineDate}`
+            },
+        })
     }
 
     return {
         showPostVerifyActions,
-        setShowPostVerifyActions, // keep for now if VerifyDocs still calls it directly
+        setShowPostVerifyActions,
+
         openPostVerifyActions,
         closePostVerifyActions,
+
         postVerifyActionLoading,
+        postVerifyActionStatus,
         actionInFlight,
+
         handleCreateLibrelaReminder,
         handleCreateInsuranceClaimReminder,
     }

@@ -299,12 +299,9 @@ export default function VerifyDocs() {
                     documentTitle={detail?.title || selectedDoc?.title}
                     isLibrela={looksLikeLibrela(detail)}
                     recommendations={postVerifyRecommendations}
-                    librelaLoading={
-                        postVerify.postVerifyActionLoading === "librela"
-                    }
-                    insuranceClaimLoading={
-                        postVerify.postVerifyActionLoading === "insurance"
-                    }
+                    actionStatus={postVerify.postVerifyActionStatus}
+                    librelaLoading={postVerify.postVerifyActionLoading === "librela"}
+                    insuranceClaimLoading={postVerify.postVerifyActionLoading === "insurance"}
                     onCreateLibrelaReminder={postVerify.handleCreateLibrelaReminder}
                     onCreateInsuranceClaimReminder={
                         postVerify.handleCreateInsuranceClaimReminder

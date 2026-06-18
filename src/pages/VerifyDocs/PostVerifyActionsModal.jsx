@@ -4,6 +4,7 @@ export default function PostVerifyActionsModal({
     documentTitle,
     isLibrela = false,
     recommendations = null,
+    actionStatus = {},
     librelaLoading = false,
     insuranceClaimLoading = false,
     onCreateLibrelaReminder,
@@ -32,9 +33,15 @@ export default function PostVerifyActionsModal({
         badge: "Coming next",
     }
 
+    const hasCompletedAction =
+        actionStatus.librela?.phase === "synced" ||
+        actionStatus.librela?.phase === "saved_only" ||
+        actionStatus.insurance?.phase === "synced" ||
+        actionStatus.insurance?.phase === "saved_only"
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-            <div className="w-full max-w-[560px] rounded-3xl border border-tomo-border bg-tomo-bg p-6 shadow-2xl">
+            <div className="w-full max-w-[600px] rounded-3xl border border-tomo-border bg-tomo-bg p-6 shadow-2xl">
                 <div className="mb-5">
                     <p className="tomo-section-label mb-3">
                         Verified and saved
@@ -71,8 +78,10 @@ export default function PostVerifyActionsModal({
                         }
                         hidden={!librelaRecommendation.show}
                         disabled={librelaRecommendation.disabled}
+                        actionInFlight={actionInFlight}
                         loading={librelaLoading}
                         loadingLabel="Creating…"
+                        status={actionStatus.librela}
                         onClick={onCreateLibrelaReminder}
                     />
 
@@ -82,8 +91,10 @@ export default function PostVerifyActionsModal({
                         body="Create a reminder to file the Nationwide claim. Target: within 30 days of treatment. Final eligibility window: 180 days."
                         hidden={!insuranceClaimRecommendation.show}
                         disabled={insuranceClaimRecommendation.disabled}
+                        actionInFlight={actionInFlight}
                         loading={insuranceClaimLoading}
                         loadingLabel="Creating…"
+                        status={actionStatus.insurance}
                         onClick={onCreateInsuranceClaimReminder}
                     />
 
@@ -93,17 +104,18 @@ export default function PostVerifyActionsModal({
                         body="Coming next: TomoCare will draft a message for SoMa Animal Hospital."
                         hidden={!appointmentDraftRecommendation.show}
                         disabled
+                        actionInFlight={actionInFlight}
                     />
                 </div>
 
                 <div className="mt-6 flex justify-end">
                     <button
                         type="button"
-                        className="tomo-btn tomo-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="tomo-btn tomo-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={onClose}
                         disabled={actionInFlight}
                     >
-                        Not now
+                        {hasCompletedAction ? "Done" : "Not now"}
                     </button>
                 </div>
             </div>
@@ -117,35 +129,80 @@ function ActionButton({
     badge,
     hidden = false,
     disabled = false,
+    actionInFlight = false,
     loading = false,
     loadingLabel = "Working…",
+    status = null,
     onClick,
 }) {
     if (hidden) return null
 
-    const isDisabled = disabled || loading
+    const phase = status?.phase || "idle"
+    const calendarUrl = status?.calendarUrl || null
+
+    const isWorking = phase === "creating" || phase === "syncing"
+    const isSynced = phase === "synced"
+    const isSavedOnly = phase === "saved_only"
+    const isError = phase === "error"
+
+    const isComplete = isSynced || isSavedOnly
+    const isDisabled =
+        disabled || loading || isWorking || isComplete || actionInFlight
+
+    const statusMessage = getStatusMessage({
+        phase,
+        fallbackMessage: status?.message,
+        loadingLabel,
+    })
+
+    const buttonLabel = getButtonLabel({
+        phase,
+        disabled,
+        loadingLabel,
+    })
 
     return (
-        <button
-            type="button"
+        <div
             className={`w-full rounded-2xl border p-4 text-left transition-colors ${
-                isDisabled
-                    ? "cursor-not-allowed border-tomo-border bg-white/[0.02] opacity-50"
-                    : "border-tomo-border bg-white/[0.03] hover:border-purple-300/40 hover:bg-white/[0.05]"
+                disabled
+                    ? "border-tomo-border bg-white/[0.02] opacity-50"
+                    : isSynced
+                      ? "border-emerald-300/30 bg-emerald-300/10"
+                      : isSavedOnly
+                        ? "border-amber-300/30 bg-amber-300/10"
+                        : isError
+                          ? "border-red-300/30 bg-red-300/10"
+                          : "border-tomo-border bg-white/[0.03] hover:border-purple-300/40 hover:bg-white/[0.05]"
             }`}
-            disabled={isDisabled}
-            onClick={onClick}
         >
             <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-tomo-text-h">
                             {title}
                         </p>
 
-                        {badge && (
+                        {badge && phase === "idle" && (
                             <span className="rounded-full border border-purple-300/30 bg-purple-300/10 px-2 py-0.5 text-[10px] font-medium text-purple-200">
                                 {badge}
+                            </span>
+                        )}
+
+                        {isSynced && (
+                            <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
+                                Synced
+                            </span>
+                        )}
+
+                        {isSavedOnly && (
+                            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                                Saved only
+                            </span>
+                        )}
+
+                        {isError && (
+                            <span className="rounded-full border border-red-300/30 bg-red-300/10 px-2 py-0.5 text-[10px] font-medium text-red-200">
+                                Needs review
                             </span>
                         )}
                     </div>
@@ -153,12 +210,73 @@ function ActionButton({
                     <p className="mt-1 text-xs leading-5 text-tomo-text">
                         {body}
                     </p>
+
+                    {statusMessage && (
+                        <p
+                            className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${
+                                isSynced
+                                    ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                                    : isSavedOnly
+                                      ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+                                      : isError
+                                        ? "border-red-300/20 bg-red-300/10 text-red-100"
+                                        : "border-tomo-border bg-white/[0.03] text-tomo-text"
+                            }`}
+                        >
+                            {statusMessage}
+                        </p>
+                    )}
+
+                    {calendarUrl && (
+                        <a
+                            href={calendarUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex text-xs font-medium text-purple-200 underline underline-offset-4 hover:text-purple-100"
+                        >
+                            Open in Google Calendar
+                        </a>
+                    )}
                 </div>
 
-                <span className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-tomo-text">
-                    {loading ? loadingLabel : disabled ? "Soon" : "Choose"}
-                </span>
+                <button
+                    type="button"
+                    className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-tomo-text disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={isDisabled}
+                    onClick={onClick}
+                >
+                    {buttonLabel}
+                </button>
             </div>
-        </button>
+        </div>
     )
+}
+
+function getStatusMessage({ phase, fallbackMessage, loadingLabel }) {
+    if (phase === "idle") return ""
+    if (phase === "creating") return "Creating reminder in TomoCare…"
+    if (phase === "syncing") return "Adding reminder to Google Calendar…"
+    if (phase === "synced") return fallbackMessage || "Added to Google Calendar."
+    if (phase === "saved_only") {
+        return (
+            fallbackMessage ||
+            "Reminder saved in TomoCare, but it was not added to Google Calendar."
+        )
+    }
+    if (phase === "error") {
+        return fallbackMessage || "Something went wrong. Please try again."
+    }
+
+    return loadingLabel || ""
+}
+
+function getButtonLabel({ phase, disabled, loadingLabel }) {
+    if (phase === "creating") return "Creating…"
+    if (phase === "syncing") return "Syncing…"
+    if (phase === "synced") return "Added"
+    if (phase === "saved_only") return "Saved"
+    if (phase === "error") return "Retry"
+    if (disabled) return "Soon"
+
+    return loadingLabel === "Creating…" ? "Create" : "Choose"
 }

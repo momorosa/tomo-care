@@ -84,3 +84,31 @@ export async function createInsuranceClaimReminder(
 
     return jsonOrThrow(r, "Failed to create insurance claim reminder")
 }
+
+export async function syncReminderToGoogleCalendar(eventId) {
+    const r = await fetch(
+        `/api/events/${eventId}/actions/sync-google-calendar`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({}),
+        }
+    )
+
+    const j = await r.json()
+
+    // This is not a system failure. It means TomoCare correctly refused
+    // to sync something stale or ineligible.
+    if (r.status === 409 && j.reason === "timing_state_not_eligible") {
+        return {
+            ...j,
+            blocked: true,
+        }
+    }
+
+    if (!r.ok || j.error) {
+        throw new Error(j.error || "Failed to sync reminder to Google Calendar")
+    }
+
+    return j
+}
