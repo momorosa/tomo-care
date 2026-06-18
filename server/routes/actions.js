@@ -839,4 +839,126 @@ router.get("/debug/google-calendar", async (req, res) => {
     }
 })
 
+// GET /api/pets/:petId/upcoming-reminders
+router.get("/pets/:petId/reminders", async (req, res) => {
+    const { petId } = req.params
+    const { limit = "10" } = req.query
+
+    try {
+        const { data, error } = await sbAdmin
+            .from("events")
+            .select("id, pet_id, doc_id, event_type, event_date, status, details_json")
+            .eq("pet_id", petId)
+            .eq("event_type", "reminder")
+            .eq("status", "planned")
+            .order("event_date", { ascending: true })
+            .limit(Number(limit))
+
+        if (error) throw error
+
+        const reminders = (data || []).map(toDashboardReminderCard)
+
+        res.json({
+            ok: true,
+            reminders,
+        })
+    } catch (err) {
+        console.error("[reminders] error:", err)
+
+        res.status(500).json({
+            ok: false,
+            error: err?.message || "Failed to fetch reminders.",
+        })
+    }
+})
+
+function toDashboardReminderCard(event) {
+    const details = event.details_json || {}
+    const subtype = details.subtype || "Reminder"
+    const timingState = details.timing_state || "unknown"
+    const calendarSyncStatus = details.calendar_sync_status || "not_synced"
+    const externalRefs = details.external_refs || {}
+
+    const baseCard = {
+        id: event.id,
+        event_date: event.event_date,
+        subtype,
+        timing_state: timingState,
+        calendar_sync_status: calendarSyncStatus,
+        google_calendar_url:
+            externalRefs.google_calendar_html_link || null,
+        source_document_id: details.source_document_id || event.doc_id || null,
+        source_document_title: details.source_document_title || null,
+    }
+
+    if (subtype === INSURANCE_CLAIM_SUBTYPE) {
+        return {
+            ...baseCard,
+            title:
+                timingState === "due_now"
+                    ? "Insurance claim due"
+                    : "Insurance claim reminder",
+            eyebrow: timingState === "due_now" ? "Due now" : "Coming up",
+            body: buildInsuranceReminderBody(details),
+            tone: timingState === "due_now" ? "attention" : "normal",
+        }
+    }
+
+    if (subtype === LIBRELA_SUBTYPE) {
+        return {
+            ...baseCard,
+            title:
+                timingState === "overdue"
+                    ? "Librela shot may be overdue"
+                    : "Librela shot due soon",
+            eyebrow:
+                timingState === "overdue"
+                    ? "Needs attention"
+                    : "Coming up",
+            body: buildLibrelaReminderBody(details),
+            tone: timingState === "overdue" ? "warning" : "normal",
+        }
+    }
+
+    return {
+        ...baseCard,
+        title: subtype,
+        eyebrow: "Reminder",
+        body: details.message || "Planned reminder for Momo.",
+        tone: "normal",
+    }
+}
+
+function buildInsuranceReminderBody(details) {
+    const parts = []
+
+    if (details.treatment_date) {
+        parts.push(`Treatment date: ${details.treatment_date}`)
+    }
+
+    if (details.claim_deadline_date) {
+        parts.push(`Deadline: ${details.claim_deadline_date}`)
+    }
+
+    if (details.insurance_provider) {
+        parts.push(details.insurance_provider)
+    }
+
+    return parts.join(" · ") || details.message || "File insurance claim."
+}
+
+function buildLibrelaReminderBody(details) {
+    const parts = []
+
+    if (details.anchor_event_date) {
+        parts.push(`Last shot: ${details.anchor_event_date}`)
+    }
+
+    if (details.due_date) {
+        parts.push(`Expected due: ${details.due_date}`)
+    }
+
+    return parts.join(" · ") || "Schedule next Librela shot."
+}
+
 export default router
