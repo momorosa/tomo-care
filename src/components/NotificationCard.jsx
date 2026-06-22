@@ -9,11 +9,13 @@ export default function NotificationCard({
 }) {
     const surfaceClass =
         variant === "accent"
-            ? "tomo-accent-surface border-tomo-accent/30"
-            : "tomo-surface border-tomo-border"
+            ? "border-tomo-border border-l-4 border-l-tomo-accent bg-white/[0.025]"
+            : "border-tomo-border bg-white/[0.025]"
 
     return (
-        <section className={`${surfaceClass} rounded-2xl border p-5`}>
+        <section
+            className={`${surfaceClass} rounded-2xl border p-5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.8)] transition-colors hover:bg-white/[0.035]`}
+        >
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     {eyebrow && (
@@ -33,13 +35,13 @@ export default function NotificationCard({
                     )}
 
                     {meta.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-tomo-text">
+                        <div className="mt-3 flex flex-wrap gap-2">
                             {meta
                                 .filter(Boolean)
                                 .map((item, index) => (
                                     <span
                                         key={`${item}-${index}`}
-                                        className="rounded-full border border-tomo-border bg-white/[0.03] px-3 py-1"
+                                        className="tomo-badge tomo-badge--neutral"
                                     >
                                         {item}
                                     </span>

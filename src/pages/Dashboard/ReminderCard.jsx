@@ -2,31 +2,31 @@ export default function ReminderCard({ reminder }) {
     const hasCalendarLink = Boolean(reminder.google_calendar_url)
 
     return (
-        <div className={getCardClassName(reminder.tone)}>
+        <div className={getCardClassName(reminder)}>
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-tomo-text">
                         {reminder.eyebrow}
                     </p>
 
-                    <h3 className="mt-2 text-sm font-semibold text-tomo-text-h">
+                    <h3 className="mt-3 text-lg font-semibold text-tomo-text-h">
                         {reminder.title}
                     </h3>
 
-                    <p className="mt-2 text-xs leading-5 text-tomo-text">
+                    <p className="mt-2 text-sm leading-6 text-tomo-text">
                         {reminder.body}
                     </p>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <ReminderPill>{reminder.event_date}</ReminderPill>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <ReminderPill>
+                            reminds {reminder.event_date}
+                        </ReminderPill>
 
-                        {reminder.calendar_sync_status === "synced" && (
+                        {reminder.calendar_sync_status === "synced" ? (
                             <ReminderPill tone="success">
                                 Calendar synced
                             </ReminderPill>
-                        )}
-
-                        {reminder.calendar_sync_status !== "synced" && (
+                        ) : (
                             <ReminderPill>Not synced</ReminderPill>
                         )}
 
@@ -35,9 +35,7 @@ export default function ReminderCard({ reminder }) {
                         )}
 
                         {reminder.timing_state === "due_now" && (
-                            <ReminderPill tone="attention">
-                                Due now
-                            </ReminderPill>
+                            <ReminderPill tone="brand">Due now</ReminderPill>
                         )}
                     </div>
                 </div>
@@ -47,7 +45,7 @@ export default function ReminderCard({ reminder }) {
                         href={reminder.google_calendar_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-purple-200 hover:border-purple-300/50 hover:text-purple-100"
+                        className={getReminderActionClassName(reminder)}
                     >
                         Open
                     </a>
@@ -57,33 +55,45 @@ export default function ReminderCard({ reminder }) {
     )
 }
 
-function ReminderPill({ tone = "default", children }) {
+function ReminderPill({ tone = "neutral", children }) {
     const className =
         tone === "success"
-            ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-200"
+            ? "tomo-badge--success"
             : tone === "warning"
-              ? "border-amber-300/30 bg-amber-300/10 text-amber-200"
-              : tone === "attention"
-                ? "border-purple-300/30 bg-purple-300/10 text-purple-200"
-                : "border-tomo-border text-tomo-text"
+              ? "tomo-badge--warning"
+              : tone === "brand"
+                ? "tomo-badge--brand"
+                : "tomo-badge--neutral"
 
-    return (
-        <span className={`rounded-full border px-2 py-1 text-[11px] ${className}`}>
-            {children}
-        </span>
-    )
+    return <span className={`tomo-badge ${className}`}>{children}</span>
 }
 
-function getCardClassName(tone) {
-    const base = "rounded-2xl border p-4"
+function getCardClassName(reminder) {
+    const base =
+        "rounded-2xl border bg-white/[0.025] p-5 shadow-sm transition-colors hover:bg-white/[0.035]"
 
-    if (tone === "warning") {
-        return `${base} border-amber-300/30 bg-amber-300/10`
+    if (reminder.timing_state === "overdue") {
+        return `${base} border-[color:var(--tomo-warning-border)]`
     }
 
-    if (tone === "attention") {
-        return `${base} border-purple-300/30 bg-purple-300/10`
+    if (reminder.timing_state === "due_now") {
+        return `${base} border-[color:var(--tomo-accent-border)]`
     }
 
-    return `${base} border-tomo-border bg-white/[0.03]`
+    return `${base} border-tomo-border`
+}
+
+function getReminderActionClassName(reminder) {
+    const base =
+        "tomo-btn shrink-0 px-4 py-1.5 text-xs font-semibold shadow-[0_10px_24px_-16px_rgba(0,0,0,0.9)]"
+
+    if (reminder.timing_state === "due_now") {
+        return `${base} border border-[color:var(--tomo-accent-border)] bg-[var(--tomo-accent-bg)] text-tomo-accent hover:border-[color:var(--color-tomo-accent)] hover:text-purple-200`
+    }
+
+    if (reminder.timing_state === "overdue") {
+        return `${base} border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] text-tomo-warning hover:border-[color:var(--color-tomo-warning)]`
+    }
+
+    return `${base} tomo-btn-secondary`
 }

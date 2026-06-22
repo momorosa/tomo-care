@@ -6,8 +6,10 @@ function QueueItem({ doc, active, onSelect }) {
 
   return (
     <button
-      className={`w-full text-left px-4 py-3 border-b border-tomo-border/50 hover:bg-white/5 ${
-        active ? "bg-white/10" : ""
+      className={`w-full text-left px-4 py-3 border-b border-tomo-border/50 border-l-2 transition-colors ${
+        active
+          ? "border-l-tomo-accent bg-white/[0.06]"
+          : "border-l-transparent hover:bg-white/[0.03]"
       }`}
       onClick={() => onSelect(doc.id)}
     >
@@ -16,10 +18,8 @@ function QueueItem({ doc, active, onSelect }) {
           {doc.title || doc.doc_type}
         </p>
         <span
-          className={`text-[11px] px-3 py-0.5 rounded-full ${
-            verified
-              ? "bg-green-500/15 text-green-200"
-              : "bg-tomo-accent/15 text-tomo-accent"
+          className={`tomo-badge ${
+            verified ? "tomo-badge--success" : "tomo-badge--brand"
           }`}
         >
           {doc.status || "ingested"}
@@ -33,7 +33,7 @@ function QueueItem({ doc, active, onSelect }) {
 }
 
 export default function ReviewQueuePanel({ docs, selectedId, onSelect, loading }) {
-  const [showVerified, setShowVerified] = useState(false)
+  const [showVerified, setShowVerified] = useState(true)
 
   const { pendingDocs, verifiedDocs } = useMemo(() => {
     const pending = []
@@ -63,9 +63,9 @@ export default function ReviewQueuePanel({ docs, selectedId, onSelect, loading }
     <div className="col-span-12 md:col-span-3 min-h-0 rounded-xl overflow-hidden tomo-surface flex flex-col">
       <div className="shrink-0 px-4 py-3 border-b border-tomo-border flex items-center justify-between">
         <p className="text-sm text-tomo-text-h">Review queue</p>
-        <p className="text-xs text-tomo-text-h">
-          {loading ? "Loading…" : `${docs.length}`}
-        </p>
+        <span className="tomo-badge tomo-badge--brand tabular-nums">
+          {loading ? "…" : docs.length}
+        </span>
       </div>
 
       {/* <div
@@ -93,7 +93,23 @@ export default function ReviewQueuePanel({ docs, selectedId, onSelect, loading }
               />
             ))
           ) : (
-            <div className="px-4 py-4 text-sm text-tomo-text">No items waiting for review.</div>
+            <div className="px-4 py-4">
+              <div className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 tomo-badge--success border">
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-4 h-4 shrink-0 text-tomo-success"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <p className="text-sm text-tomo-success">You&rsquo;re all caught up.</p>
+              </div>
+            </div>
           )}
         </div>
 

@@ -25,24 +25,27 @@ const STATE_LABELS = {
     verified: "Verified",
 }
 
-const STATE_COLORS = {
-    "auto-confirmed": "bg-green-500/15 text-green-300 border-green-500/30",
-    "needs-confirmation": "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    "unreadable-source": "bg-red-500/15 text-red-300 border-red-500/30",
-    accepted: "bg-green-500/15 text-green-300 border-green-500/30",
-    verified: "bg-green-500/15 text-green-300 border-green-500/30",
+const STATE_BADGE = {
+    "auto-confirmed": "tomo-badge--success",
+    "needs-confirmation": "tomo-badge--warning",
+    "unreadable-source": "tomo-badge--danger",
+    accepted: "tomo-badge--success",
+    verified: "tomo-badge--success",
+}
+
+// Card tint (background + border) per state, driven by the semantic status
+// tokens so flagged/confirmed cards stay consistent with the badges.
+const STATE_CARD_CLASS = {
+    "needs-confirmation": "tomo-review-card--needs-review",
+    "unreadable-source": "tomo-review-card--unreadable",
+    accepted: "tomo-review-card--accepted",
 }
 
 function TriageBadge({ state }) {
     if (!state) return null
 
     return (
-        <span
-            className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                STATE_COLORS[state] ||
-                "bg-white/10 text-tomo-text border-tomo-border"
-            }`}
-        >
+        <span className={`tomo-badge ${STATE_BADGE[state] || "tomo-badge--neutral"}`}>
             {STATE_LABELS[state] || state}
         </span>
     )
@@ -60,7 +63,7 @@ function TriageReason({ reason }) {
     if (!reason) return null
 
     return (
-        <p className="text-[11px] text-tomo-text mt-1 leading-snug italic">
+        <p className="mt-2 text-[11px] leading-relaxed text-tomo-text">
             {reason}
         </p>
     )
@@ -148,7 +151,7 @@ export default function WorkingPanel({
             <div className="shrink-0 px-4 py-3 border-b border-tomo-border">
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-tomo-text-h">Working panel</p>
-                    <p className="text-[11px] text-tomo-text-h">
+                    <p className="text-[11px] text-tomo-text">
                         events {counts.events} · costs {counts.cost_items} · labs{" "}
                         {counts.labs}
                     </p>
@@ -164,12 +167,11 @@ export default function WorkingPanel({
                 )}
 
                 {hasTriage && !triageLoading && isVerified && (
-                    <div className="mt-2 flex items-center gap-3">
+                    <div className="mt-3 flex items-center gap-3 rounded-lg border border-tomo-border px-3 py-2.5 bg-[rgba(255,255,255,0.025)]">
                         <TriageBadge state="verified" />
                         <p className="text-[11px] text-tomo-text">
                             {reviewedFieldCount} field
-                            {reviewedFieldCount === 1 ? "" : "s"} accepted into the
-                            verified record
+                            {reviewedFieldCount === 1 ? "" : "s"} accepted
                             {rawFlaggedCount > 0
                                 ? ` · ${rawFlaggedCount} originally flagged`
                                 : ""}
@@ -198,14 +200,14 @@ export default function WorkingPanel({
 
                 {isFailSafe && !triageLoading && !isVerified && (
                     <div className="mt-2">
-                        <p className="text-[11px] text-amber-300">
+                        <p className="text-[11px] text-tomo-warning">
                             Triage unavailable — all fields shown for manual review.
                         </p>
                     </div>
                 )}
 
                 <div
-                    className="flex gap-2 mt-3"
+                    className="flex gap-6 mt-4 border-b border-tomo-border"
                     role="tablist"
                     aria-label="Working panel mode"
                 >
@@ -231,8 +233,8 @@ export default function WorkingPanel({
                 {tab === "fields" && (
                     <div className="mt-3">
                         {isVerified && !editMode ? (
-                            <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2">
-                                <p className="text-[11px] text-green-300">
+                            <div className="rounded-lg border           border-tomo-border px-3 py-2 bg-[rgba(255,255,255,0.025)]">
+                                <p className="text-[11px] text-tomo-text">
                                     Verified record · read-only audit view
                                 </p>
                             </div>
@@ -459,8 +461,8 @@ function FlaggedFieldsSection({
 
     if (flagged.length === 0) {
         return (
-            <div className="p-3 rounded-lg border border-green-500/20 bg-green-500/5">
-                <p className="text-sm text-green-300">
+            <div className="p-3 rounded-lg border border-[color:var(--tomo-success-border)] bg-[var(--tomo-success-bg)]">
+                <p className="text-sm text-tomo-success">
                     {isVerified
                         ? "No fields were escalated during review."
                         : "All fields look good. Review the confirmed summary below, then approve."}
@@ -485,21 +487,19 @@ function FlaggedFieldsSection({
                 {flagged.map((f) => {
                     const accepted = isVerified || acceptedPaths.has(f.path)
 
+                    const cardClass = accepted
+                        ? STATE_CARD_CLASS.accepted
+                        : STATE_CARD_CLASS[f.state] || STATE_CARD_CLASS["needs-confirmation"]
+
                     return (
                         <div
                             key={f.path}
-                            className={`p-3 rounded-lg border transition-colors ${
-                                accepted
-                                    ? "border-green-500/20 bg-green-500/5"
-                                    : f.state === "unreadable-source"
-                                      ? "border-red-500/20 bg-red-500/5"
-                                      : "border-amber-500/20 bg-amber-500/5"
-                            }`}
+                            className={`tomo-review-card ${cardClass}`}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <p className="text-xs font-medium text-tomo-text-h">
+                                        <p className="text-xs font-mono text-tomo-accent break-all">
                                             {f.path}
                                         </p>
 
@@ -510,7 +510,7 @@ function FlaggedFieldsSection({
                                         />
                                     </div>
 
-                                    <p className="text-sm text-tomo-text-h break-words">
+                                    <p className="text-sm font-medium text-tomo-text-h break-words">
                                         {f.extracted_value != null
                                             ? String(f.extracted_value)
                                             : "—"}
@@ -521,7 +521,7 @@ function FlaggedFieldsSection({
 
                                 {!accepted && (
                                     <button
-                                        className="shrink-0 text-xs px-3 py-1.5 rounded-full border border-green-500/30 text-green-300 hover:bg-green-500/15 transition-colors"
+                                        className="shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors border-[color:var(--tomo-success-border)] text-tomo-success hover:bg-[var(--tomo-success-bg)]"
                                         onClick={() => onAcceptField?.(f.path)}
                                     >
                                         Accept
@@ -573,7 +573,7 @@ function ConfirmedFieldsSection({
                         </p>
 
                         {allAccepted && (
-                            <span className="text-[10px] text-green-400">
+                            <span className="text-[10px] text-tomo-success">
                                 All accepted
                             </span>
                         )}
@@ -581,7 +581,7 @@ function ConfirmedFieldsSection({
 
                     {!isVerified && !allAccepted && (
                         <button
-                            className="text-xs px-3 py-1 rounded-full border border-green-500/30 text-green-300 hover:bg-green-500/15 transition-colors"
+                            className="text-xs px-3 py-1 rounded-full border transition-colors border-[color:var(--tomo-success-border)] text-tomo-success hover:bg-[var(--tomo-success-bg)]"
                             onClick={(e) => {
                                 e.preventDefault()
                                 onAcceptAllConfirmed?.()
@@ -604,11 +604,11 @@ function ConfirmedFieldsSection({
                         >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <p className="text-xs text-tomo-text">
+                                    <p className="text-xs font-mono text-tomo-text break-all">
                                         {f.path}
                                     </p>
                                     {accepted && (
-                                        <span className="text-[10px] text-green-400">
+                                        <span className="text-[10px] text-tomo-success">
                                             Accepted
                                         </span>
                                     )}

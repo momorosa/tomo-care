@@ -39,3 +39,16 @@ export async function fetchReminders(petId) {
 
     return data.reminders || []
 }
+
+export async function fetchVerifiedDocuments(petId) {
+    const response = await fetch(
+        `/api/pets/${petId}/documents?status=verified&limit=10`
+    )
+
+    const data = await jsonOrThrow(
+        response,
+        "Could not load verified documents"
+    )
+
+    return data.documents || []
+}

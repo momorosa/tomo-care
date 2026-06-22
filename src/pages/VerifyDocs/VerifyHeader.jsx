@@ -3,10 +3,14 @@ export default function VerifyHeader({
   approving,
   canApprove,
   onApprove,
+  isVerified = false,
   unreviewedCount = 0,
+  flaggedTotal = 0,
+  flaggedResolved = 0,
   triageLoading = false,
 }) {
   const showHint = !canApprove && unreviewedCount > 0 && !triageLoading
+  const showCounter = flaggedTotal > 0 && !triageLoading
 
   return (
     <div className="flex items-start justify-between gap-4 mb-4">
@@ -15,28 +19,42 @@ export default function VerifyHeader({
           Verify & Save
         </h1>
         <p className="text-tomo-text mt-2">
-          Review what Tomo found in your document, make quick edits if needed,
-          then save it as trusted records.
+          Review what Tomo found in this document, edit if needed, then save it
+          to Momo&rsquo;s trusted records.
         </p>
       </div>
 
       <div className="flex flex-col items-end gap-1.5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 px-3 py-2">
           {statusPill}
 
+          {showCounter && (
+            <span
+              className={`text-xs tabular-nums ${
+                flaggedResolved >= flaggedTotal
+                  ? "text-tomo-success"
+                  : "text-tomo-text"
+              }`}
+            >
+              {flaggedResolved} / {flaggedTotal} flags resolved
+            </span>
+          )}
+
           <button
-            className="px-4 py-2 rounded-lg tomo-accent-surface text-tomo-accent font-medium disabled:opacity-40
-              hover:text-purple-300
-              hover:cursor-pointer disabled:hover:cursor-not-allowed transition-opacity"
+            className="tomo-btn tomo-btn-primary disabled:opacity-40 disabled:hover:cursor-not-allowed"
             onClick={onApprove}
             disabled={!canApprove || approving}
           >
-            {approving ? "Approving…" : "Approve"}
+            {approving
+              ? "Saving…"
+              : isVerified
+                ? "Saved to records"
+                : "Approve & save record"}
           </button>
         </div>
 
         {showHint && (
-          <p className="text-[11px] text-amber-300/80">
+          <p className="text-[11px] text-tomo-warning">
             Review {unreviewedCount} flagged field
             {unreviewedCount > 1 ? "s" : ""} to approve
           </p>

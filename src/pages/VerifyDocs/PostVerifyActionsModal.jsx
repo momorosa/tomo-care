@@ -41,7 +41,7 @@ export default function PostVerifyActionsModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-            <div className="w-full max-w-[600px] rounded-3xl border border-tomo-border bg-tomo-bg p-6 shadow-2xl">
+            <div className="w-full max-w-[640px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]">
                 <div className="mb-5">
                     <p className="tomo-section-label mb-3">
                         Verified and saved
@@ -58,7 +58,7 @@ export default function PostVerifyActionsModal({
                     </p>
 
                     {documentTitle && (
-                        <p className="mt-3 rounded-xl border border-tomo-border bg-white/[0.03] px-3 py-2 text-xs text-tomo-text">
+                        <p className="mt-4 rounded-xl border border-tomo-border bg-white/[0.025] px-3 py-2 text-xs text-tomo-text">
                             Source:{" "}
                             <span className="text-tomo-text-h">
                                 {documentTitle}
@@ -162,94 +162,117 @@ function ActionButton({
     })
 
     return (
-        <div
-            className={`w-full rounded-2xl border p-4 text-left transition-colors ${
-                disabled
-                    ? "border-tomo-border bg-white/[0.02] opacity-50"
-                    : isSynced
-                      ? "border-emerald-300/30 bg-emerald-300/10"
-                      : isSavedOnly
-                        ? "border-amber-300/30 bg-amber-300/10"
-                        : isError
-                          ? "border-red-300/30 bg-red-300/10"
-                          : "border-tomo-border bg-white/[0.03] hover:border-purple-300/40 hover:bg-white/[0.05]"
-            }`}
-        >
-            <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-tomo-text-h">
-                            {title}
-                        </p>
-
-                        {badge && phase === "idle" && (
-                            <span className="rounded-full border border-purple-300/30 bg-purple-300/10 px-2 py-0.5 text-[10px] font-medium text-purple-200">
-                                {badge}
-                            </span>
-                        )}
-
-                        {isSynced && (
-                            <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
-                                Synced
-                            </span>
-                        )}
-
-                        {isSavedOnly && (
-                            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-                                Saved only
-                            </span>
-                        )}
-
-                        {isError && (
-                            <span className="rounded-full border border-red-300/30 bg-red-300/10 px-2 py-0.5 text-[10px] font-medium text-red-200">
-                                Needs review
-                            </span>
-                        )}
-                    </div>
-
-                    <p className="mt-1 text-xs leading-5 text-tomo-text">
-                        {body}
+    <div className={getActionCardClassName({ disabled, isSynced, isSavedOnly, isError })}>
+        <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-tomo-text-h">
+                        {title}
                     </p>
 
-                    {statusMessage && (
-                        <p
-                            className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${
-                                isSynced
-                                    ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
-                                    : isSavedOnly
-                                      ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
-                                      : isError
-                                        ? "border-red-300/20 bg-red-300/10 text-red-100"
-                                        : "border-tomo-border bg-white/[0.03] text-tomo-text"
-                            }`}
-                        >
-                            {statusMessage}
-                        </p>
+                    {badge && phase === "idle" && (
+                        <span className="tomo-badge tomo-badge--brand">
+                            {badge}
+                        </span>
                     )}
 
-                    {calendarUrl && (
-                        <a
-                            href={calendarUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-3 inline-flex text-xs font-medium text-purple-200 underline underline-offset-4 hover:text-purple-100"
-                        >
-                            Open in Google Calendar
-                        </a>
+                    {isSynced && (
+                        <span className="tomo-badge tomo-badge--success">
+                            Synced
+                        </span>
+                    )}
+
+                    {isSavedOnly && (
+                        <span className="tomo-badge tomo-badge--warning">
+                            Saved only
+                        </span>
+                    )}
+
+                    {isError && (
+                        <span className="tomo-badge tomo-badge--danger">
+                            Needs review
+                        </span>
                     )}
                 </div>
 
-                <button
-                    type="button"
-                    className="shrink-0 rounded-full border border-tomo-border px-3 py-1 text-xs text-tomo-text disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={isDisabled}
-                    onClick={onClick}
-                >
-                    {buttonLabel}
-                </button>
+                <p className="mt-2 text-xs leading-5 text-tomo-text">
+                    {body}
+                </p>
+
+                {statusMessage && (
+                    <p className={getStatusMessageClassName({ isSynced, isSavedOnly, isError })}>
+                        {statusMessage}
+                    </p>
+                )}
+
+                {calendarUrl && (
+                    <a
+                        href={calendarUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex text-xs font-medium text-tomo-accent underline underline-offset-4 hover:text-purple-200"
+                    >
+                        Open in Google Calendar
+                    </a>
+                )}
             </div>
+
+            <button
+                type="button"
+                className={
+                    phase === "idle" && !disabled
+                        ? "tomo-btn tomo-btn-primary shrink-0 px-4 py-1 text-xs"
+                        : "tomo-btn tomo-btn-secondary shrink-0 px-4 py-1 text-xs"
+                }
+                disabled={isDisabled}
+                onClick={onClick}
+            >
+                {buttonLabel}
+            </button>
         </div>
-    )
+    </div>
+)
+}
+
+function getActionCardClassName({ disabled, isSynced, isSavedOnly, isError }) {
+    const base =
+        "w-full rounded-2xl border bg-white/[0.025] p-4 text-left transition-colors"
+
+    if (disabled) {
+        return `${base} border-tomo-border opacity-50`
+    }
+
+    if (isSynced) {
+        return `${base} border-tomo-border border-l-4 border-l-tomo-success`
+    }
+
+    if (isSavedOnly) {
+        return `${base} border-tomo-border border-l-4 border-l-tomo-warning`
+    }
+
+    if (isError) {
+        return `${base} border-tomo-border border-l-4 border-l-tomo-danger`
+    }
+
+    return `${base} border-tomo-border hover:bg-white/[0.04] hover:border-tomo-accent/40`
+}
+
+function getStatusMessageClassName({ isSynced, isSavedOnly, isError }) {
+    const base = "mt-3 rounded-xl border px-3 py-2 text-xs leading-5"
+
+    if (isSynced) {
+        return `${base} border-[color:var(--tomo-success-border)] bg-[var(--tomo-success-bg)] text-tomo-success`
+    }
+
+    if (isSavedOnly) {
+        return `${base} border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] text-tomo-warning`
+    }
+
+    if (isError) {
+        return `${base} border-[color:var(--tomo-danger-border)] bg-[var(--tomo-danger-bg)] text-tomo-danger`
+    }
+
+    return `${base} border-tomo-border bg-white/[0.03] text-tomo-text`
 }
 
 function getStatusMessage({ phase, fallbackMessage, loadingLabel }) {

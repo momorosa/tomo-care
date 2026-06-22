@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import NotificationCard from "../../components/NotificationCard.jsx"
 import ReminderCard from "./ReminderCard.jsx"
 import {
     checkInboxForDocuments,
     fetchPendingReviewDocuments,
     fetchReminders,
+    fetchVerifiedDocuments,
 } from "./api.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
@@ -46,7 +47,7 @@ function CheckResultSummary({ result }) {
         <section className="tomo-surface rounded-2xl p-5">
             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <p className="tomo-section-label mb-2">Inbox check</p>
+                    <p className="tomo-section-label mb-2">Latest inbox check</p>
 
                     <h2 className="text-lg font-semibold text-tomo-text-h">
                         {hasNewReview
@@ -113,7 +114,8 @@ function RemindersSection({
     refreshing,
 }) {
     return (
-        <section className="tomo-surface rounded-2xl p-5">
+        // <section className="tomo-surface rounded-2xl p-5">
+        <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                     <p className="tomo-section-label mb-2">Momo’s reminders</p>
@@ -195,12 +197,23 @@ export default function Dashboard() {
     const [loadingReminders, setLoadingReminders] = useState(false)
     const [refreshingReminders, setRefreshingReminders] = useState(false)
 
+    const [verifiedDocuments, setVerifiedDocuments] = useState([])
+
     const loadPendingReviewDocs = useCallback(async () => {
         try {
             const documents = await fetchPendingReviewDocuments(PET_ID)
             setPendingReviewDocs(documents)
         } catch (err) {
             console.error("[dashboard] pending review load failed:", err)
+        }
+    }, [])
+
+    const loadVerifiedDocuments = useCallback(async () => {
+        try {
+            const documents = await fetchVerifiedDocuments(PET_ID)
+            setVerifiedDocuments(documents)
+        } catch (err) {
+            console.error("[dashboard] verified documents load failed:", err)
         }
     }, [])
 
@@ -226,8 +239,9 @@ export default function Dashboard() {
 
     useEffect(() => {
         loadPendingReviewDocs()
+        loadVerifiedDocuments()
         loadReminders()
-    }, [loadPendingReviewDocs, loadReminders])
+    }, [loadPendingReviewDocs, loadVerifiedDocuments, loadReminders])
 
     const latestReviewDocuments = useMemo(
         () => normalizeReviewDocuments(result),
@@ -258,72 +272,44 @@ export default function Dashboard() {
             } else {
                 await loadPendingReviewDocs()
             }
-
+            await loadVerifiedDocuments()
             await loadReminders({ silent: true })
         } catch (err) {
             setError(err.message)
         } finally {
             setCheckingInbox(false)
         }
-    }
+    }   
+        return (
+            <main className="min-h-[calc(100svh-73px)] bg-tomo-bg text-tomo-text">
+                <div className="mx-auto max-w-[1440px] px-6 py-8 md:px-8 md:py-10">
+                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+                        {/* Main care desk */}
+                        <div className="min-w-0">
+                            <section className="pb-8">
+                                <p className="tomo-section-label mb-4">
+                                    Momo’s care desk
+                                </p>
 
-    return (
-        <main className="min-h-[calc(100svh-64px)] bg-tomo-bg text-tomo-text">
-            <div className="mx-auto max-w-[1120px] px-6 py-8 md:px-8 md:py-10">
-                <section className="relative overflow-hidden rounded-3xl border border-tomo-border bg-white/[0.03] p-6 md:p-8">
-                    <div className="pointer-events-none absolute right-[-120px] top-[-120px] h-72 w-72 rounded-full bg-tomo-accent/10 blur-3xl" />
+                                <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight text-tomo-text-h md:text-5xl">
+                                            Hi Rosa, 
+                                        </h1>
+                                        <p className="text-4xl font-semibold leading-tight tracking-tight text-tomo-text-h md:text-5xl">
+                                            Momo’s care is on track today.
+                                        </p>
 
-                    <div className="relative flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                        <div>
-                            <p className="tomo-section-label mb-3">
-                                Momo’s care desk
-                            </p>
-
-                            <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-tomo-text-h md:text-4xl">
-                                Hi Rosa, I’m here to help keep Momo’s care on track.
-                            </h1>
-
-                            <p className="mt-4 max-w-2xl text-sm leading-6 text-tomo-text">
-                                I can check the inbox for vet PDFs, prepare the record,
-                                and bring anything new to you before it becomes part of
-                                Momo’s trusted care history.
-                            </p>
-
-                            <div className="mt-5 flex flex-wrap gap-2">
-                                <StatusChip
-                                    label="Inbox"
-                                    value={checkingInbox ? "Checking now" : "Ready"}
-                                />
-
-                                <StatusChip
-                                    label="Review queue"
-                                    value={
-                                        hasPendingReview
-                                            ? `${reviewDocuments.length} waiting`
-                                            : "Clear"
-                                    }
-                                />
-
-                                <StatusChip
-                                    label="Reminders"
-                                    value={
-                                        reminders.length > 0
-                                            ? `${reminders.length} active`
-                                            : "Clear"
-                                    }
-                                />
-
-                                <StatusChip
-                                    label="Actions"
-                                    value="Approval-gated"
-                                />
+                                <p className="mt-6 max-w-2xl text-base leading-7 text-tomo-text">
+                                    I watch the inbox for new vet PDFs, prepare each
+                                    record, and bring anything new to you before it
+                                    joins Momo’s trusted history.
+                                </p>
                             </div>
-                        </div>
 
-                        <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
                             <button
                                 type="button"
-                                className="tomo-btn tomo-btn-primary gap-2"
+                                className="tomo-btn tomo-btn-primary shrink-0 gap-2 px-6 py-2"
                                 onClick={checkInbox}
                                 disabled={checkingInbox}
                             >
@@ -332,71 +318,113 @@ export default function Dashboard() {
                                 )}
                                 {checkingInbox ? "Checking inbox…" : "Check inbox"}
                             </button>
+                        </div>
 
-                            {checkingInbox && (
-                                <p className="text-[11px] text-tomo-text">
-                                    This can take up to ~30s.
+                        {checkingInbox && (
+                            <p className="mt-3 text-[11px] text-tomo-text">
+                                This can take up to ~30s.
+                            </p>
+                        )}
+
+                        <div className="mt-8 grid overflow-hidden rounded-2xl border border-tomo-border bg-white/[0.025] md:grid-cols-4">
+                            <StatusTile
+                                tone="success"
+                                label="Inbox"
+                                value={checkingInbox ? "Checking" : "Ready"}
+                            />
+
+                            <StatusTile
+                                tone="success"
+                                label="Review"
+                                value={
+                                    hasPendingReview
+                                        ? `${reviewDocuments.length} waiting`
+                                        : "Clear"
+                                }
+                            />
+
+                            <StatusTile
+                                tone="warning"
+                                label="Reminders"
+                                value={
+                                    reminders.length > 0
+                                        ? `${reminders.length} active`
+                                        : "Clear"
+                                }
+                            />
+
+                            <StatusTile
+                                tone="brand"
+                                label="Actions"
+                                value="Gated"
+                            />
+                        </div>
+                    </section>
+
+                    <div className="space-y-5">
+                        {error && (
+                            <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-4">
+                                <p className="text-sm font-medium text-red-200">
+                                    Inbox check failed
                                 </p>
-                            )}
-                        </div>
-                    </div>
-                </section>
+                                <p className="mt-1 text-sm text-red-100/80">
+                                    {error}
+                                </p>
+                            </div>
+                        )}
 
-                <div className="mt-5 space-y-5">
-                    <RemindersSection
-                        reminders={reminders}
-                        loading={loadingReminders}
-                        error={remindersError}
-                        refreshing={refreshingReminders}
-                        onRefresh={() => loadReminders({ silent: true })}
-                    />
+                        <CheckResultSummary result={result} />
 
-                    {error && (
-                        <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-4">
-                            <p className="text-sm font-medium text-red-200">
-                                Inbox check failed
-                            </p>
-                            <p className="mt-1 text-sm text-red-100/80">
-                                {error}
-                            </p>
-                        </div>
-                    )}
+                        {firstReviewDocument && (
+                            <NotificationCard
+                                eyebrow="Needs your review"
+                                title="New document ready for review"
+                                body={
+                                    cardIsFromInboxCheck
+                                        ? "I found and processed a new document. Please review it before I add it to Momo’s trusted care record."
+                                        : "A document is waiting in the verification queue. Please review it before I add it to Momo’s trusted care record."
+                                }
+                                meta={[
+                                    firstReviewDocument.title,
+                                    firstReviewDocument.source_org,
+                                    firstReviewDocument.doc_type,
+                                    reviewDocuments.length > 1
+                                        ? `${reviewDocuments.length} documents ready`
+                                        : null,
+                                ]}
+                                actionLabel="Review now"
+                                onAction={() =>
+                                    navigate(`/review/${firstReviewDocument.id}`)
+                                }
+                            />
+                        )}
 
-                    {firstReviewDocument && (
-                        <NotificationCard
-                            eyebrow="Needs your review"
-                            title="New document ready for review"
-                            body={
-                                cardIsFromInboxCheck
-                                    ? "I found and processed a new document. Please review it before I add it to Momo’s trusted care record."
-                                    : "A document is waiting in the verification queue. Please review it before I add it to Momo’s trusted care record."
-                            }
-                            meta={[
-                                firstReviewDocument.title,
-                                firstReviewDocument.source_org,
-                                firstReviewDocument.doc_type,
-                                reviewDocuments.length > 1
-                                    ? `${reviewDocuments.length} documents ready`
-                                    : null,
-                            ]}
-                            actionLabel="Review now"
-                            onAction={() =>
-                                navigate(`/review/${firstReviewDocument.id}`)
-                            }
+                        <RemindersSection
+                            reminders={reminders}
+                            loading={loadingReminders}
+                            error={remindersError}
+                            refreshing={refreshingReminders}
+                            onRefresh={() => loadReminders({ silent: true })}
                         />
-                    )}
 
-                    <CheckResultSummary result={result} />
+                    </div>
                 </div>
+
+                {/* Right rail */}
+                <CareRail
+                    reminders={reminders}
+                    verifiedDocuments={verifiedDocuments}
+                />
             </div>
-        </main>
-    )
+        </div>
+    </main>
+)
 }
 
 function StatusChip({ label, value }) {
     return (
-        <div className="rounded-full border border-tomo-border bg-white/[0.03] px-3 py-1.5">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-tomo-text">
+        <div className="rounded-full border border-tomo-border bg-white/[0.03] px-4 py-1.5">
+            <span className="text-[12px] uppercase tracking-[0.18em] text-tomo-text">
                 {label}
             </span>
 
@@ -404,5 +432,140 @@ function StatusChip({ label, value }) {
                 {value}
             </span>
         </div>
+    )
+}
+
+function StatusTile({ label, value, tone = "neutral" }) {
+    const dotClass =
+        tone === "success"
+            ? "bg-tomo-success"
+            : tone === "warning"
+              ? "bg-tomo-warning"
+              : tone === "brand"
+                ? "bg-tomo-accent"
+                : "bg-tomo-text"
+
+    return (
+        <div className="border-b border-tomo-border px-5 py-4 md:border-b-0 md:border-r last:border-r-0">
+            <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                <p className="text-[11px] uppercase tracking-[0.18em] text-tomo-text">
+                    {label}
+                </p>
+            </div>
+
+            <p className="mt-2 text-lg font-semibold text-tomo-text-h">
+                {value}
+            </p>
+        </div>
+    )
+}
+
+function CareRail({ reminders, verifiedDocuments = [] }) {
+    const activeReminderCount = reminders?.length || 0
+
+    return (
+        <aside className="hidden border-l border-tomo-border pl-8 lg:block">
+            <div className="sticky top-8 flex min-h-[calc(100svh-140px)] flex-col">
+                <section className="rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
+                    <div className="flex items-center gap-4">
+                        <img
+                            src="/assets/momoPic.png"
+                            alt=""
+                            className="h-14 w-14 rounded-full"
+                        />
+
+                        <div>
+                            <h2 className="text-2xl font-semibold text-tomo-text-h">
+                                Momo
+                            </h2>
+                            <p className="text-sm font-medium text-tomo-text">
+                                American Eskimo · 11 yrs
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 overflow-hidden rounded-xl border border-tomo-border">
+                        <CareContextRow label="Last verified" value="Apr 14" />
+                        <CareContextRow label="Last Librela" value="Apr 14" />
+                        <CareContextRow label="Active reminders" value={activeReminderCount} />
+                        <CareContextRow label="Primary vet" value="SoMa" />
+                    </div>
+                </section>
+
+                <section className="mt-8">
+                    <div className="flex items-center justify-between">
+                        <p className="tomo-section-label">Recently verified</p>
+                        <p className="text-sm font-semibold text-tomo-success">
+                            {verifiedDocuments.length}
+                        </p>
+                    </div>
+
+                    <div className="mt-5 space-y-2">
+                        {verifiedDocuments.length > 0 ? (
+                            verifiedDocuments.slice(0, 5).map((doc) => (
+                                <RecentRecord
+                                    key={doc.id}
+                                    id={doc.id}
+                                    title={doc.title || "Verified document"}
+                                    sourceOrg={doc.source_org}
+                                    date={doc.doc_date}
+                                />
+                            ))
+                        ) : (
+                            <p className="text-sm text-tomo-text">
+                                No verified records yet.
+                            </p>
+                        )}
+                    </div>
+                </section>
+
+                <div className="mt-auto rounded-2xl border border-tomo-accent/40 bg-tomo-accent/10 p-5">
+                    <p className="tomo-section-label text-tomo-accent">
+                        Approval-gated
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-tomo-text">
+                        Nothing reaches Momo’s record or your calendar until you
+                        approve it.
+                    </p>
+                </div>
+            </div>
+        </aside>
+    )
+}
+
+function CareContextRow({ label, value }) {
+    return (
+        <div className="flex items-center justify-between border-b border-tomo-border px-4 py-3 last:border-b-0">
+            <p className="text-sm font-medium text-tomo-text">{label}</p>
+            <p className="text-sm font-semibold text-tomo-text-h">{value}</p>
+        </div>
+    )
+}
+
+function RecentRecord({ id, title, sourceOrg, date }) {
+    return (
+        <Link
+            to={`/review/${id}`}
+            className="
+                tomo-quiet-link
+                group flex gap-3 rounded-xl px-2 py-2 -mx-2
+                transition-colors
+                hover:bg-white/[0.035]
+            "
+        >
+            <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-tomo-success" />
+
+            <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-tomo-text-h transition-colors group-hover:text-white">
+                    {title}
+                </p>
+
+                <p className="text-sm text-tomo-text">
+                    {date || "Unknown date"}
+                    {sourceOrg ? ` · ${sourceOrg}` : ""}
+                </p>
+            </div>
+        </Link>
     )
 }

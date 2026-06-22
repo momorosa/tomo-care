@@ -17,7 +17,28 @@
                     rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 
     /* Optional: font token */
-    --font-primary: "Manrope", sans-serif;
+    --font-primary: "Raleway", sans-serif;
+
+    /* --- added: semantic status colors. Reserve these for STATUS only —
+       never reuse the accent (purple) for status, and never use these for actions. --- */
+    --color-tomo-success: #4ed4a4;
+    --color-tomo-warning: #e2b35e;
+    --color-tomo-danger:  #f17878;
+
+    /* --- added: status tint + border specials (same pattern as accent) --- */
+    --tomo-success-bg:     rgba(78, 212, 164, 0.13);
+    --tomo-success-border: rgba(78, 212, 164, 0.45);
+    --tomo-warning-bg:     rgba(226, 179, 94, 0.13);
+    --tomo-warning-border: rgba(226, 179, 94, 0.45);
+    --tomo-danger-bg:      rgba(241, 120, 120, 0.13);
+    --tomo-danger-border:  rgba(241, 120, 120, 0.45);
+
+    /* --- added: second elevation step. Three levels now:
+       --color-tomo-bg (page) -> --tomo-surface (card) -> --tomo-surface-raised (nested/raised) --- */
+    --tomo-surface-raised: rgba(62, 64, 78, 0.55);
+
+    /* --- added: one focus ring for the whole app (replaces the browser-default blue) --- */
+    --tomo-focus-ring: rgba(192, 132, 252, 0.7);
 }
 
 @layer components {
@@ -72,17 +93,83 @@
     border: 1px solid var(--tomo-accent-border);
   }
 
-  /* Tabs / mode controls (segmented, not CTA) */
+  /* --- added: tertiary action — text-only, the quietest tier.
+     Use for dismiss/utility ("Done", "Refresh", "Open") so they never out-weigh a real action. --- */
+  .tomo-btn-tertiary {
+    @apply text-tomo-text hover:text-tomo-text-h;
+    background: transparent;
+    border: 1px solid transparent;
+  }
+
+  /* Tabs / mode controls — underline style, sits on a shared divider.
+     Quiet on purpose so they don't compete with the status pills/badges. */
   .tomo-tab {
-    @apply text-xs px-3 py-1.5 rounded-full border border-tomo-border text-tomo-text transition-colors;
+    @apply text-sm pb-2 -mb-px border-b-2 border-transparent text-tomo-text transition-colors hover:text-tomo-text-h hover:cursor-pointer;
     background: transparent;
   }
 
   .tomo-tab--active {
-    @apply text-tomo-text-h;
-    background: rgba(0, 0, 0, 0.25);
-    border-color: rgba(243, 244, 246, 0.35); /* subtle highlight, not accent */
+    @apply text-tomo-text-h border-b-tomo-text-h; /* light underline, not accent */
   }
+
+  /* --- added: status badges/pills, driven by the semantic tokens above.
+     Mapping I'd use: Recommended -> brand · Synced/Added -> success ·
+     Due now -> warning · Overdue -> danger · dates/"Not synced" -> neutral.
+     This removes purple from status so it can't compete with the accent action. --- */
+  .tomo-badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium;
+  }
+  .tomo-badge--neutral {
+    @apply text-tomo-text border-tomo-border;
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .tomo-badge--brand {
+    @apply text-tomo-accent;
+    background: var(--tomo-accent-bg);
+    border-color: var(--tomo-accent-border);
+  }
+  .tomo-badge--success {
+    @apply text-tomo-success;
+    background: var(--tomo-success-bg);
+    border-color: var(--tomo-success-border);
+  }
+  .tomo-badge--warning {
+    @apply text-tomo-warning;
+    background: var(--tomo-warning-bg);
+    border-color: var(--tomo-warning-border);
+  }
+  .tomo-badge--danger {
+    @apply text-tomo-danger;
+    background: var(--tomo-danger-bg);
+    border-color: var(--tomo-danger-border);
+  }
+
+  /* Review cards inside WorkingPanel.
+   Keep accepted/verified cards neutral; let the badge carry the status color. */
+.tomo-review-card {
+  @apply rounded-lg border px-3 py-3 transition-colors;
+  background: rgba(255, 255, 255, 0.025);
+  border-color: var(--color-tomo-border);
+}
+
+.tomo-review-card--accepted {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: var(--color-tomo-border);
+}
+
+.tomo-review-card--needs-review {
+  background: var(--tomo-warning-bg);
+  border-color: var(--tomo-warning-border);
+}
+
+.tomo-review-card--unreadable {
+  background: var(--tomo-danger-bg);
+  border-color: var(--tomo-danger-border);
+}
+
+.tomo-review-card--accepted:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
 
   .tomo-section-label {
     @apply text-[11px] uppercase tracking-[0.12em] text-tomo-text;
@@ -90,6 +177,23 @@
 
   .tomo-subtle-row {
     background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* --- added: one keyboard-focus style for the whole themed app.
+     outline + offset works on any surface and kills the leaked browser-blue ring. --- */
+  .tomo-theme :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--tomo-focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* --- added: respect reduced-motion for the button lift/sheen --- */
+  @media (prefers-reduced-motion: reduce) {
+    .tomo-btn,
+    .tomo-btn::before,
+    .tomo-btn:hover {
+      transition: none;
+      transform: none;
+    }
   }
 }
 
@@ -111,6 +215,13 @@ html, body {
     box-shadow: var(--tomo-shadow);
 }
 
+/* --- added: raised surface for nested cards (the third elevation step) --- */
+.tomo-surface-raised {
+    background: var(--tomo-surface-raised);
+    border: 1px solid var(--color-tomo-border);
+    box-shadow: var(--tomo-shadow);
+}
+
 .tomo-accent-surface {
     background: var(--tomo-accent-bg);
     border: 1px solid var(--tomo-accent-border);
@@ -119,4 +230,10 @@ html, body {
 /* Optional: code block styling */
 .tomo-code {
     background: var(--color-tomo-code);
+}
+
+.tomo-theme .tomo-quiet-link:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.12);
+  outline-offset: 3px;
+  background: rgba(255, 255, 255, 0.035);
 }

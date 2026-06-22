@@ -273,6 +273,17 @@ export default function VerifyDocs() {
         !triage.triageLoading &&
         !triage.triageBlocksApprove
 
+    const flaggedFields =
+        triage.triageResult?.fields?.filter(
+            (f) =>
+                f.state === "needs-confirmation" ||
+                f.state === "unreadable-source"
+        ) || []
+    const flaggedTotal = flaggedFields.length
+    const flaggedResolved = isVerified
+        ? flaggedTotal
+        : flaggedFields.filter((f) => triage.acceptedPaths.has(f.path)).length
+
     return (
         <main className="h-[calc(100svh-64px)] w-screen overflow-hidden bg-tomo-bg">
             <div className="max-w-[1536px] mx-auto h-full px-4 md:px-8 py-6 flex flex-col min-h-0">
@@ -281,7 +292,10 @@ export default function VerifyDocs() {
                     approving={approving}
                     canApprove={canApprove}
                     onApprove={approveDoc}
+                    isVerified={isVerified}
                     unreviewedCount={triage.unreviewedCount}
+                    flaggedTotal={flaggedTotal}
+                    flaggedResolved={flaggedResolved}
                     triageLoading={triage.triageLoading}
                 />
 
