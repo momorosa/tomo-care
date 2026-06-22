@@ -4,7 +4,8 @@ import { sbAdmin } from "../supabase.js"
 const router = express.Router()
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
-const TRIAGE_MODEL = process.env.TRIAGE_MODEL || "claude-sonnet-4-20250514"
+
+const TRIAGE_MODEL = process.env.TRIAGE_MODEL || "claude-sonnet-4-6"
 
 // ─────────────────────────────────────────────
 // POST /api/documents/:docId/triage
