@@ -5,6 +5,7 @@ import "dotenv/config"
 import triageRoutes from "./routes/triage.js"
 import gmailRoutes from "./routes/gmail.js"
 import actionsRoutes from "./routes/actions.js"
+import assistantRoutes from "./routes/assistant.js"
 
 
 const app = express()
@@ -15,5 +16,6 @@ app.use("/api", documentsRoutes)
 app.use("/api", triageRoutes)
 app.use("/api", gmailRoutes)
 app.use("/api", actionsRoutes)
+app.use("/api", assistantRoutes)
 
 app.listen(3001, () => console.log("API running on http://localhost:3001"))
