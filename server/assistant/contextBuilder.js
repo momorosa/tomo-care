@@ -1,0 +1,101 @@
+import { sbAdmin } from "../supabase.js"
+
+export async function buildTrustedContext(petId) {
+    const [eventsResult, costItemsResult, docsResult] = await Promise.all([
+        sbAdmin
+            .from("events")
+            .select("id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at")
+            .eq("pet_id", petId)
+            .in("status", ["verified", "planned"])
+            .order("event_date", { ascending: false }),
+
+        sbAdmin
+            .from("cost_items")
+            .select("id, pet_id, doc_id, service_date, category, item_name, amount, currency, status, verified_at, verified_by")
+            .eq("pet_id", petId)
+            .eq("status", "verified")
+            .order("service_date", { ascending: false }),
+
+        sbAdmin
+            .from("documents")
+            .select("id, title, doc_type, doc_date, source_org, status, file_url, updated_at")
+            .eq("pet_id", petId)
+            .eq("status", "verified")
+            .order("doc_date", { ascending: false })
+            .limit(20),
+    ])
+
+    if (eventsResult.error) throw new Error(eventsResult.error.message)
+    if (costItemsResult.error) throw new Error(costItemsResult.error.message)
+    if (docsResult.error) throw new Error(docsResult.error.message)
+
+    const events = eventsResult.data || []
+    const costItems = costItemsResult.data || []
+    const documents = docsResult.data || []
+
+    const verifiedEvents = events.filter((event) => event.status === "verified")
+    const plannedReminders = events.filter(
+        (event) => event.status === "planned" && event.event_type === "reminder"
+    )
+
+    const librelaInjectionEvents = verifiedEvents
+        .filter((event) => event.event_type === "injection")
+        .filter(isLibrelaRelated)
+
+    const librelaInjectionDocIds = new Set(
+        librelaInjectionEvents
+            .map((event) => event.doc_id)
+            .filter(Boolean)
+    )
+
+    const directLibrelaCostItems = costItems.filter(isLibrelaRelated)
+
+    const librelaVisitCostItems = costItems.filter((item) =>
+        item.doc_id && librelaInjectionDocIds.has(item.doc_id)
+    )
+
+    return {
+        petId,
+        verifiedEvents,
+        plannedReminders,
+        documents,
+        librelaInjectionEvents,
+        directLibrelaCostItems,
+        librelaVisitCostItems,
+    }
+}
+
+export function isLibrelaRelated(row) {
+    const details = row.details_json || {}
+
+    const haystack = [
+        row.event_type,
+        row.category,
+        row.item_name,
+
+        details.medication,
+        details.medication_name,
+        details.drug,
+        details.drug_name,
+        details.product,
+        details.product_name,
+        details.item,
+        details.item_name,
+        details.line_item,
+        details.service,
+        details.service_name,
+        details.subtype,
+        details.title,
+        details.label,
+        details.description,
+        details.reason,
+        details.procedure,
+        details.treatment,
+        details.visit_type,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    return haystack.includes("librela")
+}
