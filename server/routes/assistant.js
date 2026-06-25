@@ -33,20 +33,7 @@ router.post("/pets/:petId/assistant/query", async (req, res) => {
 function classifyIntent(question) {
     const q = question.toLowerCase()
 
-    const actionWords = [
-        "send",
-        "text",
-        "sms",
-        "email",
-        "book",
-        "schedule",
-        "call",
-        "create",
-        "add to calendar",
-        "make appointment",
-    ]
-
-    if (actionWords.some((word) => q.includes(word))) {
+    if (isActionRequest(q)) {
         return "action_request"
     }
 
@@ -62,7 +49,7 @@ function classifyIntent(question) {
         (q.includes("librela") || q.includes("reminder") || q.includes("shot"))
     ) {
         return "next_librela_reminder"
-     }
+    }
 
     if (q.includes("reminder") || q.includes("active")) {
         return "active_reminders"
@@ -84,6 +71,26 @@ function classifyIntent(question) {
     }
 
     return "unknown"
+}
+
+function isActionRequest(q) {
+    const directActionWords = [
+        "send",
+        "text",
+        "sms",
+        "email",
+        "book",
+        "call",
+        "create",
+        "add to calendar",
+        "make appointment",
+    ]
+
+    if (directActionWords.some((word) => q.includes(word))) {
+        return true
+    }
+
+    return /(can you|could you|would you|please).*(schedule|create|book|send|text|email|call|add)/.test(q)
 }
 
 async function buildTrustedContext(petId) {
@@ -122,7 +129,7 @@ async function buildTrustedContext(petId) {
     const verifiedEvents = events.filter((e) => e.status === "verified")
     const plannedReminders = events.filter(
         (e) => e.status === "planned" && e.event_type === "reminder"
-     )
+    )
 
     const librelaEvents = verifiedEvents.filter(isLibrelaRelated)
     const librelaCostItems = costItems.filter(isLibrelaRelated)
@@ -134,7 +141,7 @@ async function buildTrustedContext(petId) {
         librelaEvents,
         librelaCostItems,
         documents,
-     }
+    }
 }
 
 function composeGroundedAnswer({ question, intent, context }) {
@@ -155,45 +162,50 @@ function composeGroundedAnswer({ question, intent, context }) {
             return answerRecentVerifiedRecords(context)
 
         case "action_request":
-        return {
-            answer:
-            "I can help prepare that, but I cannot take action directly from chat. Any booking, message, calendar write, or external action needs to go through TomoCare’s approval gate first.",
-            answer_type: "action_request",
-            confidence: "high",
-            citations: [],
-            limitations: [
-                "Phase 3A is read-only.",
-                "External actions must route through the Phase 2 approval flow.",
-            ],
-            proposed_action: {
-                status: "requires_approval_gate",
-                reason:
-                "The user asked for an action. TomoCare can prepare actions later, but execution requires explicit approval.",
-            },
-        }
+            return {
+                answer:
+                    "I can help prepare that, but I cannot take action directly from chat. Any booking, message, calendar write, or external action needs to go through TomoCare’s approval gate first.",
+                answer_type: "action_request",
+                confidence: "high",
+                citations: [],
+                limitations: [
+                    "Phase 3A is read-only.",
+                    "External actions must route through the Phase 2 approval flow.",
+                ],
+                proposed_action: {
+                    status: "requires_approval_gate",
+                    reason:
+                        "The user asked for an action. TomoCare can prepare actions later, but execution requires explicit approval.",
+                },
+            }
 
-    default:
-        return {
-            answer:
-             "I don’t have enough trusted information to answer that yet. I can only answer from verified TomoCare records, and this question is not supported in the first read-only assistant slice.",
-            answer_type: "unsupported_question",
-            confidence: "low",
-            citations: [],
-            limitations: [
-                "No unsupported inference was made.",
-                "The assistant is currently limited to verified records, reminders, Librela history, spend, and recently verified documents.",
-            ],
-            proposed_action: null,
-        }
+        default:
+            return {
+                answer:
+                    "I don’t have enough trusted information to answer that yet. I can only answer from verified TomoCare records, and this question is not supported in the first read-only assistant slice.",
+                answer_type: "unsupported_question",
+                confidence: "low",
+                citations: [],
+                limitations: [
+                    "No unsupported inference was made.",
+                    "The assistant is currently limited to verified records, reminders, Librela history, spend, and recently verified documents.",
+                ],
+                proposed_action: null,
+            }
     }
 }
 
 function answerLastLibrela(context) {
-    const latest = context.librelaEvents[0]
+    const injections = context.verifiedEvents
+        .filter((event) => event.event_type === "injection")
+        .filter(isLibrelaRelated)
+        .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))
+
+    const latest = injections[0]
 
     if (!latest) {
         return noTrustedDataAnswer(
-             "I don’t have a verified Librela injection record yet, so I can’t answer that from trusted data."
+            "I don’t have a verified Librela injection record yet, so I can’t answer that from trusted data."
         )
     }
 
@@ -212,7 +224,9 @@ function answerNextLibrelaReminder(context) {
         .filter(isLibrelaRelated)
         .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
 
-    const next = reminders[0]
+    const today = getTodayDateString()
+    const upcomingReminder = reminders.find((reminder) => reminder.event_date >= today)
+    const next = upcomingReminder || reminders[0]
 
     if (!next) {
         return noTrustedDataAnswer(
@@ -220,18 +234,24 @@ function answerNextLibrelaReminder(context) {
         )
     }
 
+    const isPast = next.event_date < today
+
     return {
-        answer: `Momo’s next Librela reminder is planned for ${formatDate(next.event_date)}.`,
+        answer: isPast
+            ? `Momo has a planned Librela reminder from ${formatDate(next.event_date)}. That date has already passed, so it may need attention.`
+            : `Momo’s next Librela reminder is planned for ${formatDate(next.event_date)}.`,
         answer_type: "grounded_answer",
         confidence: "high",
         citations: [eventCitation(next, "Planned Librela reminder")],
-        limitations: [],
+        limitations: isPast
+            ? ["This reminder is still stored as planned, but its reminder date has already passed."]
+            : [],
         proposed_action: null,
     }
 }
 
 function answerActiveReminders(context) {
-    const reminders = context.plannedReminders.sort(
+    const reminders = [...context.plannedReminders].sort(
         (a, b) => new Date(a.event_date) - new Date(b.event_date)
     )
 
@@ -242,26 +262,22 @@ function answerActiveReminders(context) {
     const reminderText = reminders
         .slice(0, 5)
         .map((r) => {
-            const label =
-                r.details_json?.title ||
-                r.details_json?.label ||
-                r.details_json?.subtype ||
-                r.details_json?.description ||
-                "Reminder"
-
+            const label = getReminderLabel(r)
             return `${label} on ${formatDate(r.event_date)}`
         })
         .join("; ")
 
     return {
-        answer: `I found ${reminders.length} active planned reminder${reminders.length === 1 ? "" : "s"}: ${reminderText}`,
+        answer: `I found ${reminders.length} active planned reminder${reminders.length === 1 ? "" : "s"}: ${reminderText}.`,
         answer_type: "grounded_answer",
         confidence: "high",
-        citations: reminders.slice(0, 5).map((r) => eventCitation(r, "Planned reminder")),
+        citations: reminders
+            .slice(0, 5)
+            .map((r) => eventCitation(r, "Planned reminder")),
         limitations:
-        reminders.length > 5
-            ? ["Only the first five reminders are shown in this answer."]
-            : [],
+            reminders.length > 5
+                ? ["Only the first five reminders are shown in this answer."]
+                : [],
         proposed_action: null,
     }
 }
@@ -279,12 +295,15 @@ function answerLibrelaSpend(context) {
     const currency = items[0]?.currency || "USD"
 
     return {
-        answer: `Based on verified cost items, Momo’s Librela-related spend is ${formatMoney(total, currency)} across ${items.length} line item${items.length === 1 ? "" : "s"}.`,
+        answer: `Momo’s direct Librela line-item spend is ${formatMoney(total, currency)} across ${items.length} verified line item${items.length === 1 ? "" : "s"}. This includes Librela medication, injection line items, and discounts. It does not include general nurse or tech visit fees unless the line item itself names Librela.`,
         answer_type: "grounded_answer",
         confidence: "high",
-        citations: items.map((item) => costItemCitation(item, "Verified Librela cost item")),
+        citations: items.map((item) =>
+            costItemCitation(item, "Verified Librela cost item")
+        ),
         limitations: [
-            "This total only includes verified line items that are clearly Librela-related.",
+            "This is a direct Librela line-item total, not a full visit total.",
+            "General nurse, tech, or office visit fees are excluded unless the line item itself clearly references Librela.",
         ],
         proposed_action: null,
     }
@@ -299,14 +318,19 @@ function answerRecentVerifiedRecords(context) {
 
     const text = docs
         .slice(0, 5)
-        .map((d) => `${d.title || "Verified document"}${d.doc_date ? ` (${formatDate(d.doc_date)})` : ""}`)
+        .map((d) => {
+            const title = d.title || "Verified document"
+            return `${title}${d.doc_date ? ` (${formatDate(d.doc_date)})` : ""}`
+        })
         .join("; ")
 
     return {
         answer: `The most recent verified records are: ${text}.`,
         answer_type: "grounded_answer",
         confidence: "high",
-        citations: docs.slice(0, 5).map((d) => documentCitation(d, "Verified document")),
+        citations: docs
+            .slice(0, 5)
+            .map((d) => documentCitation(d, "Verified document")),
         limitations:
             docs.length > 5
                 ? ["Only the five most recent verified documents are shown."]
@@ -327,21 +351,48 @@ function noTrustedDataAnswer(answer) {
 }
 
 function isLibrelaRelated(row) {
+    const details = row.details_json || {}
+
     const haystack = [
         row.event_type,
         row.category,
         row.item_name,
-        row.details_json?.subtype,
-        row.details_json?.title,
-        row.details_json?.label,
-        row.details_json?.description,
-        row.details_json?.reason,
+
+        details.medication,
+        details.medication_name,
+        details.drug,
+        details.drug_name,
+        details.product,
+        details.product_name,
+        details.subtype,
+        details.title,
+        details.label,
+        details.description,
+        details.reason,
+        details.procedure,
+        details.treatment,
+        details.visit_type,
     ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
 
     return haystack.includes("librela")
+}
+
+function getReminderLabel(reminder) {
+    const details = reminder.details_json || {}
+
+    return (
+        details.title ||
+        details.label ||
+        details.subtype ||
+        details.description ||
+        details.reason ||
+        details.medication ||
+        details.treatment ||
+        "Reminder"
+    )
 }
 
 function eventCitation(event, label) {
@@ -397,6 +448,10 @@ function formatMoney(value, currency = "USD") {
         style: "currency",
         currency,
     }).format(value)
+}
+
+function getTodayDateString() {
+    return new Date().toISOString().slice(0, 10)
 }
 
 export default router

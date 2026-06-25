@@ -52,3 +52,16 @@ export async function fetchVerifiedDocuments(petId) {
 
     return data.documents || []
 }
+
+export async function askAssistant(petId, question) {
+    const response = await fetch(`/api/pets/${petId}/assistant/query`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question }),
+    })
+
+    const data = await jsonOrThrow(response, "Could not ask TomoCare")
+    return data
+}
