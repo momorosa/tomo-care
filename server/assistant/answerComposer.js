@@ -1,12 +1,8 @@
-import {
-    costItemCitation,
-    documentCitation,
-    eventCitation,
-} from "./citations.js"
-import {
-    dateInRange,
-    getDateRangePhrase,
-} from "./dateRanges.js"
+import { costItemCitation, documentCitation, eventCitation, } from "./citations.js"
+import { dateInRange, getDateRangePhrase, } from "./dateRanges.js"
+
+const LIBRELA_INTERVAL_DAYS = 49
+const LIBRELA_REMIND_BEFORE_DAYS = 7
 
 export function composeGroundedAnswer({ question, queryPlan, context }) {
     let response
@@ -14,6 +10,14 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
     switch (queryPlan.intent) {
         case "last_librela":
             response = answerLastLibrela(context, queryPlan)
+            break
+
+        case "next_librela_due":
+            response = answerNextLibrelaDue(context, queryPlan)
+            break
+
+        case "appointment_status":
+            response = answerAppointmentStatus(context, queryPlan)
             break
 
         case "next_librela_reminder":
@@ -115,6 +119,149 @@ function answerNextLibrelaReminder(context) {
             ? ["This reminder is still stored as planned, but its reminder date has already passed."]
             : [],
         proposed_action: null,
+    }
+}
+
+function answerNextLibrelaDue(context) {
+    const injections = [...context.librelaInjectionEvents].sort(
+        (a, b) => new Date(b.event_date) - new Date(a.event_date)
+    )
+
+    const latest = injections[0]
+
+    if (!latest) {
+        return noTrustedDataAnswer(
+            "I don’t have a verified Librela injection record yet, so I can’t calculate the next due date from trusted data."
+        )
+    }
+
+    const dueDate = addDays(latest.event_date, LIBRELA_INTERVAL_DAYS)
+    const reminderDate = addDays(dueDate, -LIBRELA_REMIND_BEFORE_DAYS)
+
+    const reminder = findMatchingLibrelaReminder(
+        context.plannedReminders,
+        dueDate,
+        reminderDate
+    )
+
+    const appointment = findNextLibrelaAppointment(context.scheduledAppointments)
+
+    const citations = [
+        eventCitation(latest, "Last verified Librela injection"),
+    ]
+
+    if (reminder) {
+        citations.push(eventCitation(reminder, "Planned Librela reminder"))
+    }
+
+    if (appointment) {
+        citations.push(eventCitation(appointment, "Scheduled Librela appointment"))
+    }
+
+    let answer = `Momo’s next Librela shot is due around ${formatDate(dueDate)}. I calculated this from her last verified Librela injection on ${formatDate(latest.event_date)} using TomoCare’s ${LIBRELA_INTERVAL_DAYS}-day care interval.`
+
+    if (reminder) {
+        answer += ` I also found a planned Librela reminder for ${formatDate(reminder.event_date)}.`
+    } else {
+        answer += " I do not see a matching planned Librela reminder in trusted records yet."
+    }
+
+    if (appointment) {
+        answer += ` I also found a ${formatAppointmentStatus(appointment)} Librela appointment on ${formatDate(getEventPrimaryDate(appointment))}.`
+    } else {
+        answer += " I do not see a future scheduled or confirmed Librela appointment in trusted records yet."
+    }
+
+    return {
+        answer,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations,
+        limitations: [
+            "The due date is calculated from TomoCare’s current Librela interval rule. Confirm timing with the clinic if Momo’s care plan changes.",
+            "A reminder is not treated as a confirmed appointment.",
+        ],
+        proposed_action: appointment
+            ? null
+            : {
+                type: "draft_appointment_request",
+                status: "available_requires_approval",
+                reason:
+                    "No future Librela appointment was found in trusted records.",
+            },
+    }
+}
+
+function answerAppointmentStatus(context, queryPlan) {
+    const today = getTodayDateString()
+
+    const appointments = [...(context.scheduledAppointments || [])]
+        .filter((appointment) =>
+            queryPlan.subject === "librela"
+                ? isLibrelaAppointmentRelated(appointment)
+                : true
+        )
+        .filter((appointment) => getEventPrimaryDate(appointment) >= today)
+        .sort((a, b) => new Date(getEventPrimaryDate(a)) - new Date(getEventPrimaryDate(b)))
+
+    const appointment = appointments[0]
+
+    if (appointment) {
+        return {
+            answer: `Yes. I found a ${formatAppointmentStatus(appointment)} ${queryPlan.subject === "librela" ? "Librela " : ""}appointment on ${formatDate(getEventPrimaryDate(appointment))}.`,
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [eventCitation(appointment, "Scheduled appointment")],
+            limitations: [],
+            proposed_action: null,
+        }
+    }
+
+    const reminders = [...context.plannedReminders]
+        .filter((reminder) =>
+            queryPlan.subject === "librela"
+                ? isLibrelaReminder(reminder)
+                : true
+        )
+        .filter((reminder) => reminder.event_date >= today)
+        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+
+    const reminder = reminders[0]
+
+    if (reminder) {
+        return {
+            answer: `I found a planned ${queryPlan.subject === "librela" ? "Librela " : ""}reminder for ${formatDate(reminder.event_date)}, but I do not see a future scheduled or confirmed ${queryPlan.subject === "librela" ? "Librela " : ""}appointment in trusted records yet.`,
+            answer_type: "grounded_answer",
+            confidence: "medium",
+            citations: [eventCitation(reminder, "Planned reminder")],
+            limitations: [
+                "A reminder is not treated as a confirmed vet appointment.",
+                "I only checked trusted TomoCare records.",
+            ],
+            proposed_action: {
+                type: "draft_appointment_request",
+                status: "available_requires_approval",
+                reason:
+                    "A reminder exists, but no future scheduled or confirmed appointment was found in trusted records.",
+            },
+        }
+    }
+
+    return {
+        answer: `I do not see a future scheduled or confirmed ${queryPlan.subject === "librela" ? "Librela " : ""}appointment in trusted records yet.`,
+        answer_type: "grounded_answer",
+        confidence: "medium",
+        citations: [],
+        limitations: [
+            "I only checked trusted TomoCare records.",
+            "No appointment was inferred from a reminder or due date.",
+        ],
+        proposed_action: {
+            type: "draft_appointment_request",
+            status: "available_requires_approval",
+            reason:
+                "No future scheduled or confirmed appointment was found in trusted records.",
+        },
     }
 }
 
@@ -335,6 +482,86 @@ function getReminderLabel(reminder) {
         details.treatment ||
         "Reminder"
     )
+}
+
+function findMatchingLibrelaReminder(reminders = [], dueDate, reminderDate) {
+    return reminders
+        .filter(isLibrelaReminder)
+        .find((reminder) => {
+            const details = reminder.details_json || {}
+
+            const relatedDates = [
+                reminder.event_date,
+                details.due_date,
+                details.dueDate,
+                details.target_date,
+                details.targetDate,
+                details.next_due_date,
+                details.nextDueDate,
+            ].filter(Boolean)
+
+            return relatedDates.includes(reminderDate) || relatedDates.includes(dueDate)
+        })
+}
+
+function findNextLibrelaAppointment(appointments = []) {
+    const today = getTodayDateString()
+
+    return appointments
+        .filter(isLibrelaAppointmentRelated)
+        .filter((appointment) => getEventPrimaryDate(appointment) >= today)
+        .sort((a, b) => new Date(getEventPrimaryDate(a)) - new Date(getEventPrimaryDate(b)))[0]
+}
+
+function isLibrelaAppointmentRelated(appointment) {
+    const details = appointment.details_json || {}
+
+    const haystack = [
+        appointment.event_type,
+        appointment.status,
+        details.medication,
+        details.medication_name,
+        details.item,
+        details.item_name,
+        details.line_item,
+        details.service,
+        details.service_name,
+        details.subtype,
+        details.title,
+        details.label,
+        details.description,
+        details.reason,
+        details.treatment,
+        details.visit_type,
+        details.appointment_type,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    return haystack.includes("librela")
+}
+
+function getEventPrimaryDate(event) {
+    if (event.event_date) return event.event_date
+    if (event.event_start) return String(event.event_start).slice(0, 10)
+    return ""
+}
+
+function formatAppointmentStatus(appointment) {
+    const status = String(appointment.status || "scheduled").toLowerCase()
+
+    if (status === "planned") return "planned"
+    if (status === "confirmed") return "confirmed"
+    if (status === "booked") return "booked"
+    return "scheduled"
+}
+
+function addDays(dateString, days) {
+    const [year, month, day] = dateString.split("-").map(Number)
+    const date = new Date(Date.UTC(year, month - 1, day))
+    date.setUTCDate(date.getUTCDate() + days)
+    return date.toISOString().slice(0, 10)
 }
 
 function formatDate(value) {

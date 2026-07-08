@@ -4,9 +4,9 @@ export async function buildTrustedContext(petId) {
     const [eventsResult, costItemsResult, docsResult] = await Promise.all([
         sbAdmin
             .from("events")
-            .select("id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at")
+            .select("id, pet_id, doc_id, event_type, event_date, event_start, event_end, status, details_json, created_at, updated_at")
             .eq("pet_id", petId)
-            .in("status", ["verified", "planned"])
+            .in("status", ["verified", "planned", "scheduled", "confirmed", "booked"])
             .order("event_date", { ascending: false }),
 
         sbAdmin
@@ -38,6 +38,8 @@ export async function buildTrustedContext(petId) {
         (event) => event.status === "planned" && event.event_type === "reminder"
     )
 
+    const scheduledAppointments = events.filter(isScheduledAppointment)
+
     const librelaInjectionEvents = verifiedEvents
         .filter((event) => event.event_type === "injection")
         .filter(isLibrelaRelated)
@@ -58,6 +60,7 @@ export async function buildTrustedContext(petId) {
         petId,
         verifiedEvents,
         plannedReminders,
+        scheduledAppointments,
         documents,
         librelaInjectionEvents,
         directLibrelaCostItems,
@@ -98,4 +101,44 @@ export function isLibrelaRelated(row) {
         .toLowerCase()
 
     return haystack.includes("librela")
+}
+
+export function isScheduledAppointment(event) {
+    const details = event.details_json || {}
+
+    const eventType = String(event.event_type || "").toLowerCase()
+    const status = String(event.status || "").toLowerCase()
+
+    const haystack = [
+        event.event_type,
+        status,
+        details.type,
+        details.subtype,
+        details.title,
+        details.label,
+        details.description,
+        details.reason,
+        details.visit_type,
+        details.appointment_type,
+        details.service,
+        details.service_name,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    const looksLikeAppointment =
+        eventType === "appointment" ||
+        haystack.includes("appointment") ||
+        haystack.includes("appt") ||
+        haystack.includes("booked") ||
+        haystack.includes("scheduled")
+
+    const looksScheduled =
+        status === "planned" ||
+        status === "scheduled" ||
+        status === "confirmed" ||
+        status === "booked"
+
+    return looksLikeAppointment && looksScheduled
 }

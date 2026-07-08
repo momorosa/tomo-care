@@ -44,10 +44,27 @@ export function buildQueryPlan(question) {
         })
     }
 
-    if (
-        (q.includes("next") || q.includes("due")) &&
-        (q.includes("librela") || q.includes("reminder") || q.includes("shot"))
-    ) {
+    if (isAppointmentStatusQuestion(q)) {
+        return basePlan({
+            intent: "appointment_status",
+            subject: q.includes("librela") || q.includes("shot") || q.includes("injection")
+                ? "librela"
+                : "appointment",
+            scope: "scheduled_appointments",
+            dateRange,
+        })
+    }
+
+    if (isNextLibrelaDueQuestion(q)) {
+        return basePlan({
+            intent: "next_librela_due",
+            subject: "librela",
+            scope: "care_schedule",
+            dateRange,
+        })
+    }
+
+    if (isNextLibrelaReminderQuestion(q)) {
         return basePlan({
             intent: "next_librela_reminder",
             subject: "librela",
@@ -153,4 +170,48 @@ function isLibrelaShotCountQuestion(q) {
         (q.includes("how many") || q.includes("count") || q.includes("number of")) &&
         (q.includes("librela") || q.includes("shot") || q.includes("injection"))
     )
+}
+
+function isNextLibrelaDueQuestion(q) {
+    const mentionsLibrela =
+        q.includes("librela") ||
+        q.includes("shot") ||
+        q.includes("injection")
+
+    const asksDueDate =
+        q.includes("due") ||
+        (
+            q.includes("when") &&
+            q.includes("next") &&
+            (q.includes("shot") || q.includes("injection"))
+        )
+
+    return mentionsLibrela && asksDueDate && !q.includes("reminder")
+}
+
+function isNextLibrelaReminderQuestion(q) {
+    return (
+        q.includes("reminder") &&
+        (q.includes("librela") || q.includes("shot") || q.includes("injection")) &&
+        (q.includes("next") || q.includes("due") || q.includes("planned") || q.includes("when"))
+    )
+}
+
+function isAppointmentStatusQuestion(q) {
+    const mentionsAppointment =
+        q.includes("appointment") ||
+        q.includes("appt") ||
+        q.includes("scheduled") ||
+        q.includes("booked")
+
+    const asksStatus =
+        q.includes("have we") ||
+        q.includes("do we") ||
+        q.includes("is there") ||
+        q.includes("made") ||
+        q.includes("make") ||
+        q.includes("booked") ||
+        q.includes("scheduled")
+
+    return mentionsAppointment && asksStatus
 }
