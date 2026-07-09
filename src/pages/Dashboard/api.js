@@ -65,3 +65,9 @@ export async function askAssistant(petId, question) {
     const data = await jsonOrThrow(response, "Could not ask TomoCare")
     return data
 }
+
+export async function fetchDocumentSourceUrl(docId) {
+    const response = await fetch(`/api/documents/${docId}/source-url`)
+
+    return jsonOrThrow(response, "Could not open source PDF")
+}

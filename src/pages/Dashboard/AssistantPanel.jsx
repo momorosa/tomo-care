@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { askAssistant } from "./api.js"
+import EvidenceCard from "./EvidenceCard.jsx"
 
 const SUGGESTED_QUESTIONS = [
     "When was Momo last given Librela?",
@@ -152,7 +153,7 @@ function AssistantAnswer({ answer }) {
 
                     <div className="mt-3 space-y-2">
                         {answer.citations.map((citation, index) => (
-                            <CitationRow
+                            <EvidenceCard
                                 key={`${citation.type}-${citation.id || index}`}
                                 citation={citation}
                             />
@@ -186,31 +187,4 @@ function AssistantAnswer({ answer }) {
             )}
         </div>
     )
-}
-
-function CitationRow({ citation }) {
-    return (
-        <div className="rounded-xl border border-tomo-border bg-white/[0.02] px-3 py-2">
-            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                <p className="text-sm font-medium text-tomo-text-h">
-                    {citation.label || "Trusted record"}
-                </p>
-                {citation.date && (
-                    <p className="text-xs text-tomo-text">
-                        {citation.date}
-                    </p>
-                )}
-            </div>
-
-            <p className="mt-1 text-xs text-tomo-text">
-                {citation.table}
-                {citation.doc_id ? ` · doc ${shortId(citation.doc_id)}` : ""}
-            </p>
-        </div>
-    )
-}
-
-function shortId(value) {
-    if (!value) return ""
-    return value.slice(0, 8)
 }

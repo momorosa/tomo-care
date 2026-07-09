@@ -22,7 +22,8 @@ export async function buildTrustedContext(petId) {
             .eq("pet_id", petId)
             .eq("status", "verified")
             .order("doc_date", { ascending: false })
-            .limit(20),
+            .limit(50),
+
         sbAdmin
             .from("facts")
             .select("id, pet_id, doc_id, fact_type, fact_date, value_json, status, confidence, verified_at, verified_by")

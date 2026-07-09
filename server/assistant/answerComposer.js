@@ -1,4 +1,4 @@
-import { costItemCitation, documentCitation, eventCitation, } from "./citations.js"
+import { costItemCitation, documentCitation, eventCitation, factCitation, enrichCitations, } from "./citations.js"
 import { dateInRange, getDateRangePhrase, } from "./dateRanges.js"
 
 const LIBRELA_INTERVAL_DAYS = 49
@@ -74,6 +74,7 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
     return {
         question,
         ...response,
+        citations: enrichCitations(response.citations || [], context),
         query_plan: queryPlan,
     }
 }
@@ -170,7 +171,7 @@ function answerNextLibrelaDue(context) {
         citations.push(eventCitation(appointment, "Scheduled Librela appointment"))
     }
 
-    let answer = `Momo’s next Librela shot is due around ${formatDate(dueDate)}. I calculated this from her last verified Librela injection on ${formatDate(latest.event_date)} using TomoCare’s ${LIBRELA_INTERVAL_DAYS}-day care interval.`
+    let answer = `Momo’s next Librela shot is due around ${formatDate(dueDate)}. I calculated this from her last verified Librela injection on ${formatDate(latest.event_date)}, using TomoCare’s ${LIBRELA_INTERVAL_DAYS}-day care interval.`
 
     if (reminder) {
         answer += ` I also found a planned Librela reminder for ${formatDate(reminder.event_date)}.`
@@ -378,7 +379,7 @@ function answerWeightChange(context, queryPlan) {
         answer: `Yes. Momo’s verified weight has changed${rangePhrase ? ` ${rangePhrase}` : ""}. Her latest verified weight was ${formatWeightFact(latest)} on ${formatDate(latest.fact_date)}. Compared with the previous verified weight on ${formatDate(previous.fact_date)}, she is ${formatSignedWeightChange(recentChangeKg)}. Compared with the first verified weight in this range on ${formatDate(first.fact_date)}, she is ${formatSignedWeightChange(overallChangeKg)}. Her verified range is ${formatWeightFact(low)} to ${formatWeightFact(peak)}.`,
         answer_type: "grounded_answer",
         confidence: "high",
-        citations: uniqueFactCitations([
+        citations: uniqueWeightFactCitations([
             latest,
             previous,
             first,
@@ -769,18 +770,7 @@ function formatDateShort(value) {
     }).format(date)
 }
 
-function factCitation(fact, label) {
-    return {
-        type: "trusted_fact",
-        table: "facts",
-        id: fact.id,
-        doc_id: fact.doc_id,
-        label,
-        date: fact.fact_date,
-    }
-}
-
-function uniqueFactCitations(facts) {
+function uniqueWeightFactCitations(facts) {
     const seen = new Set()
 
     return facts
