@@ -12,6 +12,33 @@ export function buildQueryPlan(question) {
         })
     }
 
+    if (isWeightTrendQuestion(q)) {
+        return basePlan({
+            intent: "weight_trend",
+            subject: "weight",
+            scope: "verified_weight_facts",
+            dateRange,
+        })
+    }
+
+    if (isWeightChangeQuestion(q)) {
+        return basePlan({
+            intent: "weight_change",
+            subject: "weight",
+            scope: "verified_weight_facts",
+            dateRange,
+        })
+    }
+
+    if (isLastWeightQuestion(q)) {
+        return basePlan({
+            intent: "last_weight",
+            subject: "weight",
+            scope: "verified_weight_facts",
+            dateRange,
+        })
+    }
+
     if (isLibrelaSpendQuestion(q)) {
         return basePlan({
             intent: "spend_summary",
@@ -214,4 +241,58 @@ function isAppointmentStatusQuestion(q) {
         q.includes("scheduled")
 
     return mentionsAppointment && asksStatus
+}
+
+function mentionsWeight(q) {
+    return (
+        q.includes("weight") ||
+        q.includes("weigh") ||
+        q.includes("kg") ||
+        q.includes("lb")
+    )
+}
+
+function isWeightTrendQuestion(q) {
+    return (
+        mentionsWeight(q) &&
+        (
+            q.includes("trend") ||
+            q.includes("history") ||
+            q.includes("timeline") ||
+            q.includes("over time") ||
+            q.includes("progression")
+        )
+    )
+}
+
+function isWeightChangeQuestion(q) {
+    return (
+        mentionsWeight(q) &&
+        (
+            q.includes("changed") ||
+            q.includes("change") ||
+            q.includes("gain") ||
+            q.includes("gained") ||
+            q.includes("lost") ||
+            q.includes("loss") ||
+            q.includes("up") ||
+            q.includes("down") ||
+            q.includes("increase") ||
+            q.includes("decrease")
+        )
+    )
+}
+
+function isLastWeightQuestion(q) {
+    return (
+        mentionsWeight(q) &&
+        (
+            q.includes("last") ||
+            q.includes("latest") ||
+            q.includes("current") ||
+            q.includes("recent") ||
+            q.includes("what") ||
+            q.includes("how much")
+        )
+    )
 }

@@ -8,6 +8,18 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
     let response
 
     switch (queryPlan.intent) {
+        case "last_weight":
+            response = answerLastWeight(context, queryPlan)
+            break
+
+        case "weight_change":
+            response = answerWeightChange(context, queryPlan)
+            break
+
+        case "weight_trend":
+            response = answerWeightTrend(context, queryPlan)
+            break
+
         case "last_librela":
             response = answerLastLibrela(context, queryPlan)
             break
@@ -297,6 +309,123 @@ function answerActiveReminders(context) {
     }
 }
 
+function answerLastWeight(context, queryPlan) {
+    const weights = getWeightFactsInRange(context, queryPlan)
+
+    const latest = [...weights].sort(
+        (a, b) => new Date(b.fact_date) - new Date(a.fact_date)
+    )[0]
+
+    if (!latest) {
+        return noTrustedDataAnswer(
+            "I don’t have a verified weight record for that timeframe, so I can’t answer from trusted data."
+        )
+    }
+
+    const rangePhrase = getDateRangePhrase(queryPlan.date_range)
+
+    return {
+        answer: `Momo’s last verified weight${rangePhrase ? ` ${rangePhrase}` : ""} was ${formatWeightFact(latest)} on ${formatDate(latest.fact_date)}.`,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: [factCitation(latest, "Verified weight")],
+        limitations: [
+            "This answer uses verified weight facts extracted from trusted TomoCare records.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerWeightChange(context, queryPlan) {
+    const weights = getWeightFactsInRange(context, queryPlan).sort(
+        (a, b) => new Date(a.fact_date) - new Date(b.fact_date)
+    )
+
+    if (!weights.length) {
+        return noTrustedDataAnswer(
+            "I don’t have verified weight records for that timeframe, so I can’t answer from trusted data."
+        )
+    }
+
+    if (weights.length === 1) {
+        const only = weights[0]
+
+        return {
+            answer: `I only have one verified weight record${getDateRangePhrase(queryPlan.date_range) ? ` ${getDateRangePhrase(queryPlan.date_range)}` : ""}: ${formatWeightFact(only)} on ${formatDate(only.fact_date)}. I need at least two verified weights to determine whether Momo’s weight changed.`,
+            answer_type: "grounded_answer",
+            confidence: "medium",
+            citations: [factCitation(only, "Verified weight")],
+            limitations: [
+                "At least two verified weight records are needed to calculate change.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    const first = weights[0]
+    const latest = weights[weights.length - 1]
+    const previous = weights[weights.length - 2]
+
+    const overallChangeKg = getWeightKg(latest) - getWeightKg(first)
+    const recentChangeKg = getWeightKg(latest) - getWeightKg(previous)
+
+    const peak = [...weights].sort((a, b) => getWeightKg(b) - getWeightKg(a))[0]
+    const low = [...weights].sort((a, b) => getWeightKg(a) - getWeightKg(b))[0]
+
+    const rangePhrase = getDateRangePhrase(queryPlan.date_range)
+
+    return {
+        answer: `Yes. Momo’s verified weight has changed${rangePhrase ? ` ${rangePhrase}` : ""}. Her latest verified weight was ${formatWeightFact(latest)} on ${formatDate(latest.fact_date)}. Compared with the previous verified weight on ${formatDate(previous.fact_date)}, she is ${formatSignedWeightChange(recentChangeKg)}. Compared with the first verified weight in this range on ${formatDate(first.fact_date)}, she is ${formatSignedWeightChange(overallChangeKg)}. Her verified range is ${formatWeightFact(low)} to ${formatWeightFact(peak)}.`,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: uniqueFactCitations([
+            latest,
+            previous,
+            first,
+            low,
+            peak,
+        ]),
+        limitations: [
+            "This is a factual weight comparison, not a medical interpretation.",
+            "Weights are based only on verified TomoCare records.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerWeightTrend(context, queryPlan) {
+    const weights = getWeightFactsInRange(context, queryPlan).sort(
+        (a, b) => new Date(a.fact_date) - new Date(b.fact_date)
+    )
+
+    if (!weights.length) {
+        return noTrustedDataAnswer(
+            "I don’t have verified weight records for that timeframe, so I can’t show a trend from trusted data."
+        )
+    }
+
+    const rangePhrase = getDateRangePhrase(queryPlan.date_range)
+    const timeline = weights
+        .map((fact) => `${formatDateShort(fact.fact_date)}: ${formatWeightFact(fact)}`)
+        .join(" → ")
+
+    const first = weights[0]
+    const latest = weights[weights.length - 1]
+    const overallChangeKg = getWeightKg(latest) - getWeightKg(first)
+
+    return {
+        answer: `Momo’s verified weight trend${rangePhrase ? ` ${rangePhrase}` : ""}: ${timeline}. Overall, she is ${formatSignedWeightChange(overallChangeKg)} from ${formatDate(first.fact_date)} to ${formatDate(latest.fact_date)}.`,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: weights.map((fact) => factCitation(fact, "Verified weight")),
+        limitations: [
+            "This trend uses verified weight facts only.",
+            "This is not a medical interpretation of whether the change is clinically meaningful.",
+        ],
+        proposed_action: null,
+    }
+}
+
 function answerLibrelaSpend(context, queryPlan) {
     const isVisitTotal = queryPlan.scope === "librela_visit_total"
     const sourceItems = isVisitTotal
@@ -562,6 +691,106 @@ function addDays(dateString, days) {
     const date = new Date(Date.UTC(year, month - 1, day))
     date.setUTCDate(date.getUTCDate() + days)
     return date.toISOString().slice(0, 10)
+}
+
+function getWeightFactsInRange(context, queryPlan) {
+    return [...(context.verifiedWeightFacts || [])]
+        .filter((fact) => dateInRange(fact.fact_date, queryPlan.date_range))
+        .filter((fact) => Number.isFinite(getWeightKg(fact)))
+}
+
+function getWeightKg(fact) {
+    const valueJson = fact.value_json || {}
+
+    if (valueJson.value_kg !== undefined && valueJson.value_kg !== null) {
+        return Number(valueJson.value_kg)
+    }
+
+    const value = Number(valueJson.value)
+    const unit = String(valueJson.unit || "kg").toLowerCase()
+
+    if (!Number.isFinite(value)) return NaN
+    if (unit === "lb" || unit === "lbs") return value / 2.2046226218
+
+    return value
+}
+
+function getWeightLb(fact) {
+    const valueJson = fact.value_json || {}
+
+    if (valueJson.value_lb !== undefined && valueJson.value_lb !== null) {
+        return Number(valueJson.value_lb)
+    }
+
+    const kg = getWeightKg(fact)
+    if (!Number.isFinite(kg)) return NaN
+
+    return kg * 2.2046226218
+}
+
+function formatWeightFact(fact) {
+    const kg = getWeightKg(fact)
+    const lb = getWeightLb(fact)
+
+    if (!Number.isFinite(kg)) return "an unknown weight"
+
+    return `${formatDecimal(kg)} kg${Number.isFinite(lb) ? ` (${formatDecimal(lb)} lb)` : ""}`
+}
+
+function formatSignedWeightChange(changeKg) {
+    const absKg = Math.abs(changeKg)
+    const absLb = absKg * 2.2046226218
+
+    if (Math.abs(changeKg) < 0.01) {
+        return "unchanged"
+    }
+
+    const direction = changeKg > 0 ? "up" : "down"
+
+    return `${direction} ${formatDecimal(absKg)} kg (${formatDecimal(absLb)} lb)`
+}
+
+function formatDecimal(value) {
+    if (!Number.isFinite(value)) return "unknown"
+
+    return Number(value.toFixed(2)).toString()
+}
+
+function formatDateShort(value) {
+    if (!value) return "unknown date"
+
+    const date = new Date(`${value}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return value
+
+    return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    }).format(date)
+}
+
+function factCitation(fact, label) {
+    return {
+        type: "trusted_fact",
+        table: "facts",
+        id: fact.id,
+        doc_id: fact.doc_id,
+        label,
+        date: fact.fact_date,
+    }
+}
+
+function uniqueFactCitations(facts) {
+    const seen = new Set()
+
+    return facts
+        .filter(Boolean)
+        .filter((fact) => {
+            if (seen.has(fact.id)) return false
+            seen.add(fact.id)
+            return true
+        })
+        .map((fact) => factCitation(fact, "Verified weight"))
 }
 
 function formatDate(value) {
