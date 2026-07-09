@@ -12,6 +12,42 @@ export function buildQueryPlan(question) {
         })
     }
 
+    if (isAmbiguousHealthQuestion(q)) {
+        return basePlan({
+            intent: "ambiguous_health_question",
+            subject: "health",
+            scope: "clarification_needed",
+            dateRange,
+        })
+    }
+
+    if (isDietRecommendationQuestion(q)) {
+        return basePlan({
+            intent: "care_recommendation_boundary",
+            subject: "diet",
+            scope: "medical_recommendation",
+            dateRange,
+        })
+    }
+
+    if (isMedicalJudgmentQuestion(q)) {
+        return basePlan({
+            intent: "medical_judgment_boundary",
+            subject: getMedicalBoundarySubject(q),
+            scope: "medical_interpretation",
+            dateRange,
+        })
+    }
+
+    if (isVaccineRecordQuestion(q)) {
+        return basePlan({
+            intent: "vaccine_record_lookup",
+            subject: q.includes("rabies") ? "rabies_vaccine" : "vaccine",
+            scope: "verified_events",
+            dateRange,
+        })
+    }
+
     if (isWeightTrendQuestion(q)) {
         return basePlan({
             intent: "weight_trend",
@@ -294,5 +330,93 @@ function isLastWeightQuestion(q) {
             q.includes("what") ||
             q.includes("how much")
         )
+    )
+}
+
+function isAmbiguousHealthQuestion(q) {
+    const normalized = q
+        .replace(/[?!.]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+
+    return [
+        "is momo okay",
+        "is momo ok",
+        "is she okay",
+        "is she ok",
+        "is everything okay",
+        "is everything ok",
+        "is momo alright",
+        "is she alright",
+    ].includes(normalized)
+}
+
+function isDietRecommendationQuestion(q) {
+    const mentionsDiet =
+        q.includes("food") ||
+        q.includes("diet") ||
+        q.includes("kibble") ||
+        q.includes("supplement") ||
+        q.includes("nutrition")
+
+    const asksRecommendation =
+        q.includes("should") ||
+        q.includes("recommend") ||
+        q.includes("switch") ||
+        q.includes("change") ||
+        q.includes("what do i feed") ||
+        q.includes("what should i feed")
+
+    return mentionsDiet && asksRecommendation
+}
+
+function isMedicalJudgmentQuestion(q) {
+    const asksJudgment =
+        q.includes("concerning") ||
+        q.includes("concerned") ||
+        q.includes("worried") ||
+        q.includes("worry") ||
+        q.includes("normal") ||
+        q.includes("abnormal") ||
+        q.includes("safe") ||
+        q.includes("dangerous") ||
+        q.includes("bad") ||
+        q.includes("serious") ||
+        q.includes("should i") ||
+        q.includes("should we")
+
+    const mentionsHealthAction =
+        q.includes("dose") ||
+        q.includes("dosage") ||
+        q.includes("increase") ||
+        q.includes("decrease") ||
+        q.includes("give") ||
+        q.includes("stop") ||
+        q.includes("start") ||
+        q.includes("treat") ||
+        q.includes("treatment") ||
+        q.includes("medication") ||
+        q.includes("medicine") ||
+        q.includes("librela") ||
+        q.includes("pain") ||
+        q.includes("symptom") ||
+        q.includes("vet")
+
+    return asksJudgment && (mentionsWeight(q) || mentionsHealthAction || q.includes("momo"))
+}
+
+function getMedicalBoundarySubject(q) {
+    if (mentionsWeight(q)) return "weight"
+    if (q.includes("librela") || q.includes("dose") || q.includes("dosage")) return "librela"
+    if (q.includes("pain")) return "pain"
+    return "health"
+}
+
+function isVaccineRecordQuestion(q) {
+    return (
+        q.includes("vaccine") ||
+        q.includes("vaccination") ||
+        q.includes("rabies") ||
+        q.includes("vax")
     )
 }

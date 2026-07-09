@@ -8,6 +8,22 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
     let response
 
     switch (queryPlan.intent) {
+        case "ambiguous_health_question":
+            response = answerAmbiguousHealthQuestion()
+            break
+
+        case "care_recommendation_boundary":
+            response = answerCareRecommendationBoundary(queryPlan)
+            break
+
+        case "medical_judgment_boundary":
+            response = answerMedicalJudgmentBoundary(context, queryPlan)
+            break
+
+        case "vaccine_record_lookup":
+            response = answerVaccineRecordLookup(context, queryPlan)
+            break
+
         case "last_weight":
             response = answerLastWeight(context, queryPlan)
             break
@@ -306,6 +322,161 @@ function answerActiveReminders(context) {
             reminders.length > 5
                 ? ["Only the first five reminders are shown in this answer."]
                 : [],
+        proposed_action: null,
+    }
+}
+
+function answerAmbiguousHealthQuestion() {
+    return {
+        answer:
+            "I’m not sure what “okay” means here. I can answer specific questions from verified TomoCare records, such as Momo’s weight trend, Librela history, reminders, costs, recent verified records, or lab abnormalities.",
+        answer_type: "clarification_needed",
+        confidence: "high",
+        citations: [],
+        limitations: [
+            "No health status was inferred from an ambiguous question.",
+            "TomoCare answers should be grounded in specific verified records.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerCareRecommendationBoundary(queryPlan) {
+    const subjectLabel = queryPlan.subject === "diet" ? "diet or food change" : "care change"
+
+    return {
+        answer:
+            `I can summarize verified TomoCare records, but I can’t recommend a ${subjectLabel} from chat. That kind of care decision should be confirmed with Momo’s vet. I can help answer factual questions from her records, such as weight trend, Librela history, costs, reminders, or recent verified documents.`,
+        answer_type: "safety_boundary",
+        confidence: "high",
+        citations: [],
+        limitations: [
+            "No diet, medication, or treatment recommendation was made.",
+            "The assistant is limited to grounded summaries from verified TomoCare records.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerMedicalJudgmentBoundary(context, queryPlan) {
+    if (queryPlan.subject === "weight") {
+        return answerWeightMedicalBoundary(context, queryPlan)
+    }
+
+    if (queryPlan.subject === "librela") {
+        return {
+            answer:
+                "I can summarize Momo’s verified Librela records, but I can’t recommend changing a medication dose or treatment plan from chat. Please confirm any Librela dosing or care changes with her vet.",
+            answer_type: "safety_boundary",
+            confidence: "high",
+            citations: [],
+            limitations: [
+                "No medication dosing recommendation was made.",
+                "TomoCare can provide verified history, but not veterinary treatment decisions.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    return {
+        answer:
+            "I can summarize verified TomoCare records, but I can’t determine whether this is medically concerning or make a diagnosis from chat. Please confirm clinical significance with Momo’s vet.",
+        answer_type: "safety_boundary",
+        confidence: "high",
+        citations: [],
+        limitations: [
+            "No diagnosis or medical judgment was made.",
+            "The assistant is limited to grounded summaries from verified TomoCare records.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerWeightMedicalBoundary(context, queryPlan) {
+    const weights = getWeightFactsInRange(context, queryPlan).sort(
+        (a, b) => new Date(a.fact_date) - new Date(b.fact_date)
+    )
+
+    if (!weights.length) {
+        return {
+            answer:
+                "I can’t determine whether Momo’s weight is medically concerning from chat. I also don’t have verified weight records for that timeframe, so I can’t summarize a trusted weight trend yet. Please confirm clinical concerns with her vet.",
+            answer_type: "safety_boundary",
+            confidence: "medium",
+            citations: [],
+            limitations: [
+                "No medical judgment was made.",
+                "No verified weight records were available for this timeframe.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    if (weights.length === 1) {
+        const only = weights[0]
+
+        return {
+            answer:
+                `I can summarize the verified weight record, but I can’t determine whether it is medically concerning. Momo’s verified weight was ${formatWeightFact(only)} on ${formatDate(only.fact_date)}. Please confirm clinical significance with her vet.`,
+            answer_type: "safety_boundary",
+            confidence: "high",
+            citations: [factCitation(only, "Verified weight")],
+            limitations: [
+                "No medical judgment was made.",
+                "At least two verified weight records are needed to summarize change over time.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    const first = weights[0]
+    const latest = weights[weights.length - 1]
+    const changeKg = getWeightKg(latest) - getWeightKg(first)
+
+    return {
+        answer:
+            `I can summarize Momo’s verified weight trend, but I can’t determine whether it is medically concerning. Momo’s verified weight changed from ${formatWeightFact(first)} on ${formatDate(first.fact_date)} to ${formatWeightFact(latest)} on ${formatDate(latest.fact_date)}, which is ${formatSignedWeightChange(changeKg)}. Please confirm clinical significance with her vet.`,
+        answer_type: "safety_boundary",
+        confidence: "high",
+        citations: uniqueWeightFactCitations([first, latest]),
+        limitations: [
+            "This is a factual weight summary, not a medical interpretation.",
+            "Clinical significance should be confirmed with Momo’s vet.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerVaccineRecordLookup(context, queryPlan) {
+    const vaccineEvents = [...(context.verifiedEvents || [])]
+        .filter(isVaccineRelated)
+        .filter((event) =>
+            queryPlan.subject === "rabies_vaccine"
+                ? isRabiesRelated(event)
+                : true
+        )
+        .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))
+
+    const latest = vaccineEvents[0]
+    const vaccineLabel = queryPlan.subject === "rabies_vaccine"
+        ? "rabies vaccine"
+        : "vaccine"
+
+    if (!latest) {
+        return noTrustedDataAnswer(
+            `I don’t have a verified ${vaccineLabel} record for Momo yet, so I can’t answer from trusted TomoCare data.`
+        )
+    }
+
+    return {
+        answer:
+            `Momo’s last verified ${vaccineLabel} record was on ${formatDate(latest.event_date)}.`,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: [eventCitation(latest, `Verified ${vaccineLabel} record`)],
+        limitations: [
+            "This answer uses verified TomoCare event records only.",
+        ],
         proposed_action: null,
     }
 }
@@ -809,4 +980,65 @@ function getTodayDateString() {
 
 function countUnique(values) {
     return new Set(values).size
+}
+
+function isVaccineRelated(event) {
+    const details = event.details_json || {}
+
+    const haystack = [
+        event.event_type,
+        event.status,
+        details.medication,
+        details.medication_name,
+        details.item,
+        details.item_name,
+        details.line_item,
+        details.service,
+        details.service_name,
+        details.subtype,
+        details.title,
+        details.label,
+        details.description,
+        details.reason,
+        details.treatment,
+        details.visit_type,
+        details.procedure,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    return (
+        haystack.includes("vaccine") ||
+        haystack.includes("vaccination") ||
+        haystack.includes("rabies") ||
+        haystack.includes("dhpp") ||
+        haystack.includes("bordetella") ||
+        haystack.includes("lepto")
+    )
+}
+
+function isRabiesRelated(event) {
+    const details = event.details_json || {}
+
+    const haystack = [
+        event.event_type,
+        details.medication,
+        details.medication_name,
+        details.item,
+        details.item_name,
+        details.service,
+        details.service_name,
+        details.title,
+        details.label,
+        details.description,
+        details.reason,
+        details.treatment,
+        details.procedure,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    return haystack.includes("rabies")
 }
