@@ -23,6 +23,10 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
         case "vaccine_record_lookup":
             response = answerVaccineRecordLookup(context, queryPlan)
             break
+        
+        case "care_timeline_summary":
+            response = answerCareTimelineSummary(context, queryPlan)
+                break
 
         case "last_weight":
             response = answerLastWeight(context, queryPlan)
@@ -478,6 +482,137 @@ function answerVaccineRecordLookup(context, queryPlan) {
             "This answer uses verified TomoCare event records only.",
         ],
         proposed_action: null,
+    }
+}
+
+function answerCareTimelineSummary(context, queryPlan) {
+    const injections = [...(context.librelaInjectionEvents || [])]
+        .filter((event) => dateInRange(event.event_date, queryPlan.date_range))
+        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+
+    const weights = getWeightFactsInRange(context, queryPlan).sort(
+        (a, b) => new Date(a.fact_date) - new Date(b.fact_date)
+    )
+
+    const reminders = [...(context.plannedReminders || [])]
+        .filter(isLibrelaReminder)
+        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+
+    const appointment = findNextLibrelaAppointment(context.scheduledAppointments)
+
+    const recentDocs = [...(context.documents || [])]
+        .filter((doc) => dateInRange(doc.doc_date, queryPlan.date_range))
+        .sort((a, b) => new Date(b.doc_date) - new Date(a.doc_date))
+        .slice(0, 3)
+
+    if (!injections.length && !weights.length && !reminders.length && !recentDocs.length) {
+        return noTrustedDataAnswer(
+            "I don’t have enough verified care records for that timeframe to summarize Momo’s care timeline."
+        )
+    }
+
+    const latestInjection = injections[injections.length - 1]
+    const firstWeight = weights[0]
+    const latestWeight = weights[weights.length - 1]
+    const upcomingReminder = findNextUpcomingReminder(reminders)
+
+    const answerParts = [
+        "From verified TomoCare records, Momo’s care timeline shows:",
+    ]
+
+    if (injections.length) {
+        answerParts.push(
+            `Librela support has been tracked across ${injections.length} verified injection${injections.length === 1 ? "" : "s"}, with the latest verified injection on ${formatDate(latestInjection.event_date)}.`
+        )
+    } else {
+        answerParts.push(
+            "I do not see verified Librela injection records in this timeframe."
+        )
+    }
+
+    if (latestInjection) {
+        const dueDate = addDays(latestInjection.event_date, LIBRELA_INTERVAL_DAYS)
+
+        answerParts.push(
+            `Based on the current ${LIBRELA_INTERVAL_DAYS}-day care interval, the next Librela shot is due around ${formatDate(dueDate)}.`
+        )
+    }
+
+    if (upcomingReminder) {
+        answerParts.push(
+            `There is a planned Librela reminder for ${formatDate(upcomingReminder.event_date)}.`
+        )
+    } else {
+        answerParts.push(
+            "I do not see an upcoming planned Librela reminder in trusted records."
+        )
+    }
+
+    if (appointment) {
+        answerParts.push(
+            `I also found a ${formatAppointmentStatus(appointment)} Librela appointment on ${formatDate(getEventPrimaryDate(appointment))}.`
+        )
+    } else {
+        answerParts.push(
+            "I do not see a future scheduled or confirmed Librela appointment in trusted records yet."
+        )
+    }
+
+    if (weights.length >= 2) {
+        const changeKg = getWeightKg(latestWeight) - getWeightKg(firstWeight)
+
+        answerParts.push(
+            `Her verified weight changed from ${formatWeightFact(firstWeight)} on ${formatDate(firstWeight.fact_date)} to ${formatWeightFact(latestWeight)} on ${formatDate(latestWeight.fact_date)}, which is ${formatSignedWeightChange(changeKg)}.`
+        )
+    } else if (weights.length === 1) {
+        answerParts.push(
+            `Her verified weight was ${formatWeightFact(latestWeight)} on ${formatDate(latestWeight.fact_date)}.`
+        )
+    } else {
+        answerParts.push(
+            "I do not see verified weight facts in this timeframe."
+        )
+    }
+
+    if (recentDocs.length) {
+        const docText = recentDocs
+            .map((doc) => `${doc.title || "Verified document"}${doc.doc_date ? ` (${formatDate(doc.doc_date)})` : ""}`)
+            .join("; ")
+
+        answerParts.push(`Recent verified source documents include: ${docText}.`)
+    }
+
+    answerParts.push(
+        "I can summarize these records, but I cannot determine clinical significance or recommend treatment changes from chat."
+    )
+
+    const citations = [
+        latestInjection ? eventCitation(latestInjection, "Latest verified Librela injection") : null,
+        upcomingReminder ? eventCitation(upcomingReminder, "Planned Librela reminder") : null,
+        appointment ? eventCitation(appointment, "Scheduled Librela appointment") : null,
+        firstWeight ? factCitation(firstWeight, "Verified weight") : null,
+        latestWeight ? factCitation(latestWeight, "Verified weight") : null,
+        ...recentDocs.map((doc) => documentCitation(doc, "Recent verified document")),
+    ].filter(Boolean)
+
+    return {
+        answer: answerParts.join(" "),
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: dedupeCitations(citations),
+        limitations: [
+            "This is a verified care timeline summary, not a medical interpretation.",
+            "Labs are not deeply summarized in this care timeline slice yet.",
+            "A reminder is not treated as a confirmed appointment.",
+        ],
+        proposed_action: appointment
+            ? null
+            : {
+                type: "draft_appointment_request",
+                status: "available_requires_approval",
+                reason:
+                    "No future Librela appointment was found in trusted records.",
+            },
     }
 }
 
@@ -1041,4 +1176,25 @@ function isRabiesRelated(event) {
         .toLowerCase()
 
     return haystack.includes("rabies")
+}
+
+function findNextUpcomingReminder(reminders = []) {
+    const today = getTodayDateString()
+
+    return reminders
+        .filter((reminder) => reminder.event_date >= today)
+        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))[0]
+}
+
+function dedupeCitations(citations = []) {
+    const seen = new Set()
+
+    return citations.filter((citation) => {
+        const key = `${citation.table}-${citation.id}`
+
+        if (seen.has(key)) return false
+
+        seen.add(key)
+        return true
+    })
 }

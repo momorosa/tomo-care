@@ -48,6 +48,15 @@ export function buildQueryPlan(question) {
         })
     }
 
+    if (isCareTimelineQuestion(q)) {
+        return basePlan({
+            intent: "care_timeline_summary",
+            subject: "care_timeline",
+            scope: "verified_care_records",
+            dateRange,
+        })
+    }
+
     if (isWeightTrendQuestion(q)) {
         return basePlan({
             intent: "weight_trend",
@@ -371,6 +380,9 @@ function isDietRecommendationQuestion(q) {
 }
 
 function isMedicalJudgmentQuestion(q) {
+
+    if (isCareTimelineQuestion(q)) return false
+    
     const asksJudgment =
         q.includes("concerning") ||
         q.includes("concerned") ||
@@ -419,4 +431,28 @@ function isVaccineRecordQuestion(q) {
         q.includes("rabies") ||
         q.includes("vax")
     )
+}
+
+function isCareTimelineQuestion(q) {
+    const asksTimeline =
+        q.includes("timeline") ||
+        q.includes("history") ||
+        q.includes("summary") ||
+        q.includes("summarize") ||
+        q.includes("over time") ||
+        q.includes("changed over time") ||
+        q.includes("what should i know") ||
+        q.includes("before") && q.includes("vet")
+
+    const mentionsCare =
+        q.includes("care") ||
+        q.includes("arthritis") ||
+        q.includes("senior") ||
+        q.includes("health") ||
+        q.includes("momo") ||
+        q.includes("librela") ||
+        q.includes("weight") ||
+        q.includes("vet")
+
+    return asksTimeline && mentionsCare
 }
