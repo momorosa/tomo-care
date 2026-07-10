@@ -11,7 +11,8 @@
         "preview": "vite preview",
         "gmail:test": "node server/scripts/test-gmail.js",
         "gmail:inspect": "node server/scripts/inspect-gmail-message.js",
-        "gmail:download": "node server/scripts/download-gmail-attachments.js"
+        "gmail:download": "node server/scripts/download-gmail-attachments.js",
+        "eval:assistant": "node server/scripts/runAssistantEvals.js"
     },
     "dependencies": {
         "@tailwindcss/vite": "^4.2.2",
@@ -33,5 +34,8 @@
         "eslint-plugin-react-refresh": "^0.5.2",
         "globals": "^17.4.0",
         "vite": "^8.0.4"
+    },
+    "engines": {
+        "node": ">=22.12.0"
     }
 }

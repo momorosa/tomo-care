@@ -95,6 +95,70 @@ router.get("/documents/:docId/view-url", async (req, res) => {
     res.json({ url: data.signedUrl })
 })
 
+router.get("/documents/:docId/source-url", async (req, res) => {
+    try {
+        const { docId } = req.params
+
+        const { data: doc, error } = await sbAdmin
+            .from("documents")
+            .select("id, title, file_url")
+            .eq("id", docId)
+            .single()
+
+        if (error) throw new Error(error.message)
+
+        if (!doc?.file_url) {
+            return res.status(404).json({
+                error: "No source PDF is available for this document.",
+            })
+        }
+
+        const storagePath = getStoragePathFromFileUrl(doc.file_url)
+
+        if (!storagePath) {
+            return res.status(400).json({
+                error: "Could not resolve source PDF storage path.",
+            })
+        }
+
+        const { data, error: signedUrlError } = await sbAdmin.storage
+            .from("tomo-docs")
+            .createSignedUrl(storagePath, 300)
+
+        if (signedUrlError) throw new Error(signedUrlError.message)
+
+        return res.json({
+            url: data.signedUrl,
+            expires_in_seconds: 300,
+            title: doc.title,
+        })
+    } catch (error) {
+        console.error("Failed to create source PDF URL:", error)
+        return res.status(500).json({
+            error: "Failed to create source PDF URL.",
+        })
+    }
+})
+
+function getStoragePathFromFileUrl(fileUrl) {
+    if (!fileUrl) return null
+
+    const decoded = decodeURIComponent(String(fileUrl))
+
+    const bucketMarker = "/tomo-docs/"
+    if (decoded.includes(bucketMarker)) {
+        return decoded
+            .split(bucketMarker)[1]
+            .split("?")[0]
+    }
+
+    if (decoded.startsWith("tomo-docs/")) {
+        return decoded.replace("tomo-docs/", "")
+    }
+
+    return decoded.split("?")[0]
+}
+
 // Approve + auto-materialize (Phase 1 PoC)
 // - documents.status: ingested -> verified
 // - materialized rows: status = "verified" (simple PoC)
