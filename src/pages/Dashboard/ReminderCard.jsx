@@ -1,26 +1,70 @@
 export default function ReminderCard({ reminder }) {
     const hasCalendarLink = Boolean(reminder.google_calendar_url)
+    const meta = getReminderMeta(reminder)
 
     return (
-        <div className={getCardClassName(reminder)}>
-            <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-tomo-text">
-                        {reminder.eyebrow}
-                    </p>
+        <div className={getCardClassName(reminder, meta)}>
+            <div className="flex items-start gap-4">
+                <div className={getIconClassName(reminder, meta)}>
+                    <span className="material-symbols-outlined text-[22px] leading-none">
+                        {meta.icon}
+                    </span>
+                </div>
 
-                    <h3 className="mt-3 text-lg font-semibold text-tomo-text-h">
-                        {reminder.title}
-                    </h3>
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-tomo-text">
+                                {meta.eyebrow}
+                            </p>
 
-                    <p className="mt-2 text-sm leading-6 text-tomo-text">
-                        {reminder.body}
-                    </p>
+                            <h3 className="mt-2 text-lg font-semibold text-tomo-text-h">
+                                {meta.title}
+                            </h3>
+
+                            <p className="mt-2 text-sm leading-6 text-tomo-text">
+                                {meta.body}
+                            </p>
+
+                            {meta.scheduleLine && (
+                                <p className="mt-2 text-xs leading-5 text-tomo-text">
+                                    {meta.scheduleLine}
+                                </p>
+                            )}
+                        </div>
+
+                        {hasCalendarLink && (
+                            <a
+                                href={reminder.google_calendar_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={getReminderActionClassName(reminder)}
+                            >
+                                Open
+                            </a>
+                        )}
+                    </div>
 
                     <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <ReminderPill>
-                            reminds {reminder.event_date}
+                        <ReminderPill tone={meta.tone}>
+                            {meta.typeLabel}
                         </ReminderPill>
+
+                        <ReminderPill>
+                            reminds {formatDate(reminder.event_date)}
+                        </ReminderPill>
+
+                        {meta.targetDate && (
+                            <ReminderPill>
+                                target {formatDate(meta.targetDate)}
+                            </ReminderPill>
+                        )}
+
+                        {meta.dueDate && meta.dueDate !== meta.targetDate && (
+                            <ReminderPill>
+                                due {formatDate(meta.dueDate)}
+                            </ReminderPill>
+                        )}
 
                         {reminder.calendar_sync_status === "synced" ? (
                             <ReminderPill tone="success">
@@ -39,17 +83,6 @@ export default function ReminderCard({ reminder }) {
                         )}
                     </div>
                 </div>
-
-                {hasCalendarLink && (
-                    <a
-                        href={reminder.google_calendar_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={getReminderActionClassName(reminder)}
-                    >
-                        Open
-                    </a>
-                )}
             </div>
         </div>
     )
@@ -68,7 +101,144 @@ function ReminderPill({ tone = "neutral", children }) {
     return <span className={`tomo-badge ${className}`}>{children}</span>
 }
 
-function getCardClassName(reminder) {
+function getReminderMeta(reminder) {
+    const details = reminder.details_json || {}
+    const haystack = [
+        details.care_item,
+        details.care_category,
+        details.reminder_type,
+        details.medication,
+        details.medication_name,
+        details.title,
+        details.label,
+        details.description,
+        reminder.title,
+        reminder.body,
+        reminder.eyebrow,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    if (haystack.includes("simparica")) {
+        return {
+            kind: "simparica",
+            icon: "pill",
+            tone: "success",
+            eyebrow: "At-home medication",
+            title: details.care_item || "Simparica Trio",
+            typeLabel: "Oral med",
+            targetDate: details.target_admin_date,
+            dueDate: details.due_date,
+            body:
+                reminder.body ||
+                "Monthly flea, tick, and heartworm prevention. Tracked as an at-home medication.",
+            scheduleLine: getHomeMedicationScheduleLine(details),
+        }
+    }
+
+    if (haystack.includes("adequan")) {
+        return {
+            kind: "adequan",
+            icon: "syringe",
+            tone: "brand",
+            eyebrow: "At-home injection",
+            title: details.care_item || "Adequan",
+            typeLabel: "Home injection",
+            targetDate: details.target_admin_date,
+            dueDate: details.due_date,
+            body:
+                reminder.body ||
+                "Joint support injection administered at home. Tracked as an at-home care task.",
+            scheduleLine: getHomeMedicationScheduleLine(details),
+        }
+    }
+
+    if (haystack.includes("librela")) {
+        return {
+            kind: "librela",
+            icon: "medical_services",
+            tone: "brand",
+            eyebrow: "Clinic care",
+            title: details.care_item || details.medication || "Librela",
+            typeLabel: "Vet-administered",
+            targetDate: details.target_admin_date,
+            dueDate: details.due_date,
+            body:
+                reminder.body ||
+                "Librela care reminder based on verified injection history.",
+            scheduleLine: getLibrelaScheduleLine(details),
+        }
+    }
+
+    if (
+        haystack.includes("insurance") ||
+        haystack.includes("claim") ||
+        haystack.includes("receipt")
+    ) {
+        return {
+            kind: "insurance",
+            icon: "receipt",
+            tone: "neutral",
+            eyebrow: "Insurance",
+            title: details.care_item || reminder.title || "Insurance claim",
+            typeLabel: "Claim",
+            targetDate: details.target_admin_date,
+            dueDate: details.due_date,
+            body:
+                reminder.body ||
+                "Reminder to submit or follow up on an insurance claim.",
+            scheduleLine: null,
+        }
+    }
+
+    return {
+        kind: "generic",
+        icon: "notifications",
+        tone: "neutral",
+        eyebrow: reminder.eyebrow || "Reminder",
+        title: details.care_item || reminder.title || "Reminder",
+        typeLabel: "Reminder",
+        targetDate: details.target_admin_date,
+        dueDate: details.due_date,
+        body: reminder.body || "Planned TomoCare reminder.",
+        scheduleLine: null,
+    }
+}
+
+function getHomeMedicationScheduleLine(details) {
+    const parts = []
+
+    if (details.preferred_admin_day) {
+        parts.push(`Preferred day: ${details.preferred_admin_day}`)
+    }
+
+    if (details.cadence_days) {
+        parts.push(`Cadence: every ${details.cadence_days} days`)
+    }
+
+    if (details.requires_appointment === false) {
+        parts.push("No appointment needed")
+    }
+
+    return parts.length ? parts.join(" · ") : null
+}
+
+function getLibrelaScheduleLine(details) {
+    const parts = []
+
+    if (details.cadence_days) {
+        parts.push(`Cadence: every ${details.cadence_days} days`)
+    }
+
+    if (details.requires_appointment === true) {
+        parts.push("Appointment needed")
+    }
+
+    return parts.length ? parts.join(" · ") : null
+}
+
+function getCardClassName(reminder, meta) {
     const base =
         "rounded-2xl border bg-white/[0.025] p-5 shadow-sm transition-colors hover:bg-white/[0.035]"
 
@@ -80,7 +250,54 @@ function getCardClassName(reminder) {
         return `${base} border-[color:var(--tomo-accent-border)]`
     }
 
+    if (meta.kind === "simparica") {
+        return `${base} border-emerald-400/25`
+    }
+
+    if (meta.kind === "adequan") {
+        return `${base} border-violet-400/30`
+    }
+
+    if (meta.kind === "librela") {
+        return `${base} border-purple-400/30`
+    }
+
+    if (meta.kind === "insurance") {
+        return `${base} border-amber-400/25`
+    }
+
     return `${base} border-tomo-border`
+}
+
+function getIconClassName(reminder, meta) {
+    const base =
+        "mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border"
+
+    if (reminder.timing_state === "overdue") {
+        return `${base} border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] text-tomo-warning`
+    }
+
+    if (reminder.timing_state === "due_now") {
+        return `${base} border-[color:var(--tomo-accent-border)] bg-[var(--tomo-accent-bg)] text-tomo-accent`
+    }
+
+    if (meta.kind === "simparica") {
+        return `${base} border-emerald-400/25 bg-emerald-400/10 text-emerald-200`
+    }
+
+    if (meta.kind === "adequan") {
+        return `${base} border-violet-400/30 bg-violet-400/10 text-violet-200`
+    }
+
+    if (meta.kind === "librela") {
+        return `${base} border-purple-400/30 bg-purple-400/10 text-purple-200`
+    }
+
+    if (meta.kind === "insurance") {
+        return `${base} border-amber-400/25 bg-amber-400/10 text-amber-200`
+    }
+
+    return `${base} border-tomo-border bg-white/[0.03] text-tomo-text`
 }
 
 function getReminderActionClassName(reminder) {
@@ -96,4 +313,17 @@ function getReminderActionClassName(reminder) {
     }
 
     return `${base} tomo-btn-secondary`
+}
+
+function formatDate(value) {
+    if (!value) return "unknown date"
+
+    const date = new Date(`${value}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return value
+
+    return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    }).format(date)
 }

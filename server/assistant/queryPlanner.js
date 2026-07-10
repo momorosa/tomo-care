@@ -57,6 +57,24 @@ export function buildQueryPlan(question) {
         })
     }
 
+    if (isHomeMedicationAdministrationQuestion(q)) {
+        return basePlan({
+            intent: "home_medication_status",
+            subject: getHomeMedicationSubject(q),
+            scope: "verified_home_medication_administrations",
+            dateRange,
+        })
+    }
+
+    if (isHomeMedicationDueQuestion(q)) {
+        return basePlan({
+            intent: "home_medication_due",
+            subject: getHomeMedicationSubject(q),
+            scope: "planned_home_medication_reminders",
+            dateRange,
+        })
+    }
+
     if (isWeightTrendQuestion(q)) {
         return basePlan({
             intent: "weight_trend",
@@ -382,7 +400,7 @@ function isDietRecommendationQuestion(q) {
 function isMedicalJudgmentQuestion(q) {
 
     if (isCareTimelineQuestion(q)) return false
-    
+
     const asksJudgment =
         q.includes("concerning") ||
         q.includes("concerned") ||
@@ -455,4 +473,48 @@ function isCareTimelineQuestion(q) {
         q.includes("vet")
 
     return asksTimeline && mentionsCare
+}
+
+function isHomeMedicationAdministrationQuestion(q) {
+    const asksGiven =
+        q.includes("did i give") ||
+        q.includes("did we give") ||
+        q.includes("gave") ||
+        q.includes("given") ||
+        q.includes("administer") ||
+        q.includes("administered")
+
+    return asksGiven && mentionsHomeMedication(q)
+}
+
+function isHomeMedicationDueQuestion(q) {
+    const asksDue =
+        q.includes("due") ||
+        q.includes("soon") ||
+        q.includes("upcoming") ||
+        q.includes("next") ||
+        q.includes("when")
+
+    return asksDue && mentionsHomeMedication(q)
+}
+
+function mentionsHomeMedication(q) {
+    return (
+        q.includes("simparica") ||
+        q.includes("adequan") ||
+        q.includes("home med") ||
+        q.includes("home medication") ||
+        q.includes("meds") ||
+        q.includes("medications") ||
+        q.includes("medicine") ||
+        q.includes("home care") ||
+        q.includes("care tasks")
+    )
+}
+
+function getHomeMedicationSubject(q) {
+    if (q.includes("simparica")) return "simparica_trio"
+    if (q.includes("adequan")) return "adequan"
+
+    return "home_medications"
 }

@@ -47,6 +47,12 @@ export async function buildTrustedContext(petId) {
         (event) => event.status === "planned" && event.event_type === "reminder"
     )
 
+    const homeMedicationReminders = plannedReminders.filter(isHomeMedicationReminder)
+
+    const homeMedicationAdministrationEvents = verifiedEvents
+        .filter((event) => event.event_type === "medication_administration")
+        .filter(isHomeMedicationRelated)
+
     const scheduledAppointments = events.filter(isScheduledAppointment)
 
     const librelaInjectionEvents = verifiedEvents
@@ -77,6 +83,8 @@ export async function buildTrustedContext(petId) {
         scheduledAppointments,
         documents,
         verifiedWeightFacts,
+        homeMedicationReminders,
+        homeMedicationAdministrationEvents,
         librelaInjectionEvents,
         directLibrelaCostItems,
         librelaVisitCostItems,
@@ -156,4 +164,42 @@ export function isScheduledAppointment(event) {
         status === "booked"
 
     return looksLikeAppointment && looksScheduled
+}
+
+function isHomeMedicationReminder(event) {
+    const details = event.details_json || {}
+
+    return (
+        event.event_type === "reminder" &&
+        event.status === "planned" &&
+        (
+            details.reminder_type === "home_medication" ||
+            details.care_category === "at_home_medication" ||
+            details.care_category === "at_home_injection"
+        )
+    )
+}
+
+function isHomeMedicationRelated(event) {
+    const details = event.details_json || {}
+
+    const haystack = [
+        event.event_type,
+        details.care_item,
+        details.care_category,
+        details.reminder_type,
+        details.route,
+        details.source,
+    ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+    return (
+        haystack.includes("simparica") ||
+        haystack.includes("adequan") ||
+        haystack.includes("home_medication") ||
+        haystack.includes("at_home_medication") ||
+        haystack.includes("at_home_injection")
+    )
 }

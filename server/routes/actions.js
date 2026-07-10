@@ -22,6 +22,8 @@ const INSURANCE_TARGET_SUBMIT_DAYS = 30
 const INSURANCE_ELIGIBILITY_WINDOW_DAYS = 180
 const INSURANCE_RULE_VERSION = "insurance_claim_v1"
 
+const HOME_MEDICATION_REMINDER_TYPE = "home_medication"
+
 const CALENDAR_SYNC_ALLOWED_TIMING_STATES = new Set(["upcoming", "due_now"])
 
 const TIMING_STATE_BLOCK_MESSAGES = {
@@ -84,6 +86,17 @@ function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
     return "upcoming"
 }
 
+function getHomeMedicationTimingState({ reminderDate, targetAdminDate }) {
+    const today = formatIsoDate(new Date())
+
+    if (!targetAdminDate || !reminderDate) return "unknown"
+
+    if (targetAdminDate < today) return "overdue"
+    if (reminderDate <= today) return "due_now"
+
+    return "upcoming"
+}
+
 // Recomputes a reminder's timing state from today's date plus the anchor
 // dates stored on the row. details_json.timing_state is a cache we refresh
 // here, not the source of truth: it's set once at creation/update time and
@@ -113,6 +126,18 @@ function resolveReminderTimingState(event) {
         return getReminderTimingState({
             reminderDate: event.event_date,
             dueDate: details.due_date,
+        })
+    }
+
+    if (details.reminder_type === HOME_MEDICATION_REMINDER_TYPE) {
+        const targetAdminDate =
+            details.target_admin_date ||
+            details.due_date ||
+            event?.event_date
+
+        return getHomeMedicationTimingState({
+            reminderDate: event?.event_date,
+            targetAdminDate,
         })
     }
 
@@ -156,6 +181,10 @@ function buildCalendarTitle(event) {
         return "Momo — Librela due soon"
     }
 
+    if (details.reminder_type === HOME_MEDICATION_REMINDER_TYPE) {
+        return `Momo — give ${details.care_item || "home medication"}`
+    }
+
     return `Momo — ${subtype}`
 }
 
@@ -164,7 +193,7 @@ function buildCalendarDescription(event) {
 
     const lines = [
         "TomoCare reminder",
-        `Reminder type: ${details.subtype || "Reminder"}`,
+        `Reminder type: ${details.subtype || details.reminder_type || "Reminder"}`,
         `Reminder date: ${event.event_date}`,
     ]
 
@@ -187,6 +216,26 @@ function buildCalendarDescription(event) {
 
     if (details.due_date && !details.claim_deadline_date) {
         lines.push(`Due date: ${details.due_date}`)
+    }
+
+    if (details.care_item) {
+        lines.push(`Care item: ${details.care_item}`)
+    }
+
+    if (details.target_admin_date) {
+        lines.push(`Target administration date: ${details.target_admin_date}`)
+    }
+
+    if (details.preferred_admin_day) {
+        lines.push(`Preferred day: ${details.preferred_admin_day}`)
+    }
+
+    if (details.requires_appointment === false) {
+        lines.push("No appointment needed")
+    }
+
+    if (details.route) {
+        lines.push(`Route: ${details.route}`)
     }
 
     if (details.anchor_event_date) {
@@ -874,8 +923,12 @@ router.get("/pets/:petId/reminders", async (req, res) => {
 
 function toDashboardReminderCard(event) {
     const details = event.details_json || {}
-    const subtype = details.subtype || "Reminder"
-    const timingState = details.timing_state || "unknown"
+    const subtype =
+        details.subtype ||
+        details.reminder_type ||
+        "Reminder"
+
+    const timingState = resolveReminderTimingState(event)
     const calendarSyncStatus = details.calendar_sync_status || "not_synced"
     const externalRefs = details.external_refs || {}
 
@@ -889,6 +942,25 @@ function toDashboardReminderCard(event) {
             externalRefs.google_calendar_html_link || null,
         source_document_id: details.source_document_id || event.doc_id || null,
         source_document_title: details.source_document_title || null,
+        details_json: details,
+    }
+
+    if (details.reminder_type === HOME_MEDICATION_REMINDER_TYPE) {
+        return {
+            ...baseCard,
+            title: details.care_item || "Home medication",
+            eyebrow:
+                details.care_category === "at_home_injection"
+                    ? "At-home injection"
+                    : "At-home medication",
+            body: buildHomeMedicationReminderBody(details),
+            tone:
+                timingState === "overdue"
+                    ? "warning"
+                    : timingState === "due_now"
+                      ? "attention"
+                      : "normal",
+        }
     }
 
     if (subtype === INSURANCE_CLAIM_SUBTYPE) {
@@ -922,9 +994,9 @@ function toDashboardReminderCard(event) {
 
     return {
         ...baseCard,
-        title: subtype,
-        eyebrow: "Reminder",
-        body: details.message || "Planned reminder for Momo.",
+        title: details.care_item || details.title || details.label || subtype,
+        eyebrow: details.eyebrow || "Reminder",
+        body: details.message || details.description || "Planned reminder for Momo.",
         tone: "normal",
     }
 }
@@ -959,6 +1031,31 @@ function buildLibrelaReminderBody(details) {
     }
 
     return parts.join(" · ") || "Schedule next Librela shot."
+}
+
+function buildHomeMedicationReminderBody(details) {
+    const parts = []
+
+    if (details.target_admin_date) {
+        parts.push(`Target administration: ${details.target_admin_date}`)
+    }
+
+    if (
+        details.due_date &&
+        details.due_date !== details.target_admin_date
+    ) {
+        parts.push(`Cadence due date: ${details.due_date}`)
+    }
+
+    if (details.preferred_admin_day) {
+        parts.push(`Preferred day: ${details.preferred_admin_day}`)
+    }
+
+    if (details.requires_appointment === false) {
+        parts.push("No appointment needed")
+    }
+
+    return parts.join(" · ") || "Planned at-home medication reminder for Momo."
 }
 
 export default router

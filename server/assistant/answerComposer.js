@@ -28,6 +28,14 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
             response = answerCareTimelineSummary(context, queryPlan)
                 break
 
+        case "home_medication_due":
+            response = answerHomeMedicationDue(context, queryPlan)
+            break
+
+        case "home_medication_status":
+            response = answerHomeMedicationStatus(context, queryPlan)
+            break
+
         case "last_weight":
             response = answerLastWeight(context, queryPlan)
             break
@@ -391,6 +399,173 @@ function answerMedicalJudgmentBoundary(context, queryPlan) {
         limitations: [
             "No diagnosis or medical judgment was made.",
             "The assistant is limited to grounded summaries from verified TomoCare records.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerHomeMedicationDue(context, queryPlan) {
+    const reminders = getHomeMedicationRemindersForSubject(context, queryPlan.subject)
+        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+
+    const upcomingReminders = reminders.filter(
+        (reminder) => reminder.event_date >= getTodayDateString()
+    )
+
+    const sourceReminders = upcomingReminders.length ? upcomingReminders : reminders
+
+    if (!sourceReminders.length) {
+        return noTrustedDataAnswer(
+            queryPlan.subject === "home_medications"
+                ? "I don’t see any planned home medication reminders in trusted records yet."
+                : `I don’t see a planned ${getHomeMedicationDisplayName(queryPlan.subject)} reminder in trusted records yet.`
+        )
+    }
+
+    if (queryPlan.subject !== "home_medications") {
+        const reminder = sourceReminders[0]
+        const details = reminder.details_json || {}
+        const lastAdmin = findLastHomeMedicationAdministration(
+            context,
+            queryPlan.subject
+        )
+
+        const answerParts = [
+            `${getHomeMedicationDisplayName(queryPlan.subject)} has a target administration date of ${formatDate(details.target_admin_date || reminder.event_date)}.`,
+        ]
+
+        if (details.due_date) {
+            answerParts.push(`The cadence-based due date is ${formatDate(details.due_date)}.`)
+        }
+
+        answerParts.push(`The planned reminder is set for ${formatDate(reminder.event_date)}.`)
+
+        if (lastAdmin) {
+            answerParts.push(`The last verified administration I see was on ${formatDate(lastAdmin.event_date)}.`)
+        }
+
+        if (details.preferred_admin_day) {
+            answerParts.push(`This schedule uses your preference to give home medications on ${details.preferred_admin_day}s when possible.`)
+        }
+
+        return {
+            answer: answerParts.join(" "),
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [
+                eventCitation(reminder, `${getHomeMedicationDisplayName(queryPlan.subject)} reminder`),
+                lastAdmin ? eventCitation(lastAdmin, `${getHomeMedicationDisplayName(queryPlan.subject)} administration`) : null,
+            ].filter(Boolean),
+            limitations: [
+                "This is schedule tracking, not veterinary dosing advice.",
+                "Target administration date may differ from exact cadence due date because of your weekday preference.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    const reminderText = sourceReminders
+        .map((reminder) => {
+            const details = reminder.details_json || {}
+            const careItem = details.care_item || "Home medication"
+            const targetDate = details.target_admin_date || reminder.event_date
+            const dueDate = details.due_date
+
+            return dueDate
+                ? `${careItem}: target ${formatDate(targetDate)}, due ${formatDate(dueDate)}, reminder ${formatDate(reminder.event_date)}`
+                : `${careItem}: target ${formatDate(targetDate)}, reminder ${formatDate(reminder.event_date)}`
+        })
+        .join("; ")
+
+    return {
+        answer: `I found ${sourceReminders.length} planned home medication reminder${sourceReminders.length === 1 ? "" : "s"}: ${reminderText}.`,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: sourceReminders.map((reminder) =>
+            eventCitation(reminder, "Home medication reminder")
+        ),
+        limitations: [
+            "This is schedule tracking, not veterinary dosing advice.",
+            "A planned reminder does not mean the medication has already been given.",
+        ],
+        proposed_action: null,
+    }
+}
+
+function answerHomeMedicationStatus(context, queryPlan) {
+    const administrations = getHomeMedicationAdministrationsForSubject(
+        context,
+        queryPlan.subject
+    ).sort((a, b) => new Date(b.event_date) - new Date(a.event_date))
+
+    const reminders = getHomeMedicationRemindersForSubject(context, queryPlan.subject)
+        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+
+    if (!administrations.length) {
+        return noTrustedDataAnswer(
+            queryPlan.subject === "home_medications"
+                ? "I don’t see verified home medication administration records yet."
+                : `I don’t see a verified ${getHomeMedicationDisplayName(queryPlan.subject)} administration record yet.`
+        )
+    }
+
+    const latestAdmin = administrations[0]
+    const nextReminder = reminders.find(
+        (reminder) => reminder.event_date >= getTodayDateString()
+    )
+
+    if (queryPlan.subject !== "home_medications") {
+        const answerParts = [
+            `The last verified ${getHomeMedicationDisplayName(queryPlan.subject)} administration I see was on ${formatDate(latestAdmin.event_date)}.`,
+        ]
+
+        if (nextReminder) {
+            const details = nextReminder.details_json || {}
+            const targetDate = details.target_admin_date || nextReminder.event_date
+
+            answerParts.push(`The next target administration date is ${formatDate(targetDate)}, with a planned reminder on ${formatDate(nextReminder.event_date)}.`)
+
+            if (details.due_date) {
+                answerParts.push(`The cadence-based due date is ${formatDate(details.due_date)}.`)
+            }
+        } else {
+            answerParts.push("I do not see an upcoming planned reminder for the next cycle yet.")
+        }
+
+        return {
+            answer: answerParts.join(" "),
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [
+                eventCitation(latestAdmin, `${getHomeMedicationDisplayName(queryPlan.subject)} administration`),
+                nextReminder ? eventCitation(nextReminder, `${getHomeMedicationDisplayName(queryPlan.subject)} reminder`) : null,
+            ].filter(Boolean),
+            limitations: [
+                "This answer only reflects verified TomoCare administration records and planned reminders.",
+                "It does not determine whether a late or missed dose is medically significant.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    const latestByItem = getLatestAdministrationByCareItem(administrations)
+
+    const statusText = latestByItem
+        .map((event) => {
+            const careItem = event.details_json?.care_item || "Home medication"
+            return `${careItem}: last verified given on ${formatDate(event.event_date)}`
+        })
+        .join("; ")
+
+    return {
+        answer: `I found verified home medication administration records: ${statusText}.`,
+        answer_type: "grounded_answer",
+        confidence: "high",
+        citations: latestByItem.map((event) =>
+            eventCitation(event, "Home medication administration")
+        ),
+        limitations: [
+            "This answer only reflects verified TomoCare administration records.",
         ],
         proposed_action: null,
     }
@@ -1197,4 +1372,62 @@ function dedupeCitations(citations = []) {
         seen.add(key)
         return true
     })
+}
+
+function getHomeMedicationRemindersForSubject(context, subject) {
+    const reminders = context.homeMedicationReminders || []
+
+    if (subject === "home_medications") return reminders
+
+    return reminders.filter((event) =>
+        getHomeMedicationSubjectFromEvent(event) === subject
+    )
+}
+
+function getHomeMedicationAdministrationsForSubject(context, subject) {
+    const administrations = context.homeMedicationAdministrationEvents || []
+
+    if (subject === "home_medications") return administrations
+
+    return administrations.filter((event) =>
+        getHomeMedicationSubjectFromEvent(event) === subject
+    )
+}
+
+function findLastHomeMedicationAdministration(context, subject) {
+    return getHomeMedicationAdministrationsForSubject(context, subject)
+        .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))[0]
+}
+
+function getHomeMedicationSubjectFromEvent(event) {
+    const careItem = String(event.details_json?.care_item || "").toLowerCase()
+
+    if (careItem.includes("simparica")) return "simparica_trio"
+    if (careItem.includes("adequan")) return "adequan"
+
+    return "home_medications"
+}
+
+function getHomeMedicationDisplayName(subject) {
+    if (subject === "simparica_trio") return "Simparica Trio"
+    if (subject === "adequan") return "Adequan"
+
+    return "home medication"
+}
+
+function getLatestAdministrationByCareItem(events = []) {
+    const latestBySubject = new Map()
+
+    for (const event of events) {
+        const subject = getHomeMedicationSubjectFromEvent(event)
+        const existing = latestBySubject.get(subject)
+
+        if (!existing || new Date(event.event_date) > new Date(existing.event_date)) {
+            latestBySubject.set(subject, event)
+        }
+    }
+
+    return [...latestBySubject.values()].sort(
+        (a, b) => new Date(b.event_date) - new Date(a.event_date)
+    )
 }
