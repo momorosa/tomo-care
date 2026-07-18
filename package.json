@@ -12,7 +12,8 @@
         "gmail:test": "node server/scripts/test-gmail.js",
         "gmail:inspect": "node server/scripts/inspect-gmail-message.js",
         "gmail:download": "node server/scripts/download-gmail-attachments.js",
-        "eval:assistant": "node server/scripts/runAssistantEvals.js"
+        "eval:assistant": "node server/scripts/runAssistantEvals.js",
+        "test:care-dates": "node --test server/lib/careDates.test.js"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.110.7",

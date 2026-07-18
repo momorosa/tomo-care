@@ -1,5 +1,6 @@
 import { costItemCitation, documentCitation, eventCitation, factCitation, enrichCitations, } from "./citations.js"
 import { dateInRange, getDateRangePhrase, } from "./dateRanges.js"
+import { getCareDate } from "../lib/careDates.js"
 
 const LIBRELA_INTERVAL_DAYS = 49
 const LIBRELA_REMIND_BEFORE_DAYS = 7
@@ -1285,7 +1286,7 @@ function formatMoney(value, currency = "USD") {
 }
 
 function getTodayDateString() {
-    return new Date().toISOString().slice(0, 10)
+    return getCareDate()
 }
 
 function countUnique(values) {

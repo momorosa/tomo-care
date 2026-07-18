@@ -1,7 +1,9 @@
+import { getCareDate } from "../lib/careDates.js"
+
 export function resolveDateRange(question, today = new Date()) {
     const q = question.toLowerCase()
-    const currentYear = today.getFullYear()
-    const todayString = toDateString(today)
+    const todayString = getCareDate(today)
+    const currentYear = Number(todayString.slice(0, 4))
 
     const explicitYear = q.match(/\b(20\d{2})\b/)?.[1]
 
@@ -70,8 +72,4 @@ export function getDateRangePhrase(dateRange) {
     }
 
     return ""
-}
-
-function toDateString(date) {
-    return date.toISOString().slice(0, 10)
 }

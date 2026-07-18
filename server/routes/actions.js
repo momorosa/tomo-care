@@ -5,6 +5,7 @@ import {
     getGoogleCalendarConfig,
     getGoogleCalendarService,
 } from "../googleCalendar.js"
+import { getCareDate } from "../lib/careDates.js"
 
 const router = express.Router()
 
@@ -56,14 +57,10 @@ function parseIsoDate(value) {
     return new Date(Date.UTC(year, month - 1, day))
 }
 
-function formatIsoDate(date) {
-    return date.toISOString().slice(0, 10)
-}
-
 function addDays(dateString, days) {
     const date = parseIsoDate(dateString)
     date.setUTCDate(date.getUTCDate() + days)
-    return formatIsoDate(date)
+    return getCareDate()
 }
 
 function addMinutes(date, minutes) {
@@ -71,7 +68,7 @@ function addMinutes(date, minutes) {
 }
 
 function getReminderTimingState({ reminderDate, dueDate }) {
-    const today = formatIsoDate(new Date())
+    const today = getCareDate()
 
     if (dueDate < today) return "overdue"
     if (reminderDate < today) return "reminder_window_passed"
@@ -79,7 +76,7 @@ function getReminderTimingState({ reminderDate, dueDate }) {
 }
 
 function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
-    const today = formatIsoDate(new Date())
+    const today = getCareDate()
 
     if (claimDeadlineDate < today) return "claim_window_expired"
     if (targetSubmitDate <= today) return "due_now"
@@ -87,7 +84,7 @@ function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
 }
 
 function getHomeMedicationTimingState({ reminderDate, targetAdminDate }) {
-    const today = formatIsoDate(new Date())
+    const today = getCareDate()
 
     if (!targetAdminDate || !reminderDate) return "unknown"
 
@@ -570,7 +567,7 @@ router.post(
                 treatmentDate,
                 INSURANCE_ELIGIBILITY_WINDOW_DAYS
             )
-            const today = formatIsoDate(new Date())
+            const today = getCareDate()
 
             if (claimDeadlineDate < today) {
                 return res.status(409).json({
