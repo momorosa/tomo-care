@@ -10,6 +10,10 @@ import {
     ActionPreparationError,
     prepareMarkHomeMedicationGiven,
 } from "../actions/prepareHomeMedicationGiven.js"
+import {
+    ActionApprovalError,
+    approveCareAction,
+} from "../actions/approveCareAction.js"
 
 const router = express.Router()
 
@@ -61,6 +65,8 @@ const CARE_ACTION_RETURN_COLUMNS = [
     "payload_json",
     "evidence_json",
     "proposed_at",
+    "approved_at",
+    "approved_by",
     "created_at",
     "updated_at",
 ].join(", ")
@@ -443,6 +449,17 @@ async function findExistingPlannedInsuranceClaimReminder({ docId, petId }) {
 }
 
 const careActionRepository = {
+    async findActionById(actionId) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .eq("id", actionId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
     async findReminder({ petId, reminderId }) {
         const { data, error } = await sbAdmin
             .from("events")
@@ -476,6 +493,29 @@ const careActionRepository = {
 
         if (error) throw error
         return data
+    },
+
+    async approveProposedAction({
+        actionId,
+        approvedBy,
+        approvedAt,
+        expectedUpdatedAt,
+    }) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .update({
+                status: "approved",
+                approved_by: approvedBy,
+                approved_at: approvedAt,
+            })
+            .eq("id", actionId)
+            .eq("status", "proposed")
+            .eq("updated_at", expectedUpdatedAt)
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
     },
 }
 
@@ -531,6 +571,49 @@ router.post(
         }
     }
 )
+
+// POST /api/care-actions/:actionId/approve
+//
+// Approval records explicit human consent. Execution remains a separate
+// operation so this endpoint cannot mutate trusted care history.
+router.post("/care-actions/:actionId/approve", async (req, res) => {
+    const { actionId } = req.params
+    const { approvedBy } = req.body || {}
+
+    try {
+        const result = await approveCareAction({
+            repository: careActionRepository,
+            actionId,
+            approvedBy,
+        })
+
+        return res.json({
+            ok: true,
+            disposition: result.disposition,
+            message:
+                result.disposition === "approved"
+                    ? "Care action approved. It has not been executed yet."
+                    : "This care action was already approved and has not been executed yet.",
+            approved_action: result.action,
+        })
+    } catch (error) {
+        if (error instanceof ActionApprovalError) {
+            return res.status(error.status).json({
+                ok: false,
+                reason: error.reason,
+                error: error.message,
+            })
+        }
+
+        console.error("[care-action:approve] error:", error)
+
+        return res.status(500).json({
+            ok: false,
+            reason: "approval_failed",
+            error: "Failed to approve the care action.",
+        })
+    }
+})
 
 // POST /api/documents/:docId/actions/librela-reminder
 router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
