@@ -6,14 +6,6 @@ import {
     getGoogleCalendarService,
 } from "../googleCalendar.js"
 import { getCareDate } from "../lib/careDates.js"
-import {
-    ActionPreparationError,
-    prepareMarkHomeMedicationGiven,
-} from "../actions/prepareHomeMedicationGiven.js"
-import {
-    ActionApprovalError,
-    approveCareAction,
-} from "../actions/approveCareAction.js"
 
 const router = express.Router()
 
@@ -51,25 +43,6 @@ const DOCUMENT_COLUMNS =
 
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
-
-const CARE_ACTION_RETURN_COLUMNS = [
-    "id",
-    "pet_id",
-    "source_event_id",
-    "action_type",
-    "status",
-    "request_source",
-    "requested_by",
-    "idempotency_key",
-    "preview_json",
-    "payload_json",
-    "evidence_json",
-    "proposed_at",
-    "approved_at",
-    "approved_by",
-    "created_at",
-    "updated_at",
-].join(", ")
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -448,172 +421,9 @@ async function findExistingPlannedInsuranceClaimReminder({ docId, petId }) {
     return data?.[0] || null
 }
 
-const careActionRepository = {
-    async findActionById(actionId) {
-        const { data, error } = await sbAdmin
-            .from("care_actions")
-            .select(CARE_ACTION_RETURN_COLUMNS)
-            .eq("id", actionId)
-            .maybeSingle()
-
-        if (error) throw error
-        return data || null
-    },
-
-    async findReminder({ petId, reminderId }) {
-        const { data, error } = await sbAdmin
-            .from("events")
-            .select(REMINDER_RETURN_COLUMNS)
-            .eq("id", reminderId)
-            .eq("pet_id", petId)
-            .maybeSingle()
-
-        if (error) throw error
-        return data || null
-    },
-
-    async findActiveActionByIdempotencyKey(idempotencyKey) {
-        const { data, error } = await sbAdmin
-            .from("care_actions")
-            .select(CARE_ACTION_RETURN_COLUMNS)
-            .eq("idempotency_key", idempotencyKey)
-            .neq("status", "cancelled")
-            .limit(1)
-
-        if (error) throw error
-        return data?.[0] || null
-    },
-
-    async insertProposedAction(proposal) {
-        const { data, error } = await sbAdmin
-            .from("care_actions")
-            .insert(proposal)
-            .select(CARE_ACTION_RETURN_COLUMNS)
-            .single()
-
-        if (error) throw error
-        return data
-    },
-
-    async approveProposedAction({
-        actionId,
-        approvedBy,
-        approvedAt,
-        expectedUpdatedAt,
-    }) {
-        const { data, error } = await sbAdmin
-            .from("care_actions")
-            .update({
-                status: "approved",
-                approved_by: approvedBy,
-                approved_at: approvedAt,
-            })
-            .eq("id", actionId)
-            .eq("status", "proposed")
-            .eq("updated_at", expectedUpdatedAt)
-            .select(CARE_ACTION_RETURN_COLUMNS)
-            .maybeSingle()
-
-        if (error) throw error
-        return data || null
-    },
-}
-
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
-
-// POST /api/pets/:petId/actions/home-medication-given/prepare
-//
-// This route can only prepare a proposal. It does not update the source
-// reminder, create a medication event, or schedule the next reminder.
-router.post(
-    "/pets/:petId/actions/home-medication-given/prepare",
-    async (req, res) => {
-        const { petId } = req.params
-        const { reminderId, administeredDate, requestedBy } = req.body || {}
-
-        try {
-            const result = await prepareMarkHomeMedicationGiven({
-                repository: careActionRepository,
-                petId,
-                reminderId,
-                administeredDate,
-                requestSource: "dashboard",
-                requestedBy,
-            })
-
-            return res.status(result.disposition === "created" ? 201 : 200).json({
-                ok: true,
-                disposition: result.disposition,
-                message:
-                    result.disposition === "created"
-                        ? "Medication confirmation prepared for approval."
-                        : "This medication confirmation is already awaiting action.",
-                proposed_action: result.action,
-            })
-        } catch (error) {
-            if (error instanceof ActionPreparationError) {
-                return res.status(error.status).json({
-                    ok: false,
-                    reason: error.reason,
-                    error: error.message,
-                })
-            }
-
-            console.error("[home-medication-given:prepare] error:", error)
-
-            return res.status(500).json({
-                ok: false,
-                reason: "preparation_failed",
-                error: "Failed to prepare the medication confirmation.",
-            })
-        }
-    }
-)
-
-// POST /api/care-actions/:actionId/approve
-//
-// Approval records explicit human consent. Execution remains a separate
-// operation so this endpoint cannot mutate trusted care history.
-router.post("/care-actions/:actionId/approve", async (req, res) => {
-    const { actionId } = req.params
-    const { approvedBy } = req.body || {}
-
-    try {
-        const result = await approveCareAction({
-            repository: careActionRepository,
-            actionId,
-            approvedBy,
-        })
-
-        return res.json({
-            ok: true,
-            disposition: result.disposition,
-            message:
-                result.disposition === "approved"
-                    ? "Care action approved. It has not been executed yet."
-                    : "This care action was already approved and has not been executed yet.",
-            approved_action: result.action,
-        })
-    } catch (error) {
-        if (error instanceof ActionApprovalError) {
-            return res.status(error.status).json({
-                ok: false,
-                reason: error.reason,
-                error: error.message,
-            })
-        }
-
-        console.error("[care-action:approve] error:", error)
-
-        return res.status(500).json({
-            ok: false,
-            reason: "approval_failed",
-            error: "Failed to approve the care action.",
-        })
-    }
-})
 
 // POST /api/documents/:docId/actions/librela-reminder
 router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
