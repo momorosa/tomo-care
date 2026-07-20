@@ -18,6 +18,11 @@ const CARE_ACTION_RETURN_COLUMNS = [
     "proposed_at",
     "approved_at",
     "approved_by",
+    "execution_started_at",
+    "executed_at",
+    "result_json",
+    "error_json",
+    "cancelled_at",
     "created_at",
     "updated_at",
 ].join(", ")
@@ -90,5 +95,19 @@ export const careActionRepository = {
 
         if (error) throw error
         return data || null
+    },
+
+    async executeMarkHomeMedicationGiven({ actionId, executedBy, careDate }) {
+        const { data, error } = await sbAdmin.rpc(
+            "execute_mark_home_medication_given",
+            {
+                p_action_id: actionId,
+                p_executed_by: executedBy,
+                p_care_date: careDate,
+            }
+        )
+
+        if (error) throw error
+        return data
     },
 }

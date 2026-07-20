@@ -7,6 +7,10 @@ import {
     ActionApprovalError,
     approveCareAction,
 } from "../actions/approveCareAction.js"
+import {
+    ActionExecutionError,
+    executeCareAction,
+} from "../actions/executeCareAction.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
 const router = express.Router()
@@ -103,4 +107,59 @@ router.post("/care-actions/:actionId/approve", async (req, res) => {
     }
 })
 
+// POST /api/care-actions/:actionId/execute
+//
+// The browser supplies only the action identity. The backend supplies the
+// care date and execution actor, while PostgreSQL executes the frozen,
+// approved payload atomically.
+router.post("/care-actions/:actionId/execute", async (req, res) => {
+    const { actionId } = req.params
+
+    try {
+        const result = await executeCareAction({
+            repository: careActionRepository,
+            actionId,
+        })
+
+        return res.json({
+            ok: true,
+            disposition: result.disposition,
+            message:
+                result.disposition === "executed"
+                    ? "Medication recorded and the next reminder prepared."
+                    : "This medication was already recorded and the next reminder is ready.",
+            execution: {
+                action_id: result.actionId,
+                status: result.status,
+                result: result.result,
+            },
+        })
+    } catch (error) {
+        if (error instanceof ActionExecutionError) {
+            return res.status(error.status).json({
+                ok: false,
+                reason: error.reason,
+                error: error.message,
+                recovery: error.recovery,
+                retryable: error.retryable,
+                outcome_unknown: error.outcomeUnknown,
+            })
+        }
+
+        console.error("[care-action:execute] error:", error)
+
+        return res.status(503).json({
+            ok: false,
+            reason: "execution_outcome_unknown",
+            error:
+                "TomoCare couldn’t confirm whether the update finished. Refresh Momo’s records or try again; a retry will not create a duplicate.",
+            recovery: "refresh_or_retry",
+            retryable: true,
+            outcome_unknown: true,
+        })
+    }
+})
+
 export default router
+
+
