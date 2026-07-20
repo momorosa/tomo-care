@@ -6,6 +6,10 @@ import {
     getGoogleCalendarService,
 } from "../googleCalendar.js"
 import { getCareDate } from "../lib/careDates.js"
+import {
+    ActionPreparationError,
+    prepareMarkHomeMedicationGiven,
+} from "../actions/prepareHomeMedicationGiven.js"
 
 const router = express.Router()
 
@@ -44,6 +48,23 @@ const DOCUMENT_COLUMNS =
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
 
+const CARE_ACTION_RETURN_COLUMNS = [
+    "id",
+    "pet_id",
+    "source_event_id",
+    "action_type",
+    "status",
+    "request_source",
+    "requested_by",
+    "idempotency_key",
+    "preview_json",
+    "payload_json",
+    "evidence_json",
+    "proposed_at",
+    "created_at",
+    "updated_at",
+].join(", ")
+
 // ---------------------------------------------------------------------------
 // Date helpers
 // ---------------------------------------------------------------------------
@@ -57,10 +78,14 @@ function parseIsoDate(value) {
     return new Date(Date.UTC(year, month - 1, day))
 }
 
+function formatIsoDate(date) {
+    return date.toISOString().slice(0, 10)
+}
+
 function addDays(dateString, days) {
     const date = parseIsoDate(dateString)
     date.setUTCDate(date.getUTCDate() + days)
-    return getCareDate()
+    return formatIsoDate(date)
 }
 
 function addMinutes(date, minutes) {
@@ -417,9 +442,95 @@ async function findExistingPlannedInsuranceClaimReminder({ docId, petId }) {
     return data?.[0] || null
 }
 
+const careActionRepository = {
+    async findReminder({ petId, reminderId }) {
+        const { data, error } = await sbAdmin
+            .from("events")
+            .select(REMINDER_RETURN_COLUMNS)
+            .eq("id", reminderId)
+            .eq("pet_id", petId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findActiveActionByIdempotencyKey(idempotencyKey) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .eq("idempotency_key", idempotencyKey)
+            .neq("status", "cancelled")
+            .limit(1)
+
+        if (error) throw error
+        return data?.[0] || null
+    },
+
+    async insertProposedAction(proposal) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .insert(proposal)
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .single()
+
+        if (error) throw error
+        return data
+    },
+}
+
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// POST /api/pets/:petId/actions/home-medication-given/prepare
+//
+// This route can only prepare a proposal. It does not update the source
+// reminder, create a medication event, or schedule the next reminder.
+router.post(
+    "/pets/:petId/actions/home-medication-given/prepare",
+    async (req, res) => {
+        const { petId } = req.params
+        const { reminderId, administeredDate, requestedBy } = req.body || {}
+
+        try {
+            const result = await prepareMarkHomeMedicationGiven({
+                repository: careActionRepository,
+                petId,
+                reminderId,
+                administeredDate,
+                requestSource: "dashboard",
+                requestedBy,
+            })
+
+            return res.status(result.disposition === "created" ? 201 : 200).json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    result.disposition === "created"
+                        ? "Medication confirmation prepared for approval."
+                        : "This medication confirmation is already awaiting action.",
+                proposed_action: result.action,
+            })
+        } catch (error) {
+            if (error instanceof ActionPreparationError) {
+                return res.status(error.status).json({
+                    ok: false,
+                    reason: error.reason,
+                    error: error.message,
+                })
+            }
+
+            console.error("[home-medication-given:prepare] error:", error)
+
+            return res.status(500).json({
+                ok: false,
+                reason: "preparation_failed",
+                error: "Failed to prepare the medication confirmation.",
+            })
+        }
+    }
+)
 
 // POST /api/documents/:docId/actions/librela-reminder
 router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
