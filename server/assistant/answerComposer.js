@@ -517,7 +517,7 @@ function answerHomeMedicationStatus(context, queryPlan) {
 
     if (queryPlan.subject !== "home_medications") {
         const answerParts = [
-            `The last verified ${getHomeMedicationDisplayName(queryPlan.subject)} administration I see was on ${formatDate(latestAdmin.event_date)}.`,
+            `The last verified ${getHomeMedicationDisplayName(queryPlan.subject)} administration was ${formatDate(latestAdmin.event_date)}.`,
         ]
 
         if (nextReminder) {

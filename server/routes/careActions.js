@@ -11,9 +11,46 @@ import {
     ActionExecutionError,
     executeCareAction,
 } from "../actions/executeCareAction.js"
+import {
+    ActionCancellationError,
+    cancelCareAction,
+} from "../actions/cancelCareAction.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
 const router = express.Router()
+
+// GET /api/care-actions/:actionId
+//
+// Reloads the server-owned action ledger so the dashboard can recover after
+// a refresh or an interrupted approval/execution request.
+router.get("/care-actions/:actionId", async (req, res) => {
+    const { actionId } = req.params
+
+    try {
+        const action = await careActionRepository.findActionById(actionId)
+
+        if (!action) {
+            return res.status(404).json({
+                ok: false,
+                reason: "action_not_found",
+                error: "The care action was not found.",
+            })
+        }
+
+        return res.json({
+            ok: true,
+            care_action: action,
+        })
+    } catch (error) {
+        console.error("[care-action:get] error:", error)
+
+        return res.status(500).json({
+            ok: false,
+            reason: "action_lookup_failed",
+            error: "Failed to load the care action.",
+        })
+    }
+})
 
 // POST /api/pets/:petId/actions/home-medication-given/prepare
 //
@@ -107,6 +144,47 @@ router.post("/care-actions/:actionId/approve", async (req, res) => {
     }
 })
 
+// POST /api/care-actions/:actionId/cancel
+//
+// Cancellation only retires a proposal. It cannot undo an approval or a
+// completed action, and it never mutates Momo's trusted care records.
+router.post("/care-actions/:actionId/cancel", async (req, res) => {
+    const { actionId } = req.params
+
+    try {
+        const result = await cancelCareAction({
+            repository: careActionRepository,
+            actionId,
+        })
+
+        return res.json({
+            ok: true,
+            disposition: result.disposition,
+            message:
+                result.disposition === "cancelled"
+                    ? "Care action proposal cancelled. Nothing was changed."
+                    : "This care action proposal was already cancelled.",
+            cancelled_action: result.action,
+        })
+    } catch (error) {
+        if (error instanceof ActionCancellationError) {
+            return res.status(error.status).json({
+                ok: false,
+                reason: error.reason,
+                error: error.message,
+            })
+        }
+
+        console.error("[care-action:cancel] error:", error)
+
+        return res.status(500).json({
+            ok: false,
+            reason: "cancellation_failed",
+            error: "Failed to cancel the care action proposal.",
+        })
+    }
+})
+
 // POST /api/care-actions/:actionId/execute
 //
 // The browser supplies only the action identity. The backend supplies the
@@ -161,5 +239,4 @@ router.post("/care-actions/:actionId/execute", async (req, res) => {
 })
 
 export default router
-
 

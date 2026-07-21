@@ -479,6 +479,7 @@ function isHomeMedicationAdministrationQuestion(q) {
     const asksGiven =
         q.includes("did i give") ||
         q.includes("did we give") ||
+        (q.includes("last") && q.includes("give")) ||
         q.includes("gave") ||
         q.includes("given") ||
         q.includes("administer") ||

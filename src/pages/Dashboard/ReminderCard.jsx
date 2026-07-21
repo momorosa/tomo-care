@@ -1,6 +1,7 @@
-export default function ReminderCard({ reminder }) {
+export default function ReminderCard({ reminder, onRecordGiven }) {
     const hasCalendarLink = Boolean(reminder.google_calendar_url)
     const meta = getReminderMeta(reminder)
+    const canRecordGiven = isRecordableHomeMedication(reminder)
 
     return (
         <div className={getCardClassName(reminder, meta)}>
@@ -33,15 +34,29 @@ export default function ReminderCard({ reminder }) {
                             )}
                         </div>
 
-                        {hasCalendarLink && (
-                            <a
-                                href={reminder.google_calendar_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={getReminderActionClassName(reminder)}
-                            >
-                                Open
-                            </a>
+                        {(hasCalendarLink || canRecordGiven) && (
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                {hasCalendarLink && (
+                                    <a
+                                        href={reminder.google_calendar_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={getReminderActionClassName(reminder)}
+                                    >
+                                        Open calendar
+                                    </a>
+                                )}
+
+                                {canRecordGiven && (
+                                    <button
+                                        type="button"
+                                        className="tomo-btn tomo-btn-primary shrink-0 px-4 py-1.5 text-xs font-semibold"
+                                        onClick={() => onRecordGiven?.(reminder)}
+                                    >
+                                        Mark as given
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -85,6 +100,16 @@ export default function ReminderCard({ reminder }) {
                 </div>
             </div>
         </div>
+    )
+}
+
+function isRecordableHomeMedication(reminder) {
+    const details = reminder.details_json || {}
+
+    return (
+        details.reminder_type === "home_medication" &&
+        details.requires_appointment === false &&
+        ["due_now", "overdue"].includes(reminder.timing_state)
     )
 }
 

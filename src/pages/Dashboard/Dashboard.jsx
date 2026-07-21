@@ -3,14 +3,34 @@ import { Link, useNavigate } from "react-router-dom"
 import NotificationCard from "../../components/NotificationCard.jsx"
 import ReminderCard from "./ReminderCard.jsx"
 import AssistantPanel from "./AssistantPanel.jsx"
+import CareActionDialog from "./CareActionDialog.jsx"
 import {
+    approveCareAction,
+    cancelCareAction,
     checkInboxForDocuments,
+    executeCareAction,
+    fetchCareAction,
+    fetchCareSummary,
     fetchPendingReviewDocuments,
     fetchReminders,
     fetchVerifiedDocuments,
+    prepareHomeMedicationGiven,
 } from "./api.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const CARE_ACTOR = "Rosa"
+const ACTIVE_ACTION_STORAGE_KEY = "tomocare.active-care-action-id"
+
+function emptyActionFlow() {
+    return {
+        phase: "idle",
+        reminder: null,
+        action: null,
+        administeredDate: getPacificCareDate(),
+        execution: null,
+        error: null,
+    }
+}
 
 function normalizeReviewDocuments(result) {
     if (!result?.reviewDocuments || !Array.isArray(result.reviewDocuments)) {
@@ -113,6 +133,7 @@ function RemindersSection({
     error,
     onRefresh,
     refreshing,
+    onRecordGiven,
 }) {
     return (
         <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
@@ -174,6 +195,7 @@ function RemindersSection({
                         <ReminderCard
                             key={reminder.id}
                             reminder={reminder}
+                            onRecordGiven={onRecordGiven}
                         />
                     ))}
                 </div>
@@ -188,6 +210,8 @@ export default function Dashboard() {
     const [pendingReviewDocs, setPendingReviewDocs] = useState([])
     const [reminders, setReminders] = useState([])
     const [verifiedDocuments, setVerifiedDocuments] = useState([])
+    const [careSummary, setCareSummary] = useState({})
+    const [actionFlow, setActionFlow] = useState(emptyActionFlow)
 
     const [result, setResult] = useState(null)
     const [checkingInbox, setCheckingInbox] = useState(false)
@@ -216,6 +240,15 @@ export default function Dashboard() {
         }
     }, [])
 
+    const loadCareSummary = useCallback(async () => {
+        try {
+            const summary = await fetchCareSummary(PET_ID)
+            setCareSummary(summary)
+        } catch (err) {
+            console.error("[dashboard] care summary load failed:", err)
+        }
+    }, [])
+
     const loadReminders = useCallback(async ({ silent = false } = {}) => {
         if (silent) {
             setRefreshingReminders(true)
@@ -239,8 +272,79 @@ export default function Dashboard() {
     useEffect(() => {
         loadPendingReviewDocs()
         loadVerifiedDocuments()
+        loadCareSummary()
         loadReminders()
-    }, [loadPendingReviewDocs, loadVerifiedDocuments, loadReminders])
+    }, [
+        loadPendingReviewDocs,
+        loadVerifiedDocuments,
+        loadCareSummary,
+        loadReminders,
+    ])
+
+    useEffect(() => {
+        const actionId = window.sessionStorage.getItem(ACTIVE_ACTION_STORAGE_KEY)
+        if (!actionId) return
+
+        let active = true
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "recovering",
+            error: null,
+        }))
+
+        fetchCareAction(actionId)
+            .then((data) => {
+                if (!active) return
+
+                const action = data.care_action
+                const nextPhase = getRecoveredActionPhase(action)
+
+                if (nextPhase === "idle") {
+                    clearStoredAction()
+                    setActionFlow(emptyActionFlow())
+                    return
+                }
+
+                setActionFlow((current) => ({
+                    ...current,
+                    phase: nextPhase,
+                    action,
+                    administeredDate:
+                        action?.preview_json?.administered_date ||
+                        current.administeredDate,
+                    execution:
+                        action?.status === "succeeded"
+                            ? { result: action.result_json }
+                            : null,
+                    error:
+                        nextPhase === "recovery_error"
+                            ? new Error(
+                                  "TomoCare could not confirm a final action state yet."
+                              )
+                            : null,
+                }))
+            })
+            .catch((error) => {
+                if (!active) return
+
+                if (error.status === 404) {
+                    clearStoredAction()
+                    setActionFlow(emptyActionFlow())
+                    return
+                }
+
+                setActionFlow((current) => ({
+                    ...current,
+                    phase: "recovery_error",
+                    error,
+                }))
+            })
+
+        return () => {
+            active = false
+        }
+    }, [])
 
     const latestReviewDocuments = useMemo(
         () => normalizeReviewDocuments(result),
@@ -273,12 +377,245 @@ export default function Dashboard() {
             }
 
             await loadVerifiedDocuments()
+            await loadCareSummary()
             await loadReminders({ silent: true })
         } catch (err) {
             setError(err.message)
         } finally {
             setCheckingInbox(false)
         }
+    }
+
+    function beginHomeMedicationAction(reminder) {
+        if (
+            actionFlow.action &&
+            actionFlow.action.source_event_id === reminder.id &&
+            ["proposed", "approved", "succeeded"].includes(
+                actionFlow.action.status
+            )
+        ) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(current.action),
+                error: null,
+            }))
+            return
+        }
+
+        setActionFlow({
+            ...emptyActionFlow(),
+            phase: "choosing",
+            reminder,
+        })
+    }
+
+    async function prepareAction(event) {
+        event.preventDefault()
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "preparing",
+            error: null,
+        }))
+
+        try {
+            const data = await prepareHomeMedicationGiven({
+                petId: PET_ID,
+                reminderId: actionFlow.reminder.id,
+                administeredDate: actionFlow.administeredDate,
+                requestedBy: CARE_ACTOR,
+            })
+            const action = data.proposed_action
+
+            storeActiveAction(action.id)
+
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(action),
+                action,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: null,
+            }))
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: "choosing",
+                error,
+            }))
+        }
+    }
+
+    async function cancelProposal({ returnToDate = false } = {}) {
+        const actionId = actionFlow.action?.id
+
+        if (!actionId) {
+            setActionFlow((current) => ({
+                ...emptyActionFlow(),
+                phase: returnToDate ? "choosing" : "idle",
+                reminder: returnToDate ? current.reminder : null,
+                administeredDate: current.administeredDate,
+            }))
+            return
+        }
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "cancelling",
+            error: null,
+        }))
+
+        try {
+            await cancelCareAction(actionId)
+            clearStoredAction()
+
+            setActionFlow((current) => ({
+                ...emptyActionFlow(),
+                phase: returnToDate ? "choosing" : "idle",
+                reminder: returnToDate ? current.reminder : null,
+                administeredDate: current.administeredDate,
+            }))
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(current.action),
+                error,
+            }))
+        }
+    }
+
+    async function approveAndExecuteAction() {
+        const actionId = actionFlow.action?.id
+        if (!actionId) return
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "approving",
+            error: null,
+        }))
+
+        let approvedAction
+
+        try {
+            const approval = await approveCareAction(actionId, CARE_ACTOR)
+            approvedAction = approval.approved_action
+            setActionFlow((current) => ({
+                ...current,
+                phase: "executing",
+                action: approvedAction,
+            }))
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: "reviewing",
+                error,
+            }))
+            return
+        }
+
+        await runApprovedAction(approvedAction)
+    }
+
+    async function executeApprovedAction() {
+        if (!actionFlow.action?.id) return
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "executing",
+            error: null,
+        }))
+
+        await runApprovedAction(actionFlow.action)
+    }
+
+    async function runApprovedAction(approvedAction) {
+        try {
+            const executionResult = await executeCareAction(approvedAction.id)
+
+            setActionFlow((current) => ({
+                ...current,
+                phase: "succeeded",
+                action: {
+                    ...approvedAction,
+                    status: "succeeded",
+                    result_json: executionResult.execution.result,
+                },
+                execution: executionResult.execution,
+                error: null,
+            }))
+
+            await Promise.all([
+                loadReminders({ silent: true }),
+                loadCareSummary(),
+            ])
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: error.outcomeUnknown ? "recovery_error" : "approved",
+                action: approvedAction,
+                error,
+            }))
+        }
+    }
+
+    async function recoverAction() {
+        const actionId = actionFlow.action?.id ||
+            window.sessionStorage.getItem(ACTIVE_ACTION_STORAGE_KEY)
+
+        if (!actionId) {
+            setActionFlow(emptyActionFlow())
+            return
+        }
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "recovering",
+            error: null,
+        }))
+
+        try {
+            const data = await fetchCareAction(actionId)
+            const action = data.care_action
+
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(action),
+                action,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: null,
+            }))
+
+            if (action.status === "succeeded") {
+                await Promise.all([
+                    loadReminders({ silent: true }),
+                    loadCareSummary(),
+                ])
+            }
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: "recovery_error",
+                error,
+            }))
+        }
+    }
+
+    function dismissActionDialog() {
+        setActionFlow((current) => ({
+            ...current,
+            phase: "idle",
+            error: null,
+        }))
+    }
+
+    function finishActionFlow() {
+        clearStoredAction()
+        setActionFlow(emptyActionFlow())
     }
 
     return (
@@ -357,7 +694,16 @@ export default function Dashboard() {
                                 <StatusTile
                                     tone="brand"
                                     label="Actions"
-                                    value="Gated"
+                                    value={
+                                        actionFlow.action &&
+                                        ["proposed", "approved"].includes(
+                                            actionFlow.action.status
+                                        )
+                                            ? "1 pending"
+                                            : actionFlow.phase === "idle"
+                                              ? "Gated"
+                                              : "In review"
+                                    }
                                 />
                             </div>
 
@@ -410,6 +756,7 @@ export default function Dashboard() {
                                 error={remindersError}
                                 refreshing={refreshingReminders}
                                 onRefresh={() => loadReminders({ silent: true })}
+                                onRecordGiven={beginHomeMedicationAction}
                             />
                         </div>
                     </div>
@@ -417,9 +764,30 @@ export default function Dashboard() {
                     <CareRail
                         reminders={reminders}
                         verifiedDocuments={verifiedDocuments}
+                        careSummary={careSummary}
                     />
                 </div>
             </div>
+
+            <CareActionDialog
+                {...actionFlow}
+                maxDate={getPacificCareDate()}
+                onDateChange={(administeredDate) =>
+                    setActionFlow((current) => ({
+                        ...current,
+                        administeredDate,
+                        error: null,
+                    }))
+                }
+                onPrepare={prepareAction}
+                onDismiss={dismissActionDialog}
+                onChangeDate={() => cancelProposal({ returnToDate: true })}
+                onCancelProposal={() => cancelProposal()}
+                onApproveAndExecute={approveAndExecuteAction}
+                onExecute={executeApprovedAction}
+                onRetryRecovery={recoverAction}
+                onDone={finishActionFlow}
+            />
         </main>
     )
 }
@@ -450,7 +818,7 @@ function StatusTile({ label, value, tone = "neutral" }) {
     )
 }
 
-function CareRail({ reminders, verifiedDocuments = [] }) {
+function CareRail({ reminders, verifiedDocuments = [], careSummary = {} }) {
     const activeReminderCount = reminders?.length || 0
 
     return (
@@ -475,8 +843,18 @@ function CareRail({ reminders, verifiedDocuments = [] }) {
                     </div>
 
                     <div className="mt-6 overflow-hidden rounded-xl border border-tomo-border">
-                        <CareContextRow label="Last verified" value="Apr 14" />
-                        <CareContextRow label="Last Librela" value="Apr 14" />
+                        <CareContextRow
+                            label="Latest verified care"
+                            value={formatCompactDate(
+                                careSummary.latest_verified_care?.event_date
+                            )}
+                        />
+                        <CareContextRow
+                            label="Last Librela"
+                            value={formatCompactDate(
+                                careSummary.last_librela?.event_date
+                            )}
+                        />
                         <CareContextRow
                             label="Active reminders"
                             value={activeReminderCount}
@@ -524,6 +902,47 @@ function CareRail({ reminders, verifiedDocuments = [] }) {
             </div>
         </aside>
     )
+}
+
+function getPacificCareDate() {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(new Date())
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+
+    return `${values.year}-${values.month}-${values.day}`
+}
+
+function getRecoveredActionPhase(action) {
+    if (action?.status === "proposed") return "reviewing"
+    if (action?.status === "approved") return "approved"
+    if (action?.status === "succeeded") return "succeeded"
+    if (action?.status === "executing") return "recovery_error"
+
+    return "idle"
+}
+
+function storeActiveAction(actionId) {
+    window.sessionStorage.setItem(ACTIVE_ACTION_STORAGE_KEY, actionId)
+}
+
+function clearStoredAction() {
+    window.sessionStorage.removeItem(ACTIVE_ACTION_STORAGE_KEY)
+}
+
+function formatCompactDate(value) {
+    if (!value) return "—"
+
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return value
+
+    return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+    }).format(date)
 }
 
 function CareContextRow({ label, value }) {

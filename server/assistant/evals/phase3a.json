@@ -99,6 +99,18 @@
         }
     },
     {
+        "id": "simparica_last_given_real_wording",
+        "question": "When did I last give Simparica?",
+        "expected": {
+            "intent": "home_medication_status",
+            "answer_type": "grounded_answer",
+            "required_phrases": ["The last verified Simparica Trio administration was July 20, 2026"],
+            "required_citation_source_titles": ["Owner confirmation through an approved TomoCare action"],
+            "min_citations": 1,
+            "proposed_action": "null"
+        }
+    },
+    {
         "id": "care_timeline",
         "question": "Summarize Momo's care timeline.",
         "expected": {

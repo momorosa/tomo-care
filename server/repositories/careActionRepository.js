@@ -97,6 +97,27 @@ export const careActionRepository = {
         return data || null
     },
 
+    async cancelProposedAction({
+        actionId,
+        cancelledAt,
+        expectedUpdatedAt,
+    }) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .update({
+                status: "cancelled",
+                cancelled_at: cancelledAt,
+            })
+            .eq("id", actionId)
+            .eq("status", "proposed")
+            .eq("updated_at", expectedUpdatedAt)
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
     async executeMarkHomeMedicationGiven({ actionId, executedBy, careDate }) {
         const { data, error } = await sbAdmin.rpc(
             "execute_mark_home_medication_given",

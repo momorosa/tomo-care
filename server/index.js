@@ -7,6 +7,7 @@ import gmailRoutes from "./routes/gmail.js"
 import actionsRoutes from "./routes/actions.js"
 import careActionsRoutes from "./routes/careActions.js"
 import assistantRoutes from "./routes/assistant.js"
+import dashboardRoutes from "./routes/dashboard.js"
 
 
 const app = express()
@@ -19,5 +20,6 @@ app.use("/api", gmailRoutes)
 app.use("/api", actionsRoutes)
 app.use("/api", careActionsRoutes)
 app.use("/api", assistantRoutes)
+app.use("/api", dashboardRoutes)
 
 app.listen(3001, () => console.log("API running on http://localhost:3001"))

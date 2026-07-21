@@ -123,6 +123,18 @@ function evaluateResponse(data, expected) {
         )
     }
 
+    for (const sourceTitle of expected.required_citation_source_titles || []) {
+        const found = citations.some(
+            (citation) =>
+                normalizeForMatch(citation.source_title) ===
+                normalizeForMatch(sourceTitle)
+        )
+
+        if (!found) {
+            issues.push(`Missing citation source title: "${sourceTitle}"`)
+        }
+    }
+
     if (expected.proposed_action === "null" && data.proposed_action !== null) {
         issues.push("Expected proposed_action to be null")
     }
