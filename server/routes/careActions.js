@@ -15,6 +15,10 @@ import {
     ActionCancellationError,
     cancelCareAction,
 } from "../actions/cancelCareAction.js"
+import {
+    InsuranceClaimPreparationError,
+    prepareMarkInsuranceClaimFiled,
+} from "../actions/prepareInsuranceClaimFiled.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
 const router = express.Router()
@@ -96,6 +100,55 @@ router.post(
                 ok: false,
                 reason: "preparation_failed",
                 error: "Failed to prepare the medication confirmation.",
+            })
+        }
+    }
+)
+
+// POST /api/pets/:petId/actions/insurance-claim-filed/prepare
+//
+// This route prepares a frozen two-change proposal. It does not create a
+// claim-submission event, complete the reminder, or change Google Calendar.
+router.post(
+    "/pets/:petId/actions/insurance-claim-filed/prepare",
+    async (req, res) => {
+        const { petId } = req.params
+        const { reminderId, filedDate, requestedBy } = req.body || {}
+
+        try {
+            const result = await prepareMarkInsuranceClaimFiled({
+                repository: careActionRepository,
+                petId,
+                reminderId,
+                filedDate,
+                requestSource: "dashboard",
+                requestedBy,
+            })
+
+            return res.status(result.disposition === "created" ? 201 : 200).json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    result.disposition === "created"
+                        ? "Insurance claim filing prepared for approval."
+                        : "This insurance claim filing is already awaiting action.",
+                proposed_action: result.action,
+            })
+        } catch (error) {
+            if (error instanceof InsuranceClaimPreparationError) {
+                return res.status(error.status).json({
+                    ok: false,
+                    reason: error.reason,
+                    error: error.message,
+                })
+            }
+
+            console.error("[insurance-claim-filed:prepare] error:", error)
+
+            return res.status(500).json({
+                ok: false,
+                reason: "preparation_failed",
+                error: "Failed to prepare the insurance claim filing.",
             })
         }
     }
@@ -239,4 +292,3 @@ router.post("/care-actions/:actionId/execute", async (req, res) => {
 })
 
 export default router
-

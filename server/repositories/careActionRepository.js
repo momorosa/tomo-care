@@ -3,6 +3,9 @@ import { sbAdmin } from "../supabase.js"
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
 
+const VERIFIED_DOCUMENT_RETURN_COLUMNS =
+    "id, pet_id, title, doc_type, doc_date, source_org, status"
+
 const CARE_ACTION_RETURN_COLUMNS = [
     "id",
     "pet_id",
@@ -45,6 +48,19 @@ export const careActionRepository = {
             .select(REMINDER_RETURN_COLUMNS)
             .eq("id", reminderId)
             .eq("pet_id", petId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findVerifiedDocument({ petId, documentId }) {
+        const { data, error } = await sbAdmin
+            .from("documents")
+            .select(VERIFIED_DOCUMENT_RETURN_COLUMNS)
+            .eq("id", documentId)
+            .eq("pet_id", petId)
+            .eq("status", "verified")
             .maybeSingle()
 
         if (error) throw error
