@@ -2,8 +2,15 @@ import {
     MARK_HOME_MEDICATION_GIVEN,
     buildMarkHomeMedicationGivenProposal,
 } from "./homeMedicationGiven.js"
+import {
+    MARK_INSURANCE_CLAIM_FILED,
+    buildMarkInsuranceClaimFiledProposal,
+} from "./insuranceClaimFiled.js"
 
-const SUPPORTED_ACTION_TYPES = new Set([MARK_HOME_MEDICATION_GIVEN])
+const SUPPORTED_ACTION_TYPES = new Set([
+    MARK_HOME_MEDICATION_GIVEN,
+    MARK_INSURANCE_CLAIM_FILED,
+])
 
 export class ActionApprovalError extends Error {
     constructor({ status, reason, message, cause }) {
@@ -101,41 +108,37 @@ async function assertSourceEvidenceIsCurrent({
     action,
     currentCareDate,
 }) {
+    if (action.action_type === MARK_HOME_MEDICATION_GIVEN) {
+        return assertHomeMedicationEvidenceIsCurrent({
+            repository,
+            action,
+            currentCareDate,
+        })
+    }
+
+    if (action.action_type === MARK_INSURANCE_CLAIM_FILED) {
+        return assertInsuranceClaimEvidenceIsCurrent({
+            repository,
+            action,
+            currentCareDate,
+        })
+    }
+}
+
+async function assertHomeMedicationEvidenceIsCurrent({
+    repository,
+    action,
+    currentCareDate,
+}) {
     const payload = action.payload_json || {}
 
-    if (
-        payload.schema_version !== 1 ||
-        payload.source_reminder_id !== action.source_event_id ||
-        typeof payload.source_reminder_updated_at !== "string" ||
-        !payload.source_reminder_updated_at
-    ) {
-        throw approvalError(
-            409,
-            "invalid_action_contract",
-            "The proposed action is missing its trusted reminder snapshot."
-        )
-    }
+    assertReminderSnapshotContract({ action, payload })
 
-    const reminder = await repository.findReminder({
-        petId: action.pet_id,
-        reminderId: action.source_event_id,
+    const reminder = await loadCurrentReminder({
+        repository,
+        action,
+        payload,
     })
-
-    if (!reminder) {
-        throw approvalError(
-            409,
-            "source_evidence_missing",
-            "The trusted reminder no longer exists. Prepare a new action."
-        )
-    }
-
-    if (reminder.updated_at !== payload.source_reminder_updated_at) {
-        throw approvalError(
-            409,
-            "source_evidence_changed",
-            "The trusted reminder changed after this proposal was prepared. Review and prepare it again."
-        )
-    }
 
     let rebuiltProposal
 
@@ -168,6 +171,159 @@ async function assertSourceEvidenceIsCurrent({
     }
 }
 
+async function assertInsuranceClaimEvidenceIsCurrent({
+    repository,
+    action,
+    currentCareDate,
+}) {
+    const payload = action.payload_json || {}
+
+    assertReminderSnapshotContract({ action, payload })
+
+    if (
+        typeof payload.source_document_id !== "string" ||
+        !payload.source_document_id.trim()
+    ) {
+        throw approvalError(
+            409,
+            "invalid_action_contract",
+            "The proposed action is missing its verified document snapshot."
+        )
+    }
+
+    if (typeof repository.findVerifiedDocument !== "function") {
+        throw new Error("repository.findVerifiedDocument is required.")
+    }
+
+    const [reminder, sourceDocument] = await Promise.all([
+        loadCurrentReminder({ repository, action, payload }),
+        repository.findVerifiedDocument({
+            petId: action.pet_id,
+            documentId: payload.source_document_id,
+        }),
+    ])
+
+    if (!sourceDocument) {
+        throw approvalError(
+            409,
+            "source_evidence_missing",
+            "The verified source document no longer exists or is no longer verified. Prepare a new action."
+        )
+    }
+
+    const sourceDocumentChanged =
+        sourceDocument.status !== payload.source_document_status ||
+        sourceDocument.title !== payload.source_document_title ||
+        sourceDocument.doc_date !== payload.source_document_date ||
+        (sourceDocument.source_org || null) !== payload.source_org
+
+    if (sourceDocumentChanged) {
+        throw approvalError(
+            409,
+            "source_evidence_changed",
+            "The verified source document changed after this proposal was prepared. Review and prepare it again."
+        )
+    }
+
+    let rebuiltProposal
+
+    try {
+        rebuiltProposal = buildMarkInsuranceClaimFiledProposal({
+            petId: action.pet_id,
+            reminder,
+            sourceDocument,
+            filedDate: payload.filed_date,
+            requestSource: action.request_source,
+            requestedBy: action.requested_by,
+            currentCareDate,
+        })
+    } catch (error) {
+        throw new ActionApprovalError({
+            status: 409,
+            reason: "action_no_longer_eligible",
+            message:
+                error?.message ||
+                "The insurance claim action is no longer eligible for approval.",
+            cause: error,
+        })
+    }
+
+    const frozenProposalMatches =
+        rebuiltProposal.idempotency_key === action.idempotency_key &&
+        jsonMatches(rebuiltProposal.preview_json, action.preview_json) &&
+        jsonMatches(rebuiltProposal.payload_json, action.payload_json) &&
+        jsonMatches(rebuiltProposal.evidence_json, action.evidence_json)
+
+    if (!frozenProposalMatches) {
+        throw approvalError(
+            409,
+            "invalid_action_contract",
+            "The proposed action no longer matches its trusted evidence."
+        )
+    }
+}
+
+function assertReminderSnapshotContract({ action, payload }) {
+    if (
+        payload.schema_version !== 1 ||
+        payload.pet_id !== action.pet_id ||
+        payload.source_reminder_id !== action.source_event_id ||
+        typeof payload.source_reminder_updated_at !== "string" ||
+        !payload.source_reminder_updated_at
+    ) {
+        throw approvalError(
+            409,
+            "invalid_action_contract",
+            "The proposed action is missing its trusted reminder snapshot."
+        )
+    }
+}
+
+async function loadCurrentReminder({ repository, action, payload }) {
+    const reminder = await repository.findReminder({
+        petId: action.pet_id,
+        reminderId: action.source_event_id,
+    })
+
+    if (!reminder) {
+        throw approvalError(
+            409,
+            "source_evidence_missing",
+            "The trusted reminder no longer exists. Prepare a new action."
+        )
+    }
+
+    if (reminder.updated_at !== payload.source_reminder_updated_at) {
+        throw approvalError(
+            409,
+            "source_evidence_changed",
+            "The trusted reminder changed after this proposal was prepared. Review and prepare it again."
+        )
+    }
+
+    return reminder
+}
+
+function jsonMatches(left, right) {
+    return JSON.stringify(sortJson(left)) === JSON.stringify(sortJson(right))
+}
+
+function sortJson(value) {
+    if (Array.isArray(value)) {
+        return value.map(sortJson)
+    }
+
+    if (value && typeof value === "object") {
+        return Object.fromEntries(
+            Object.keys(value)
+                .sort()
+                .map((key) => [key, sortJson(value[key])])
+        )
+    }
+
+    return value
+}
+
 function assertRepository(repository) {
     const requiredMethods = [
         "findActionById",
@@ -191,5 +347,3 @@ function assertRequiredString(value, label) {
 function approvalError(status, reason, message) {
     return new ActionApprovalError({ status, reason, message })
 }
-
-
