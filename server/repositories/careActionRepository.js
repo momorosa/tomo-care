@@ -1,4 +1,4 @@
-import { sbAdmin } from "../supabase.js"
+ import { sbAdmin } from "../supabase.js"
 
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
@@ -137,6 +137,20 @@ export const careActionRepository = {
     async executeMarkHomeMedicationGiven({ actionId, executedBy, careDate }) {
         const { data, error } = await sbAdmin.rpc(
             "execute_mark_home_medication_given",
+            {
+                p_action_id: actionId,
+                p_executed_by: executedBy,
+                p_care_date: careDate,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async executeMarkInsuranceClaimFiled({ actionId, executedBy, careDate }) {
+        const { data, error } = await sbAdmin.rpc(
+            "execute_mark_insurance_claim_filed",
             {
                 p_action_id: actionId,
                 p_executed_by: executedBy,

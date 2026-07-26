@@ -19,6 +19,8 @@ import {
     InsuranceClaimPreparationError,
     prepareMarkInsuranceClaimFiled,
 } from "../actions/prepareInsuranceClaimFiled.js"
+import { MARK_HOME_MEDICATION_GIVEN } from "../actions/homeMedicationGiven.js"
+import { MARK_INSURANCE_CLAIM_FILED } from "../actions/insuranceClaimFiled.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
 const router = express.Router()
@@ -255,12 +257,10 @@ router.post("/care-actions/:actionId/execute", async (req, res) => {
         return res.json({
             ok: true,
             disposition: result.disposition,
-            message:
-                result.disposition === "executed"
-                    ? "Medication recorded and the next reminder prepared."
-                    : "This medication was already recorded and the next reminder is ready.",
+            message: getExecutionMessage(result),
             execution: {
                 action_id: result.actionId,
+                action_type: result.actionType,
                 status: result.status,
                 result: result.result,
             },
@@ -290,5 +290,25 @@ router.post("/care-actions/:actionId/execute", async (req, res) => {
         })
     }
 })
+
+function getExecutionMessage({ actionType, disposition }) {
+    const wasExecuted = disposition === "executed"
+
+    if (actionType === MARK_HOME_MEDICATION_GIVEN) {
+        return wasExecuted
+            ? "Medication recorded and the next reminder prepared."
+            : "This medication was already recorded and the next reminder is ready."
+    }
+
+    if (actionType === MARK_INSURANCE_CLAIM_FILED) {
+        return wasExecuted
+            ? "Insurance claim recorded as filed and the reminder completed."
+            : "This insurance claim was already recorded as filed and the reminder is complete."
+    }
+
+    return wasExecuted
+        ? "Care action completed."
+        : "This care action was already completed."
+}
 
 export default router

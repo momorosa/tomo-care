@@ -1,7 +1,12 @@
 import { MARK_HOME_MEDICATION_GIVEN } from "./homeMedicationGiven.js"
+import { MARK_INSURANCE_CLAIM_FILED } from "./insuranceClaimFiled.js"
 import { getCareDate } from "../lib/careDates.js"
 
 const EXECUTION_ACTOR = "tomo-care-backend"
+const EXECUTION_METHODS = {
+    [MARK_HOME_MEDICATION_GIVEN]: "executeMarkHomeMedicationGiven",
+    [MARK_INSURANCE_CLAIM_FILED]: "executeMarkInsuranceClaimFiled",
+}
 
 const DATABASE_ERROR_RESPONSES = {
     action_not_found: {
@@ -34,13 +39,13 @@ const DATABASE_ERROR_RESPONSES = {
     source_evidence_missing: {
         status: 409,
         message:
-            "The reminder used to prepare this action is no longer available. Nothing was changed.",
+            "The trusted evidence used to prepare this action is no longer available. Nothing was changed.",
         recovery: "prepare_again",
     },
     source_evidence_changed: {
         status: 409,
         message:
-            "Momo’s reminder changed after this action was reviewed. Nothing was changed.",
+            "Momo’s trusted evidence changed after this action was reviewed. Nothing was changed.",
         recovery: "prepare_again",
     },
     ambiguous_next_reminder: {
@@ -95,7 +100,9 @@ export async function executeCareAction({
         })
     }
 
-    if (action.action_type !== MARK_HOME_MEDICATION_GIVEN) {
+    const executionMethod = EXECUTION_METHODS[action.action_type]
+
+    if (!executionMethod) {
         throw executionError({
             status: 409,
             reason: "unsupported_action_type",
@@ -119,6 +126,7 @@ export async function executeCareAction({
         return {
             disposition: "existing",
             actionId: action.id,
+            actionType: action.action_type,
             status: action.status,
             result: action.result_json,
         }
@@ -133,10 +141,14 @@ export async function executeCareAction({
         })
     }
 
+    if (typeof repository[executionMethod] !== "function") {
+        throw new Error(`repository.${executionMethod} is required.`)
+    }
+
     let execution
 
     try {
-        execution = await repository.executeMarkHomeMedicationGiven({
+        execution = await repository[executionMethod]({
             actionId: action.id,
             executedBy: EXECUTION_ACTOR,
             careDate: currentCareDate,
@@ -165,6 +177,7 @@ export async function executeCareAction({
     return {
         disposition: execution.disposition,
         actionId: execution.action_id,
+        actionType: action.action_type,
         status: execution.status,
         result: execution.result,
     }
@@ -199,10 +212,7 @@ export function mapDatabaseExecutionError(error) {
 }
 
 function assertRepository(repository) {
-    const requiredMethods = [
-        "findActionById",
-        "executeMarkHomeMedicationGiven",
-    ]
+    const requiredMethods = ["findActionById"]
 
     for (const method of requiredMethods) {
         if (typeof repository?.[method] !== "function") {

@@ -6,6 +6,7 @@ import {
     mapDatabaseExecutionError,
 } from "./executeCareAction.js"
 import { MARK_HOME_MEDICATION_GIVEN } from "./homeMedicationGiven.js"
+import { MARK_INSURANCE_CLAIM_FILED } from "./insuranceClaimFiled.js"
 
 const ACTION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 
@@ -20,6 +21,19 @@ function buildResult() {
         next_reminder_date: "2026-08-16",
         next_target_admin_date: "2026-08-17",
         next_due_date: "2026-08-19",
+    }
+}
+
+function buildInsuranceResult() {
+    return {
+        schema_version: 1,
+        execution_actor: "tomo-care-backend",
+        claim_submission_event_id:
+            "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        filed_date: "2026-07-24",
+        completed_reminder_id: "11111111-1111-4111-8111-111111111111",
+        source_document_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        insurance_provider: "Nationwide",
     }
 }
 
@@ -41,6 +55,7 @@ function buildRepository({
     const calls = {
         findActionById: [],
         executeMarkHomeMedicationGiven: [],
+        executeMarkInsuranceClaimFiled: [],
     }
 
     return {
@@ -62,6 +77,19 @@ function buildRepository({
                 }
             )
         },
+        async executeMarkInsuranceClaimFiled(args) {
+            calls.executeMarkInsuranceClaimFiled.push(args)
+            if (executionError) throw executionError
+
+            return (
+                execution || {
+                    disposition: "executed",
+                    action_id: ACTION_ID,
+                    status: "succeeded",
+                    result: buildInsuranceResult(),
+                }
+            )
+        },
     }
 }
 
@@ -79,6 +107,7 @@ test("executes an approved action using only server-controlled inputs", async ()
     const result = await execute(repository)
 
     assert.equal(result.disposition, "executed")
+    assert.equal(result.actionType, MARK_HOME_MEDICATION_GIVEN)
     assert.equal(result.status, "succeeded")
     assert.equal(result.result.next_reminder_date, "2026-08-16")
     assert.deepEqual(repository.calls.executeMarkHomeMedicationGiven, [
@@ -102,6 +131,48 @@ test("returns an already-succeeded action without invoking execution again", asy
 
     assert.equal(result.disposition, "existing")
     assert.deepEqual(result.result, storedResult)
+    assert.equal(repository.calls.executeMarkHomeMedicationGiven.length, 0)
+})
+
+test("executes an approved insurance claim action using the insurance transaction", async () => {
+    const repository = buildRepository({
+        action: buildAction({
+            action_type: MARK_INSURANCE_CLAIM_FILED,
+        }),
+    })
+    const result = await execute(repository, {
+        currentCareDate: "2026-07-24",
+    })
+
+    assert.equal(result.disposition, "executed")
+    assert.equal(result.actionType, MARK_INSURANCE_CLAIM_FILED)
+    assert.equal(result.status, "succeeded")
+    assert.equal(result.result.filed_date, "2026-07-24")
+    assert.deepEqual(repository.calls.executeMarkInsuranceClaimFiled, [
+        {
+            actionId: ACTION_ID,
+            executedBy: "tomo-care-backend",
+            careDate: "2026-07-24",
+        },
+    ])
+    assert.equal(repository.calls.executeMarkHomeMedicationGiven.length, 0)
+})
+
+test("returns an already-succeeded insurance action without executing it again", async () => {
+    const storedResult = buildInsuranceResult()
+    const repository = buildRepository({
+        action: buildAction({
+            action_type: MARK_INSURANCE_CLAIM_FILED,
+            status: "succeeded",
+            result_json: storedResult,
+        }),
+    })
+    const result = await execute(repository)
+
+    assert.equal(result.disposition, "existing")
+    assert.equal(result.actionType, MARK_INSURANCE_CLAIM_FILED)
+    assert.deepEqual(result.result, storedResult)
+    assert.equal(repository.calls.executeMarkInsuranceClaimFiled.length, 0)
     assert.equal(repository.calls.executeMarkHomeMedicationGiven.length, 0)
 })
 
@@ -187,6 +258,35 @@ test("maps changed evidence to a reviewable, non-retryable response", async () =
             return true
         }
     )
+})
+
+test("maps a missing insurance receipt to safe prepare-again guidance", async () => {
+    const repository = buildRepository({
+        action: buildAction({
+            action_type: MARK_INSURANCE_CLAIM_FILED,
+        }),
+        executionError: new Error(
+            "source_evidence_missing: verified receipt is unavailable"
+        ),
+    })
+
+    await assert.rejects(
+        () =>
+            execute(repository, {
+                currentCareDate: "2026-07-24",
+            }),
+        (error) => {
+            assert.equal(error.status, 409)
+            assert.equal(error.reason, "source_evidence_missing")
+            assert.equal(error.recovery, "prepare_again")
+            assert.equal(error.retryable, false)
+            assert.match(error.message, /Nothing was changed/)
+            assert.doesNotMatch(error.message, /receipt is unavailable/)
+            return true
+        }
+    )
+    assert.equal(repository.calls.executeMarkInsuranceClaimFiled.length, 1)
+    assert.equal(repository.calls.executeMarkHomeMedicationGiven.length, 0)
 })
 
 test("maps ambiguous reminders without exposing database details", () => {
