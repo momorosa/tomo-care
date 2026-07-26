@@ -1,10 +1,13 @@
 const BUSY_PHASES = new Set(["recovering", "preparing", "cancelling", "approving", "executing"])
+const MARK_INSURANCE_CLAIM_FILED = "mark_insurance_claim_filed"
 
 export default function CareActionDialog({
     phase,
     reminder,
     action,
-    administeredDate,
+    actionType,
+    selectedDate,
+    minDate,
     maxDate,
     error,
     execution,
@@ -12,7 +15,6 @@ export default function CareActionDialog({
     onPrepare,
     onDismiss,
     onChangeDate,
-    onCancelProposal,
     onApproveAndExecute,
     onExecute,
     onRetryRecovery,
@@ -21,11 +23,8 @@ export default function CareActionDialog({
     if (phase === "idle") return null
 
     const busy = BUSY_PHASES.has(phase)
-    const careItem =
-        action?.preview_json?.care_item ||
-        reminder?.details_json?.care_item ||
-        reminder?.title ||
-        "home medication"
+    const actionKind = getActionKind(action?.action_type || actionType)
+    const subject = getActionSubject({ actionKind, action, reminder })
 
     return (
         <div
@@ -42,13 +41,13 @@ export default function CareActionDialog({
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <p className="tomo-section-label text-tomo-accent">
-                                Governed care action
+                                {getDialogEyebrow(phase, actionKind)}
                             </p>
                             <h2
                                 id="care-action-title"
                                 className="mt-2 text-2xl font-semibold tracking-tight text-tomo-text-h"
                             >
-                                {getDialogTitle(phase, careItem)}
+                                {getDialogTitle(phase, subject, actionKind)}
                             </h2>
                         </div>
 
@@ -70,8 +69,10 @@ export default function CareActionDialog({
                 <div className="px-6 py-6 md:px-7">
                     {(phase === "choosing" || phase === "preparing") && (
                         <ChooseDateStep
-                            careItem={careItem}
-                            administeredDate={administeredDate}
+                            actionKind={actionKind}
+                            subject={subject}
+                            selectedDate={selectedDate}
+                            minDate={minDate}
                             maxDate={maxDate}
                             preparing={phase === "preparing"}
                             error={error}
@@ -83,8 +84,8 @@ export default function CareActionDialog({
 
                     {phase === "recovering" && (
                         <ProgressStep
-                            title="Recovering your action"
-                            body="I’m checking the action ledger so you can continue safely from its last confirmed state."
+                            title="Checking your update"
+                            body="I’m confirming the latest status before you continue."
                         />
                     )}
 
@@ -92,10 +93,9 @@ export default function CareActionDialog({
                         <ReviewStep
                             phase={phase}
                             action={action}
+                            actionKind={actionKind}
                             error={error}
-                            onDismiss={onDismiss}
                             onChangeDate={onChangeDate}
-                            onCancelProposal={onCancelProposal}
                             onApproveAndExecute={onApproveAndExecute}
                         />
                     )}
@@ -103,6 +103,7 @@ export default function CareActionDialog({
                     {phase === "approved" && (
                         <ApprovedStep
                             action={action}
+                            actionKind={actionKind}
                             error={error}
                             onExecute={onExecute}
                         />
@@ -119,6 +120,7 @@ export default function CareActionDialog({
                     {phase === "succeeded" && (
                         <SuccessStep
                             action={action}
+                            actionKind={actionKind}
                             execution={execution}
                             onDone={onDone}
                         />
@@ -130,8 +132,10 @@ export default function CareActionDialog({
 }
 
 function ChooseDateStep({
-    careItem,
-    administeredDate,
+    actionKind,
+    subject,
+    selectedDate,
+    minDate,
     maxDate,
     preparing,
     error,
@@ -139,28 +143,34 @@ function ChooseDateStep({
     onPrepare,
     onDismiss,
 }) {
+    const isInsuranceClaim = actionKind === "insurance_claim"
+
     return (
         <form onSubmit={onPrepare}>
             <p className="text-sm leading-6 text-tomo-text">
-                Choose the date you actually gave {careItem}. TomoCare will prepare
-                the care-record update and next reminder for you to review.
+                {isInsuranceClaim
+                    ? `Choose the date you filed the ${subject} claim. You’ll review the details before anything changes in TomoCare.`
+                    : `Choose the date you gave ${subject}. You’ll review the details before anything changes in TomoCare.`}
             </p>
 
             <label className="mt-6 block text-sm font-medium text-tomo-text-h">
-                Administration date
+                {isInsuranceClaim ? "Filing date" : "Administration date"}
                 <input
                     type="date"
                     required
+                    min={minDate}
                     max={maxDate}
-                    value={administeredDate}
+                    value={selectedDate}
                     onChange={(event) => onDateChange(event.target.value)}
                     disabled={preparing}
-                    className="mt-2 min-h-11 w-full rounded-xl border border-tomo-border bg-white/[0.035] px-4 py-2 text-sm text-tomo-text-h scheme-dark"
+                    className="tomo-date-input mt-2 min-h-14 w-full rounded-xl border border-tomo-border bg-white/[0.035] px-4 py-3 text-base text-tomo-text-h scheme-dark"
                 />
             </label>
 
             <GuardrailNote>
-                Preparing this action will not change Momo’s trusted record.
+                {isInsuranceClaim
+                    ? `This updates TomoCare only. It will not submit anything to ${subject}.`
+                    : "Nothing changes until you review and approve."}
             </GuardrailNote>
 
             {error && <ActionError error={error} />}
@@ -177,7 +187,7 @@ function ChooseDateStep({
                 <button
                     type="submit"
                     className="tomo-btn tomo-btn-primary gap-2 px-5 py-2"
-                    disabled={preparing || !administeredDate}
+                    disabled={preparing || !selectedDate}
                 >
                     {preparing && <Spinner />}
                     {preparing ? "Preparing…" : "Review update"}
@@ -190,136 +200,172 @@ function ChooseDateStep({
 function ReviewStep({
     phase,
     action,
+    actionKind,
     error,
-    onDismiss,
     onChangeDate,
-    onCancelProposal,
     onApproveAndExecute,
 }) {
     const preview = action?.preview_json || {}
     const evidence = action?.evidence_json || []
     const busy = phase !== "reviewing"
+    const isInsuranceClaim = actionKind === "insurance_claim"
+    const subject = isInsuranceClaim
+        ? preview.insurance_provider || "insurance"
+        : preview.care_item || "medication"
+    const sourceDocument = evidence.find((item) => item.type === "document")
 
     return (
         <div>
             <div className="rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
                 <p className="text-sm leading-6 text-tomo-text-h">
-                    {preview.confirmation_message}
+                    {isInsuranceClaim
+                        ? `Confirm that you filed this ${subject} claim on ${formatDate(preview.filed_date)}.`
+                        : `Confirm that you gave ${subject} on ${formatDate(preview.administered_date)}.`}
                 </p>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <DateSummary label="Given" value={preview.administered_date} />
-                    <DateSummary label="Next target" value={preview.next_target_admin_date} />
-                    <DateSummary label="Next reminder" value={preview.next_reminder_date} />
-                </div>
+                {isInsuranceClaim ? (
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <DateSummary label="Filed" value={preview.filed_date} />
+                        <DateSummary
+                            label="Treatment"
+                            value={preview.treatment_date}
+                        />
+                        <DateSummary
+                            label="Claim deadline"
+                            value={action?.payload_json?.claim_deadline_date}
+                        />
+                    </div>
+                ) : (
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <DateSummary
+                            label="Given"
+                            value={preview.administered_date}
+                        />
+                        <DateSummary
+                            label="Next target"
+                            value={preview.next_target_admin_date}
+                        />
+                        <DateSummary
+                            label="Next reminder"
+                            value={preview.next_reminder_date}
+                        />
+                    </div>
+                )}
             </div>
 
-            <div className="mt-6">
-                <p className="tomo-section-label">What will change</p>
-                <div className="mt-3 space-y-2">
-                    {(preview.changes || []).map((change, index) => (
-                        <ChangeRow key={`${change.operation}-${change.record_type}-${index}`} change={change} />
-                    ))}
-                </div>
-            </div>
-
-            {evidence.length > 0 && (
+            {isInsuranceClaim && sourceDocument && (
                 <div className="mt-6">
-                    <p className="tomo-section-label">Trusted evidence</p>
-                    <div className="mt-3 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3">
-                        {evidence.map((item) => (
-                            <div key={item.id} className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-sm font-medium text-tomo-text-h">
-                                        {item.label}
-                                    </p>
-                                    <p className="mt-1 text-xs text-tomo-text">
-                                        Reminder date {formatDate(item.event_date)}
-                                    </p>
-                                </div>
-                                <span className="tomo-badge tomo-badge--success shrink-0">
-                                    Trusted
-                                </span>
-                            </div>
-                        ))}
+                    <p className="tomo-section-label">Related receipt</p>
+                    <div className="mt-3 flex items-start gap-3 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3">
+                        <span
+                            className="material-symbols-outlined mt-0.5 shrink-0 text-xl text-tomo-accent"
+                            aria-hidden="true"
+                        >
+                            receipt
+                        </span>
+                        <div>
+                            <p className="text-sm font-medium text-tomo-text-h">
+                                {action?.payload_json?.source_org ||
+                                    "Veterinary receipt"}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-tomo-text">
+                                Dated{" "}
+                                {formatDate(
+                                    action?.payload_json?.source_document_date ||
+                                        sourceDocument.document_date
+                                )}
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
 
-            <GuardrailNote>
-                Nothing has changed yet. Approval applies to this complete plan—all
-                three updates succeed together or none of them do.
-            </GuardrailNote>
+            <div className="mt-5 rounded-xl border border-tomo-accent/30 bg-tomo-accent/10 px-4 py-3">
+                <p className="text-sm font-medium text-tomo-text-h">
+                    What this does
+                </p>
+                <p className="mt-1 text-xs leading-5 text-tomo-text">
+                    {isInsuranceClaim
+                        ? `TomoCare will remember the filing date and remove this reminder. It will not submit anything to ${subject}.`
+                        : "TomoCare will record the date, complete this reminder, and prepare the next one."}
+                </p>
+            </div>
 
             {error && <ActionError error={error} />}
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                     type="button"
-                    className="tomo-btn tomo-btn-tertiary justify-start px-2 py-2 text-xs"
-                    onClick={onCancelProposal}
+                    className="tomo-btn tomo-btn-secondary px-5 py-2"
+                    onClick={onChangeDate}
                     disabled={busy}
                 >
-                    Cancel proposal
+                    Change date
                 </button>
-
-                <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                    <button
-                        type="button"
-                        className="tomo-btn tomo-btn-secondary px-5 py-2"
-                        onClick={onDismiss}
-                        disabled={busy}
-                    >
-                        Not now
-                    </button>
-                    <button
-                        type="button"
-                        className="tomo-btn tomo-btn-secondary px-5 py-2"
-                        onClick={onChangeDate}
-                        disabled={busy}
-                    >
-                        Change date
-                    </button>
-                    <button
-                        type="button"
-                        className="tomo-btn tomo-btn-primary gap-2 px-5 py-2"
-                        onClick={onApproveAndExecute}
-                        disabled={busy}
-                    >
-                        {busy && <Spinner />}
-                        {phase === "cancelling"
-                            ? "Cancelling…"
-                            : phase === "approving"
-                              ? "Approving…"
-                              : phase === "executing"
-                                ? "Recording…"
-                                : "Approve & record"}
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    className="tomo-btn tomo-btn-primary gap-2 px-5 py-2"
+                    onClick={onApproveAndExecute}
+                    disabled={busy}
+                >
+                    {busy && <Spinner />}
+                    {phase === "cancelling"
+                        ? "Changing date…"
+                        : phase === "approving"
+                          ? "Confirming…"
+                          : phase === "executing"
+                            ? "Recording…"
+                            : isInsuranceClaim
+                              ? "Mark as filed"
+                              : "Record as given"}
+                </button>
             </div>
         </div>
     )
 }
 
-function ApprovedStep({ action, error, onExecute }) {
+function ApprovedStep({ action, actionKind, error, onExecute }) {
+    const isInsuranceClaim = actionKind === "insurance_claim"
+    const preview = action?.preview_json || {}
+
     return (
         <div>
             <div className="rounded-2xl border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] p-5">
                 <p className="text-sm font-semibold text-tomo-warning">
-                    Approved, but not yet recorded
+                    Your update still needs to finish
                 </p>
                 <p className="mt-2 text-sm leading-6 text-tomo-text-h">
-                    Your approval is safely stored. Complete the final atomic update
-                    to add the administration and prepare the next reminder.
+                    {isInsuranceClaim
+                        ? "Your confirmation was saved, but TomoCare has not finished marking the claim as filed. Try again to complete the update."
+                        : "Your confirmation was saved, but TomoCare has not finished recording the medication. Try again to complete the update."}
                 </p>
             </div>
 
-            {action?.preview_json && (
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <DateSummary label="Given" value={action.preview_json.administered_date} />
-                    <DateSummary label="Next target" value={action.preview_json.next_target_admin_date} />
-                    <DateSummary label="Next reminder" value={action.preview_json.next_reminder_date} />
+            {isInsuranceClaim ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <DateSummary label="Filed" value={preview.filed_date} />
+                    <DateSummary
+                        label="Treatment"
+                        value={preview.treatment_date}
+                    />
                 </div>
+            ) : (
+                action?.preview_json && (
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <DateSummary
+                            label="Given"
+                            value={preview.administered_date}
+                        />
+                        <DateSummary
+                            label="Next target"
+                            value={preview.next_target_admin_date}
+                        />
+                        <DateSummary
+                            label="Next reminder"
+                            value={preview.next_reminder_date}
+                        />
+                    </div>
+                )
             )}
 
             {error && <ActionError error={error} />}
@@ -330,7 +376,7 @@ function ApprovedStep({ action, error, onExecute }) {
                     className="tomo-btn tomo-btn-primary px-5 py-2"
                     onClick={onExecute}
                 >
-                    Complete update
+                    Try again
                 </button>
             </div>
         </div>
@@ -342,8 +388,8 @@ function RecoveryErrorStep({ error, onRetry, onDismiss }) {
         <div>
             <ActionError error={error} />
             <p className="mt-4 text-sm leading-6 text-tomo-text">
-                TomoCare has not assumed the outcome. Reload the action ledger to
-                confirm what happened before continuing.
+                TomoCare couldn’t confirm whether the update finished. Check its
+                status before trying again.
             </p>
             <div className="mt-7 flex justify-end gap-3">
                 <button
@@ -358,16 +404,22 @@ function RecoveryErrorStep({ error, onRetry, onDismiss }) {
                     className="tomo-btn tomo-btn-primary px-5 py-2"
                     onClick={onRetry}
                 >
-                    Check action status
+                    Check status
                 </button>
             </div>
         </div>
     )
 }
 
-function SuccessStep({ action, execution, onDone }) {
+function SuccessStep({ action, actionKind, execution, onDone }) {
     const result = execution?.result || action?.result_json || {}
-    const careItem = action?.preview_json?.care_item || "Medication"
+    const preview = action?.preview_json || {}
+    const isInsuranceClaim = actionKind === "insurance_claim"
+    const subject = isInsuranceClaim
+        ? result.insurance_provider ||
+          preview.insurance_provider ||
+          "Insurance"
+        : preview.care_item || "Medication"
 
     return (
         <div>
@@ -377,20 +429,47 @@ function SuccessStep({ action, execution, onDone }) {
                 </span>
                 <div>
                     <p className="text-lg font-semibold text-tomo-text-h">
-                        {careItem} is recorded
+                        All set
                     </p>
                     <p className="mt-2 text-sm leading-6 text-tomo-text">
-                        The administration is verified, the previous reminder is
-                        complete, and the next reminder is ready.
+                        {isInsuranceClaim
+                            ? "The reminder is complete and has been removed from your dashboard."
+                            : "The current reminder is complete and the next reminder is ready."}
                     </p>
                 </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <DateSummary label="Recorded" value={result.administration_date} />
-                <DateSummary label="Next target" value={result.next_target_admin_date} />
-                <DateSummary label="Next reminder" value={result.next_reminder_date} />
-            </div>
+            {isInsuranceClaim ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <DateSummary label="Filed" value={result.filed_date} />
+                    <DateSummary
+                        label="Treatment"
+                        value={preview.treatment_date}
+                    />
+                </div>
+            ) : (
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <DateSummary
+                        label="Recorded"
+                        value={result.administration_date}
+                    />
+                    <DateSummary
+                        label="Next target"
+                        value={result.next_target_admin_date}
+                    />
+                    <DateSummary
+                        label="Next reminder"
+                        value={result.next_reminder_date}
+                    />
+                </div>
+            )}
+
+            {isInsuranceClaim && (
+                <p className="mt-4 text-xs leading-5 text-tomo-text">
+                    This updated TomoCare only. No claim was submitted to{" "}
+                    {subject}.
+                </p>
+            )}
 
             <div className="mt-7 flex justify-end">
                 <button
@@ -419,11 +498,21 @@ function ProgressStep({ title, body }) {
 
 function GuardrailNote({ children }) {
     return (
-        <div className="mt-5 flex gap-3 rounded-xl border border-tomo-accent/30 bg-tomo-accent/10 px-4 py-3">
-            <span className="material-symbols-outlined text-xl text-tomo-accent">
+        <div className="mt-5 flex items-start gap-3 rounded-xl border border-tomo-accent/30 bg-tomo-accent/10 px-4 py-3">
+            <span
+                className="material-symbols-outlined mt-0.5 shrink-0 text-xl leading-none text-tomo-accent"
+                aria-hidden="true"
+            >
                 verified_user
             </span>
-            <p className="text-xs leading-5 text-tomo-text">{children}</p>
+            <div>
+                <p className="text-sm font-medium text-tomo-text-h">
+                    You’re in control
+                </p>
+                <p className="mt-1 text-xs leading-5 text-tomo-text">
+                    {children}
+                </p>
+            </div>
         </div>
     )
 }
@@ -434,22 +523,6 @@ function ActionError({ error }) {
             <p className="text-sm font-medium text-tomo-danger">
                 {error?.message || "TomoCare could not complete this step."}
             </p>
-        </div>
-    )
-}
-
-function ChangeRow({ change }) {
-    const copy = getChangeCopy(change)
-
-    return (
-        <div className="flex items-start gap-3 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3">
-            <span className="material-symbols-outlined mt-0.5 text-lg text-tomo-accent">
-                {copy.icon}
-            </span>
-            <div>
-                <p className="text-sm font-medium text-tomo-text-h">{copy.title}</p>
-                <p className="mt-1 text-xs leading-5 text-tomo-text">{copy.body}</p>
-            </div>
         </div>
     )
 }
@@ -471,40 +544,58 @@ function Spinner() {
     )
 }
 
-function getDialogTitle(phase, careItem) {
-    if (phase === "choosing" || phase === "preparing") {
-        return `Record ${careItem}`
+function getDialogEyebrow(phase, actionKind) {
+    if (phase === "succeeded") return "Update complete"
+    if (["recovering", "approved", "recovery_error"].includes(phase)) {
+        return "Update status"
     }
-    if (phase === "recovering") return "Checking the action ledger"
-    if (phase === "approved") return "Finish the approved update"
-    if (phase === "recovery_error") return "The outcome needs confirmation"
-    if (phase === "succeeded") return "Care update complete"
 
-    return `Review ${careItem} update`
+    return actionKind === "insurance_claim"
+        ? "Insurance claim"
+        : "Medication reminder"
 }
 
-function getChangeCopy(change) {
-    if (change.record_type === "medication_administration") {
-        return {
-            icon: "add_circle",
-            title: "Add a verified administration",
-            body: `Record the medication as given on ${formatDate(change.event_date)}.`,
-        }
+function getDialogTitle(phase, subject, actionKind) {
+    if (phase === "choosing" || phase === "preparing") {
+        return actionKind === "insurance_claim"
+            ? `Mark ${subject} claim as filed`
+            : `Record ${subject}`
+    }
+    if (phase === "recovering") return "Checking your update"
+    if (phase === "approved") return "Finish your update"
+    if (phase === "recovery_error") return "Let’s confirm what happened"
+    if (phase === "succeeded") {
+        return actionKind === "insurance_claim"
+            ? `${subject} claim marked as filed`
+            : `${subject} recorded`
     }
 
-    if (change.operation === "update" && change.record_type === "reminder") {
-        return {
-            icon: "task_alt",
-            title: "Complete the current reminder",
-            body: "Retire the reminder that prompted this confirmation.",
-        }
+    return actionKind === "insurance_claim"
+        ? `Review ${subject} claim`
+        : `Review ${subject}`
+}
+
+function getActionKind(actionType) {
+    return actionType === MARK_INSURANCE_CLAIM_FILED
+        ? "insurance_claim"
+        : "home_medication"
+}
+
+function getActionSubject({ actionKind, action, reminder }) {
+    if (actionKind === "insurance_claim") {
+        return (
+            action?.preview_json?.insurance_provider ||
+            reminder?.details_json?.insurance_provider ||
+            "insurance"
+        )
     }
 
-    return {
-        icon: "event_upcoming",
-        title: "Prepare the next reminder",
-        body: `Create the next planned reminder for ${formatDate(change.event_date)}.`,
-    }
+    return (
+        action?.preview_json?.care_item ||
+        reminder?.details_json?.care_item ||
+        reminder?.title ||
+        "home medication"
+    )
 }
 
 function formatDate(value) {

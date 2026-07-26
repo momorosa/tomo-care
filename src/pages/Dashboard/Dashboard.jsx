@@ -15,18 +15,22 @@ import {
     fetchReminders,
     fetchVerifiedDocuments,
     prepareHomeMedicationGiven,
+    prepareInsuranceClaimFiled,
 } from "./api.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 const CARE_ACTOR = "Rosa"
 const ACTIVE_ACTION_STORAGE_KEY = "tomocare.active-care-action-id"
+const MARK_HOME_MEDICATION_GIVEN = "mark_home_medication_given"
+const MARK_INSURANCE_CLAIM_FILED = "mark_insurance_claim_filed"
 
 function emptyActionFlow() {
     return {
         phase: "idle",
         reminder: null,
         action: null,
-        administeredDate: getPacificCareDate(),
+        actionType: null,
+        selectedDate: getPacificCareDate(),
         execution: null,
         error: null,
     }
@@ -134,6 +138,7 @@ function RemindersSection({
     onRefresh,
     refreshing,
     onRecordGiven,
+    onMarkFiled,
 }) {
     return (
         <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
@@ -196,6 +201,7 @@ function RemindersSection({
                             key={reminder.id}
                             reminder={reminder}
                             onRecordGiven={onRecordGiven}
+                            onMarkFiled={onMarkFiled}
                         />
                     ))}
                 </div>
@@ -310,9 +316,10 @@ export default function Dashboard() {
                     ...current,
                     phase: nextPhase,
                     action,
-                    administeredDate:
-                        action?.preview_json?.administered_date ||
-                        current.administeredDate,
+                    actionType: action.action_type,
+                    reminder: buildRecoveredReminder(action),
+                    selectedDate:
+                        getActionDate(action) || current.selectedDate,
                     execution:
                         action?.status === "succeeded"
                             ? { result: action.result_json }
@@ -386,10 +393,11 @@ export default function Dashboard() {
         }
     }
 
-    function beginHomeMedicationAction(reminder) {
+    function beginCareAction(reminder, actionType) {
         if (
             actionFlow.action &&
             actionFlow.action.source_event_id === reminder.id &&
+            actionFlow.action.action_type === actionType &&
             ["proposed", "approved", "succeeded"].includes(
                 actionFlow.action.status
             )
@@ -406,6 +414,7 @@ export default function Dashboard() {
             ...emptyActionFlow(),
             phase: "choosing",
             reminder,
+            actionType,
         })
     }
 
@@ -419,12 +428,20 @@ export default function Dashboard() {
         }))
 
         try {
-            const data = await prepareHomeMedicationGiven({
-                petId: PET_ID,
-                reminderId: actionFlow.reminder.id,
-                administeredDate: actionFlow.administeredDate,
-                requestedBy: CARE_ACTOR,
-            })
+            const data =
+                actionFlow.actionType === MARK_INSURANCE_CLAIM_FILED
+                    ? await prepareInsuranceClaimFiled({
+                          petId: PET_ID,
+                          reminderId: actionFlow.reminder.id,
+                          filedDate: actionFlow.selectedDate,
+                          requestedBy: CARE_ACTOR,
+                      })
+                    : await prepareHomeMedicationGiven({
+                          petId: PET_ID,
+                          reminderId: actionFlow.reminder.id,
+                          administeredDate: actionFlow.selectedDate,
+                          requestedBy: CARE_ACTOR,
+                      })
             const action = data.proposed_action
 
             storeActiveAction(action.id)
@@ -433,6 +450,7 @@ export default function Dashboard() {
                 ...current,
                 phase: getRecoveredActionPhase(action),
                 action,
+                actionType: action.action_type,
                 execution:
                     action.status === "succeeded"
                         ? { result: action.result_json }
@@ -456,7 +474,8 @@ export default function Dashboard() {
                 ...emptyActionFlow(),
                 phase: returnToDate ? "choosing" : "idle",
                 reminder: returnToDate ? current.reminder : null,
-                administeredDate: current.administeredDate,
+                actionType: returnToDate ? current.actionType : null,
+                selectedDate: current.selectedDate,
             }))
             return
         }
@@ -475,7 +494,8 @@ export default function Dashboard() {
                 ...emptyActionFlow(),
                 phase: returnToDate ? "choosing" : "idle",
                 reminder: returnToDate ? current.reminder : null,
-                administeredDate: current.administeredDate,
+                actionType: returnToDate ? current.actionType : null,
+                selectedDate: current.selectedDate,
             }))
         } catch (error) {
             setActionFlow((current) => ({
@@ -583,6 +603,10 @@ export default function Dashboard() {
                 ...current,
                 phase: getRecoveredActionPhase(action),
                 action,
+                actionType: action.action_type,
+                reminder: current.reminder || buildRecoveredReminder(action),
+                selectedDate:
+                    getActionDate(action) || current.selectedDate,
                 execution:
                     action.status === "succeeded"
                         ? { result: action.result_json }
@@ -756,7 +780,18 @@ export default function Dashboard() {
                                 error={remindersError}
                                 refreshing={refreshingReminders}
                                 onRefresh={() => loadReminders({ silent: true })}
-                                onRecordGiven={beginHomeMedicationAction}
+                                onRecordGiven={(reminder) =>
+                                    beginCareAction(
+                                        reminder,
+                                        MARK_HOME_MEDICATION_GIVEN
+                                    )
+                                }
+                                onMarkFiled={(reminder) =>
+                                    beginCareAction(
+                                        reminder,
+                                        MARK_INSURANCE_CLAIM_FILED
+                                    )
+                                }
                             />
                         </div>
                     </div>
@@ -772,10 +807,15 @@ export default function Dashboard() {
             <CareActionDialog
                 {...actionFlow}
                 maxDate={getPacificCareDate()}
-                onDateChange={(administeredDate) =>
+                minDate={
+                    actionFlow.actionType === MARK_INSURANCE_CLAIM_FILED
+                        ? actionFlow.reminder?.details_json?.treatment_date
+                        : undefined
+                }
+                onDateChange={(selectedDate) =>
                     setActionFlow((current) => ({
                         ...current,
-                        administeredDate,
+                        selectedDate,
                         error: null,
                     }))
                 }
@@ -923,6 +963,40 @@ function getRecoveredActionPhase(action) {
     if (action?.status === "executing") return "recovery_error"
 
     return "idle"
+}
+
+function getActionDate(action) {
+    if (action?.action_type === MARK_INSURANCE_CLAIM_FILED) {
+        return action.preview_json?.filed_date || null
+    }
+
+    return action?.preview_json?.administered_date || null
+}
+
+function buildRecoveredReminder(action) {
+    if (!action?.source_event_id) return null
+
+    if (action.action_type === MARK_INSURANCE_CLAIM_FILED) {
+        return {
+            id: action.source_event_id,
+            title: "Insurance claim",
+            details_json: {
+                subtype: "Insurance claim",
+                insurance_provider:
+                    action.preview_json?.insurance_provider || "Insurance",
+                treatment_date: action.preview_json?.treatment_date || null,
+            },
+        }
+    }
+
+    return {
+        id: action.source_event_id,
+        title: action.preview_json?.care_item || "Home medication",
+        details_json: {
+            reminder_type: "home_medication",
+            care_item: action.preview_json?.care_item || "Home medication",
+        },
+    }
 }
 
 function storeActiveAction(actionId) {

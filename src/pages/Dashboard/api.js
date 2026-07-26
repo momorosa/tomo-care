@@ -88,6 +88,31 @@ export async function prepareHomeMedicationGiven({
     return jsonOrThrow(response, "Could not prepare the medication update")
 }
 
+export async function prepareInsuranceClaimFiled({
+    petId,
+    reminderId,
+    filedDate,
+    requestedBy,
+}) {
+    const response = await fetch(
+        `/api/pets/${petId}/actions/insurance-claim-filed/prepare`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+                reminderId,
+                filedDate,
+                requestedBy,
+            }),
+        }
+    )
+
+    return jsonOrThrow(
+        response,
+        "Could not prepare the insurance claim update"
+    )
+}
+
 export async function fetchCareAction(actionId) {
     const response = await fetch(`/api/care-actions/${actionId}`)
     return jsonOrThrow(response, "Could not recover the care action")

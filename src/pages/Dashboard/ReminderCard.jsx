@@ -1,7 +1,12 @@
-export default function ReminderCard({ reminder, onRecordGiven }) {
+export default function ReminderCard({
+    reminder,
+    onRecordGiven,
+    onMarkFiled,
+}) {
     const hasCalendarLink = Boolean(reminder.google_calendar_url)
     const meta = getReminderMeta(reminder)
     const canRecordGiven = isRecordableHomeMedication(reminder)
+    const canMarkFiled = isFileableInsuranceClaim(reminder)
 
     return (
         <div className={getCardClassName(reminder, meta)}>
@@ -34,7 +39,7 @@ export default function ReminderCard({ reminder, onRecordGiven }) {
                             )}
                         </div>
 
-                        {(hasCalendarLink || canRecordGiven) && (
+                        {(hasCalendarLink || canRecordGiven || canMarkFiled) && (
                             <div className="flex shrink-0 flex-wrap items-center gap-2">
                                 {hasCalendarLink && (
                                     <a
@@ -56,6 +61,16 @@ export default function ReminderCard({ reminder, onRecordGiven }) {
                                         Mark as given
                                     </button>
                                 )}
+
+                                {canMarkFiled && (
+                                    <button
+                                        type="button"
+                                        className="tomo-btn tomo-btn-primary shrink-0 px-4 py-1.5 text-xs font-semibold"
+                                        onClick={() => onMarkFiled?.(reminder)}
+                                    >
+                                        Mark as filed
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -66,18 +81,18 @@ export default function ReminderCard({ reminder, onRecordGiven }) {
                         </ReminderPill>
 
                         <ReminderPill>
-                            reminds {formatDate(reminder.event_date)}
+                            Reminds {formatDate(reminder.event_date)}
                         </ReminderPill>
 
                         {meta.targetDate && (
                             <ReminderPill>
-                                target {formatDate(meta.targetDate)}
+                                Target {formatDate(meta.targetDate)}
                             </ReminderPill>
                         )}
 
                         {meta.dueDate && meta.dueDate !== meta.targetDate && (
                             <ReminderPill>
-                                due {formatDate(meta.dueDate)}
+                                Due {formatDate(meta.dueDate)}
                             </ReminderPill>
                         )}
 
@@ -110,6 +125,13 @@ function isRecordableHomeMedication(reminder) {
         details.reminder_type === "home_medication" &&
         details.requires_appointment === false &&
         ["due_now", "overdue"].includes(reminder.timing_state)
+    )
+}
+
+function isFileableInsuranceClaim(reminder) {
+    return (
+        reminder.details_json?.subtype === "Insurance claim" &&
+        reminder.status !== "completed"
     )
 }
 
