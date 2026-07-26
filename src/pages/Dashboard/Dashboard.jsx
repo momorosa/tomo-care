@@ -11,6 +11,7 @@ import {
     executeCareAction,
     fetchCareAction,
     fetchCareSummary,
+    fetchPendingCareActions,
     fetchPendingReviewDocuments,
     fetchReminders,
     fetchVerifiedDocuments,
@@ -225,6 +226,7 @@ export default function Dashboard() {
     const [reminders, setReminders] = useState([])
     const [verifiedDocuments, setVerifiedDocuments] = useState([])
     const [careSummary, setCareSummary] = useState({})
+    const [pendingActionCount, setPendingActionCount] = useState(0)
     const [actionFlow, setActionFlow] = useState(emptyActionFlow)
 
     const [result, setResult] = useState(null)
@@ -264,6 +266,15 @@ export default function Dashboard() {
         }
     }, [])
 
+    const loadPendingCareActions = useCallback(async () => {
+        try {
+            const result = await fetchPendingCareActions(PET_ID)
+            setPendingActionCount(result.count)
+        } catch (err) {
+            console.error("[dashboard] pending action load failed:", err)
+        }
+    }, [])
+
     const loadReminders = useCallback(async ({ silent = false } = {}) => {
         if (silent) {
             setRefreshingReminders(true)
@@ -288,11 +299,13 @@ export default function Dashboard() {
         loadPendingReviewDocs()
         loadVerifiedDocuments()
         loadCareSummary()
+        loadPendingCareActions()
         loadReminders()
     }, [
         loadPendingReviewDocs,
         loadVerifiedDocuments,
         loadCareSummary,
+        loadPendingCareActions,
         loadReminders,
     ])
 
@@ -460,6 +473,24 @@ export default function Dashboard() {
         })
     }
 
+    function reviewAssistantAction(action) {
+        storeActiveAction(action.id)
+        void loadPendingCareActions()
+
+        setActionFlow({
+            ...emptyActionFlow(),
+            phase: getRecoveredActionPhase(action),
+            reminder: buildRecoveredReminder(action),
+            action,
+            actionType: action.action_type,
+            selectedDate: getActionDate(action) || getPacificCareDate(),
+            execution:
+                action.status === "succeeded"
+                    ? { result: action.result_json }
+                    : null,
+        })
+    }
+
     async function prepareAction(event) {
         event.preventDefault()
 
@@ -499,6 +530,7 @@ export default function Dashboard() {
                         : null,
                 error: null,
             }))
+            await loadPendingCareActions()
         } catch (error) {
             setActionFlow((current) => ({
                 ...current,
@@ -524,13 +556,14 @@ export default function Dashboard() {
 
         setActionFlow((current) => ({
             ...current,
-            phase: "cancelling",
+            phase: returnToDate ? "cancelling" : "dismissing",
             error: null,
         }))
 
         try {
             await cancelCareAction(actionId)
             clearStoredAction()
+            await loadPendingCareActions()
 
             setActionFlow((current) => ({
                 ...emptyActionFlow(),
@@ -611,6 +644,7 @@ export default function Dashboard() {
             await Promise.all([
                 loadReminders({ silent: true }),
                 loadCareSummary(),
+                loadPendingCareActions(),
             ])
         } catch (error) {
             setActionFlow((current) => ({
@@ -671,7 +705,16 @@ export default function Dashboard() {
         }
     }
 
-    function dismissActionDialog() {
+    async function dismissActionDialog() {
+        if (actionFlow.action?.status === "proposed") {
+            await cancelProposal()
+            return
+        }
+
+        if (!actionFlow.action) {
+            clearStoredAction()
+        }
+
         setActionFlow((current) => ({
             ...current,
             phase: "idle",
@@ -761,11 +804,8 @@ export default function Dashboard() {
                                     tone="brand"
                                     label="Actions"
                                     value={
-                                        actionFlow.action &&
-                                        ["proposed", "approved"].includes(
-                                            actionFlow.action.status
-                                        )
-                                            ? "1 pending"
+                                        pendingActionCount > 0
+                                            ? `${pendingActionCount} pending`
                                             : actionFlow.phase === "idle"
                                               ? "Gated"
                                               : "In review"
@@ -774,7 +814,10 @@ export default function Dashboard() {
                             </div>
 
                             <div className="mt-8">
-                                <AssistantPanel petId={PET_ID} />
+                                <AssistantPanel
+                                    petId={PET_ID}
+                                    onActionPrepared={reviewAssistantAction}
+                                />
                             </div>
                         </section>
 

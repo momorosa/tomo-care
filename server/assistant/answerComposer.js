@@ -5,7 +5,12 @@ import { getCareDate } from "../lib/careDates.js"
 const LIBRELA_INTERVAL_DAYS = 49
 const LIBRELA_REMIND_BEFORE_DAYS = 7
 
-export function composeGroundedAnswer({ question, queryPlan, context }) {
+export function composeGroundedAnswer({
+    question,
+    queryPlan,
+    context,
+    actionPreparation = null,
+}) {
     let response
 
     switch (queryPlan.intent) {
@@ -35,6 +40,13 @@ export function composeGroundedAnswer({ question, queryPlan, context }) {
 
         case "home_medication_status":
             response = answerHomeMedicationStatus(context, queryPlan)
+            break
+
+        case "home_medication_given_action":
+            response = answerHomeMedicationGivenAction(
+                queryPlan,
+                actionPreparation
+            )
             break
 
         case "last_weight":
@@ -330,7 +342,9 @@ function answerActiveReminders(context) {
         confidence: "high",
         citations: reminders
             .slice(0, 5)
-            .map((reminder) => eventCitation(reminder, "Planned reminder")),
+            .map((reminder) =>
+                eventCitation(reminder, getReminderCitationLabel(reminder))
+            ),
         limitations:
             reminders.length > 5
                 ? ["Only the first five reminders are shown in this answer."]
@@ -1043,6 +1057,99 @@ function answerActionRequest() {
     }
 }
 
+function answerHomeMedicationGivenAction(queryPlan, preparation) {
+    const displayName =
+        preparation?.displayName ||
+        getHomeMedicationDisplayName(queryPlan.subject)
+
+    if (preparation?.status === "prepared") {
+        return {
+            answer:
+                `I prepared ${displayName} as given on ` +
+                `${formatDate(preparation.administeredDate)}. Review the details ` +
+                "before anything changes in Momo’s care record.",
+            answer_type: "action_prepared",
+            confidence: "high",
+            citations: [
+                eventCitation(
+                    preparation.reminder,
+                    `Current ${displayName} reminder`
+                ),
+            ],
+            limitations: [
+                "No medication record or future reminder changes until you approve.",
+            ],
+            proposed_action: preparation.action,
+        }
+    }
+
+    if (preparation?.status === "uncertain_statement") {
+        return actionClarificationAnswer(
+            "I’m not certain whether you meant to confirm a dose. When you’re sure, tell me which medication you gave and the date. Nothing has been changed."
+        )
+    }
+
+    if (
+        preparation?.status === "missing_medication" ||
+        preparation?.status === "multiple_medications"
+    ) {
+        return actionClarificationAnswer(
+            "Which home medication did you give—Simparica Trio or Adequan? Please confirm one medication at a time. Nothing has been changed."
+        )
+    }
+
+    if (preparation?.status === "unsupported_medication") {
+        return actionClarificationAnswer(
+            "I can only prepare this at-home update for Simparica Trio or Adequan. Nothing has been changed."
+        )
+    }
+
+    if (
+        preparation?.status === "missing_date" ||
+        preparation?.status === "ambiguous_date"
+    ) {
+        return actionClarificationAnswer(
+            `What date did you give ${displayName}? You can say today, yesterday, ` +
+            "or use a date such as 2026-07-26. Nothing has been changed."
+        )
+    }
+
+    if (preparation?.status === "reminder_not_found") {
+        return actionClarificationAnswer(
+            `I couldn’t find an active ${displayName} reminder to update, so nothing was prepared.`
+        )
+    }
+
+    if (preparation?.status === "multiple_reminders") {
+        return actionClarificationAnswer(
+            `I found more than one active ${displayName} reminder. Please review the reminders before recording this dose. Nothing has been changed.`
+        )
+    }
+
+    if (preparation?.status === "not_eligible") {
+        return actionClarificationAnswer(
+            `I couldn’t prepare that update: ${preparation.message} Nothing has been changed.`
+        )
+    }
+
+    return actionClarificationAnswer(
+        "I couldn’t safely prepare that medication update. Nothing has been changed."
+    )
+}
+
+function actionClarificationAnswer(answer) {
+    return {
+        answer,
+        answer_type: "clarification_needed",
+        confidence: "high",
+        citations: [],
+        limitations: [
+            "No care action was prepared without the required details.",
+        ],
+        proposed_action: null,
+    }
+}
+
 function noTrustedDataAnswer(answer) {
     return {
         answer,
@@ -1085,6 +1192,8 @@ function getReminderLabel(reminder) {
     const details = reminder.details_json || {}
 
     return (
+        details.care_item ||
+        details.careItem ||
         details.title ||
         details.label ||
         details.subtype ||
@@ -1094,6 +1203,14 @@ function getReminderLabel(reminder) {
         details.treatment ||
         "Reminder"
     )
+}
+
+function getReminderCitationLabel(reminder) {
+    const label = getReminderLabel(reminder)
+
+    return /\breminder\b/i.test(label)
+        ? label
+        : `${label} reminder`
 }
 
 function findMatchingLibrelaReminder(reminders = [], dueDate, reminderDate) {

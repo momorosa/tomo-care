@@ -134,6 +134,19 @@ export async function fetchCareAction(actionId) {
     return jsonOrThrow(response, "Could not recover the care action")
 }
 
+export async function fetchPendingCareActions(petId) {
+    const response = await fetch(`/api/pets/${petId}/care-actions/pending`)
+    const data = await jsonOrThrow(
+        response,
+        "Could not load pending care actions"
+    )
+
+    return {
+        count: data.pending_count || 0,
+        actions: data.pending_actions || [],
+    }
+}
+
 export async function approveCareAction(actionId, approvedBy) {
     const response = await fetch(`/api/care-actions/${actionId}/approve`, {
         method: "POST",

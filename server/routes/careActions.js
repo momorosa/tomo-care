@@ -21,9 +21,40 @@ import {
 } from "../actions/prepareInsuranceClaimFiled.js"
 import { MARK_HOME_MEDICATION_GIVEN } from "../actions/homeMedicationGiven.js"
 import { MARK_INSURANCE_CLAIM_FILED } from "../actions/insuranceClaimFiled.js"
+import { listPendingCareActions } from "../actions/listPendingCareActions.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
 const router = express.Router()
+
+// GET /api/pets/:petId/care-actions/pending
+//
+// Returns the server-owned set of actions that still need review, execution,
+// or recovery. The dashboard uses this rather than presenting a boolean as a
+// count.
+router.get("/pets/:petId/care-actions/pending", async (req, res) => {
+    const { petId } = req.params
+
+    try {
+        const result = await listPendingCareActions({
+            repository: careActionRepository,
+            petId,
+        })
+
+        return res.json({
+            ok: true,
+            pending_count: result.count,
+            pending_actions: result.actions,
+        })
+    } catch (error) {
+        console.error("[care-action:pending] error:", error)
+
+        return res.status(500).json({
+            ok: false,
+            reason: "pending_action_lookup_failed",
+            error: "Failed to load pending care actions.",
+        })
+    }
+})
 
 // GET /api/care-actions/:actionId
 //

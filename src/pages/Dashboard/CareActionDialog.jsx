@@ -1,4 +1,11 @@
-const BUSY_PHASES = new Set(["recovering", "preparing", "cancelling", "approving", "executing"])
+const BUSY_PHASES = new Set([
+    "recovering",
+    "preparing",
+    "cancelling",
+    "dismissing",
+    "approving",
+    "executing",
+])
 const MARK_INSURANCE_CLAIM_FILED = "mark_insurance_claim_filed"
 
 export default function CareActionDialog({
@@ -89,7 +96,13 @@ export default function CareActionDialog({
                         />
                     )}
 
-                    {(["reviewing", "cancelling", "approving", "executing"].includes(phase)) && (
+                    {([
+                        "reviewing",
+                        "cancelling",
+                        "dismissing",
+                        "approving",
+                        "executing",
+                    ].includes(phase)) && (
                         <ReviewStep
                             phase={phase}
                             action={action}
@@ -311,6 +324,8 @@ function ReviewStep({
                     {busy && <Spinner />}
                     {phase === "cancelling"
                         ? "Changing date…"
+                        : phase === "dismissing"
+                          ? "Closing…"
                         : phase === "approving"
                           ? "Confirming…"
                           : phase === "executing"

@@ -1,4 +1,4 @@
- import { sbAdmin } from "../supabase.js"
+import { sbAdmin } from "../supabase.js"
 
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
@@ -30,6 +30,20 @@ const CARE_ACTION_RETURN_COLUMNS = [
     "updated_at",
 ].join(", ")
 
+const PENDING_CARE_ACTION_RETURN_COLUMNS = [
+    "id",
+    "source_event_id",
+    "action_type",
+    "status",
+    "request_source",
+    "preview_json",
+    "proposed_at",
+    "approved_at",
+    "execution_started_at",
+].join(", ")
+
+const PENDING_CARE_ACTION_STATUSES = ["proposed", "approved", "executing"]
+
 export const careActionRepository = {
     async findActionById(actionId) {
         const { data, error } = await sbAdmin
@@ -40,6 +54,18 @@ export const careActionRepository = {
 
         if (error) throw error
         return data || null
+    },
+
+    async findPendingActionsByPetId(petId) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .select(PENDING_CARE_ACTION_RETURN_COLUMNS)
+            .eq("pet_id", petId)
+            .in("status", PENDING_CARE_ACTION_STATUSES)
+            .order("proposed_at", { ascending: false })
+
+        if (error) throw error
+        return data || []
     },
 
     async findReminder({ petId, reminderId }) {
