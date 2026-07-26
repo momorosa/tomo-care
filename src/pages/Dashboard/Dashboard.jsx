@@ -426,7 +426,10 @@ export default function Dashboard() {
             setCalendarSyncByReminder((current) => ({
                 ...current,
                 [reminder.id]: {
-                    phase: "error",
+                    phase:
+                        error.recovery === "reauthorize_google_calendar"
+                            ? "reauthorization_required"
+                            : "error",
                 },
             }))
         }

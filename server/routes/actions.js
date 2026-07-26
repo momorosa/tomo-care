@@ -10,6 +10,10 @@ import {
     getStableGoogleCalendarEventId,
     isHomeMedicationReminder,
 } from "../calendar/reminderCalendar.js"
+import {
+    toGoogleCalendarErrorResponse,
+    toSafeGoogleCalendarErrorLog,
+} from "../calendar/googleCalendarError.js"
 import { getCareDate } from "../lib/careDates.js"
 
 const router = express.Router()
@@ -890,15 +894,13 @@ router.post(
                 },
             })
         } catch (err) {
-            console.error("[sync-google-calendar] error:", err)
+            console.error(
+                "[sync-google-calendar] error:",
+                toSafeGoogleCalendarErrorLog(err)
+            )
 
-            res.status(500).json({
-                ok: false,
-                error:
-                    err?.message ||
-                    "Failed to sync reminder to Google Calendar.",
-                code: err?.code || null,
-            })
+            const response = toGoogleCalendarErrorResponse(err)
+            res.status(response.status).json(response.body)
         }
     }
 )
@@ -909,13 +911,13 @@ router.get("/debug/google-calendar", async (req, res) => {
         const result = await verifyGoogleCalendarConnection()
         res.json(result)
     } catch (err) {
-        console.error("[google-calendar-health] error:", err)
+        console.error(
+            "[google-calendar-health] error:",
+            toSafeGoogleCalendarErrorLog(err)
+        )
 
-        res.status(500).json({
-            ok: false,
-            error: err?.message || "Failed to connect to Google Calendar.",
-            code: err?.code || null,
-        })
+        const response = toGoogleCalendarErrorResponse(err)
+        res.status(response.status).json(response.body)
     }
 })
 

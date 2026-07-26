@@ -12,6 +12,8 @@ export default function ReminderCard({
     const canSyncCalendar = isSyncableHomeMedication(reminder)
     const isSyncingCalendar = calendarSync?.phase === "syncing"
     const calendarSyncFailed = calendarSync?.phase === "error"
+    const calendarReauthorizationRequired =
+        calendarSync?.phase === "reauthorization_required"
     const calendarSyncSucceeded = calendarSync?.phase === "synced"
 
     return (
@@ -76,7 +78,8 @@ export default function ReminderCard({
                                         )}
                                         {isSyncingCalendar
                                             ? "Adding…"
-                                            : calendarSyncFailed
+                                            : calendarSyncFailed ||
+                                                calendarReauthorizationRequired
                                               ? "Try again"
                                               : "Add to calendar"}
                                     </button>
@@ -115,6 +118,32 @@ export default function ReminderCard({
                         </p>
                     )}
 
+                    {calendarReauthorizationRequired && (
+                        <div
+                            className="mt-3 rounded-xl border border-tomo-warning/30 bg-tomo-warning/10 p-4 text-sm text-tomo-text"
+                            role="status"
+                        >
+                            <p className="font-semibold text-tomo-text-h">
+                                Reconnect Google Calendar
+                            </p>
+                            <p className="mt-1 leading-6">
+                                Your Google authorization expired. Momo’s
+                                reminder is still saved in TomoCare.
+                            </p>
+                            <p className="mt-3 text-xs leading-5">
+                                From the TomoCare project folder, run:
+                            </p>
+                            <code className="mt-1 block overflow-x-auto rounded-lg bg-tomo-code px-3 py-2 text-xs text-tomo-text-h">
+                                node server/scripts/get-gcal-refresh-token.js
+                            </code>
+                            <p className="mt-2 text-xs leading-5">
+                                Replace <code>GCAL_REFRESH_TOKEN</code> in{" "}
+                                <code>.env</code>, restart TomoCare, then add the
+                                reminder to Calendar again.
+                            </p>
+                        </div>
+                    )}
+
                     {calendarSyncSucceeded && (
                         <p
                             className="mt-3 text-xs leading-5 text-tomo-success"
@@ -130,18 +159,18 @@ export default function ReminderCard({
                         </ReminderPill>
 
                         <ReminderPill>
-                            Reminds {formatDate(reminder.event_date)}
+                            reminds {formatDate(reminder.event_date)}
                         </ReminderPill>
 
                         {meta.targetDate && (
                             <ReminderPill>
-                                Target {formatDate(meta.targetDate)}
+                                target {formatDate(meta.targetDate)}
                             </ReminderPill>
                         )}
 
                         {meta.dueDate && meta.dueDate !== meta.targetDate && (
                             <ReminderPill>
-                                Due {formatDate(meta.dueDate)}
+                                due {formatDate(meta.dueDate)}
                             </ReminderPill>
                         )}
 
