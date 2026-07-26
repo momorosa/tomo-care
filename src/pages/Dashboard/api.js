@@ -66,6 +66,22 @@ export async function fetchCareSummary(petId) {
     return data.summary || {}
 }
 
+export async function syncReminderToGoogleCalendar(reminderId) {
+    const response = await fetch(
+        `/api/events/${reminderId}/actions/sync-google-calendar`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({}),
+        }
+    )
+
+    return jsonOrThrow(
+        response,
+        "Could not add the reminder to Google Calendar"
+    )
+}
+
 export async function prepareHomeMedicationGiven({
     petId,
     reminderId,

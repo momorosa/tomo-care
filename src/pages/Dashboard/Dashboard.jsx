@@ -16,6 +16,7 @@ import {
     fetchVerifiedDocuments,
     prepareHomeMedicationGiven,
     prepareInsuranceClaimFiled,
+    syncReminderToGoogleCalendar,
 } from "./api.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
@@ -139,6 +140,8 @@ function RemindersSection({
     refreshing,
     onRecordGiven,
     onMarkFiled,
+    onSyncCalendar,
+    calendarSyncByReminder,
 }) {
     return (
         <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
@@ -152,7 +155,8 @@ function RemindersSection({
 
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
                         Approved reminders live here after TomoCare prepares them.
-                        Calendar links appear only after you approve the sync.
+                        Add home-medication reminders to Google Calendar whenever
+                        you’re ready.
                     </p>
                 </div>
 
@@ -202,6 +206,10 @@ function RemindersSection({
                             reminder={reminder}
                             onRecordGiven={onRecordGiven}
                             onMarkFiled={onMarkFiled}
+                            onSyncCalendar={onSyncCalendar}
+                            calendarSync={
+                                calendarSyncByReminder[reminder.id] || null
+                            }
                         />
                     ))}
                 </div>
@@ -227,6 +235,7 @@ export default function Dashboard() {
 
     const [loadingReminders, setLoadingReminders] = useState(false)
     const [refreshingReminders, setRefreshingReminders] = useState(false)
+    const [calendarSyncByReminder, setCalendarSyncByReminder] = useState({})
 
     const loadPendingReviewDocs = useCallback(async () => {
         try {
@@ -390,6 +399,36 @@ export default function Dashboard() {
             setError(err.message)
         } finally {
             setCheckingInbox(false)
+        }
+    }
+
+    async function syncReminderCalendar(reminder) {
+        setCalendarSyncByReminder((current) => ({
+            ...current,
+            [reminder.id]: {
+                phase: "syncing",
+            },
+        }))
+
+        try {
+            await syncReminderToGoogleCalendar(reminder.id)
+            await loadReminders({ silent: true })
+
+            setCalendarSyncByReminder((current) => ({
+                ...current,
+                [reminder.id]: {
+                    phase: "synced",
+                },
+            }))
+        } catch (error) {
+            console.error("[dashboard] calendar sync failed:", error)
+
+            setCalendarSyncByReminder((current) => ({
+                ...current,
+                [reminder.id]: {
+                    phase: "error",
+                },
+            }))
         }
     }
 
@@ -791,6 +830,10 @@ export default function Dashboard() {
                                         reminder,
                                         MARK_INSURANCE_CLAIM_FILED
                                     )
+                                }
+                                onSyncCalendar={syncReminderCalendar}
+                                calendarSyncByReminder={
+                                    calendarSyncByReminder
                                 }
                             />
                         </div>

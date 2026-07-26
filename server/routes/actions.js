@@ -5,6 +5,11 @@ import {
     getGoogleCalendarConfig,
     getGoogleCalendarService,
 } from "../googleCalendar.js"
+import {
+    buildHomeMedicationCalendarDescription,
+    getStableGoogleCalendarEventId,
+    isHomeMedicationReminder,
+} from "../calendar/reminderCalendar.js"
 import { getCareDate } from "../lib/careDates.js"
 
 const router = express.Router()
@@ -191,6 +196,10 @@ function buildCalendarTitle(event) {
 
 function buildCalendarDescription(event) {
     const details = event?.details_json || {}
+
+    if (isHomeMedicationReminder(event)) {
+        return buildHomeMedicationCalendarDescription(event)
+    }
 
     const lines = [
         "TomoCare reminder",
@@ -797,13 +806,34 @@ router.post(
                 action = "updated"
                 calendarEvent = updated.data
             } else {
-                const created = await calendar.events.insert({
-                    calendarId,
-                    requestBody: calendarPayload,
-                })
+                const stableGoogleCalendarEventId =
+                    getStableGoogleCalendarEventId(event.id)
 
-                action = "created"
-                calendarEvent = created.data
+                try {
+                    const created = await calendar.events.insert({
+                        calendarId,
+                        requestBody: {
+                            ...calendarPayload,
+                            id: stableGoogleCalendarEventId,
+                        },
+                    })
+
+                    action = "created"
+                    calendarEvent = created.data
+                } catch (insertError) {
+                    if (Number(insertError?.code) !== 409) {
+                        throw insertError
+                    }
+
+                    const updated = await calendar.events.update({
+                        calendarId,
+                        eventId: stableGoogleCalendarEventId,
+                        requestBody: calendarPayload,
+                    })
+
+                    action = "updated"
+                    calendarEvent = updated.data
+                }
             }
 
             const nowIso = new Date().toISOString()

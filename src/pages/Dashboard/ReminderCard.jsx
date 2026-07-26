@@ -2,11 +2,17 @@ export default function ReminderCard({
     reminder,
     onRecordGiven,
     onMarkFiled,
+    onSyncCalendar,
+    calendarSync = null,
 }) {
     const hasCalendarLink = Boolean(reminder.google_calendar_url)
     const meta = getReminderMeta(reminder)
     const canRecordGiven = isRecordableHomeMedication(reminder)
     const canMarkFiled = isFileableInsuranceClaim(reminder)
+    const canSyncCalendar = isSyncableHomeMedication(reminder)
+    const isSyncingCalendar = calendarSync?.phase === "syncing"
+    const calendarSyncFailed = calendarSync?.phase === "error"
+    const calendarSyncSucceeded = calendarSync?.phase === "synced"
 
     return (
         <div className={getCardClassName(reminder, meta)}>
@@ -39,7 +45,10 @@ export default function ReminderCard({
                             )}
                         </div>
 
-                        {(hasCalendarLink || canRecordGiven || canMarkFiled) && (
+                        {(hasCalendarLink ||
+                            canSyncCalendar ||
+                            canRecordGiven ||
+                            canMarkFiled) && (
                             <div className="flex shrink-0 flex-wrap items-center gap-2">
                                 {hasCalendarLink && (
                                     <a
@@ -50,6 +59,27 @@ export default function ReminderCard({
                                     >
                                         Open calendar
                                     </a>
+                                )}
+
+                                {canSyncCalendar && (
+                                    <button
+                                        type="button"
+                                        className="tomo-btn tomo-btn-secondary shrink-0 gap-2 px-4 py-1.5 text-xs font-semibold"
+                                        onClick={() => onSyncCalendar?.(reminder)}
+                                        disabled={isSyncingCalendar}
+                                    >
+                                        {isSyncingCalendar && (
+                                            <span
+                                                className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                        {isSyncingCalendar
+                                            ? "Adding…"
+                                            : calendarSyncFailed
+                                              ? "Try again"
+                                              : "Add to calendar"}
+                                    </button>
                                 )}
 
                                 {canRecordGiven && (
@@ -74,6 +104,25 @@ export default function ReminderCard({
                             </div>
                         )}
                     </div>
+
+                    {calendarSyncFailed && (
+                        <p
+                            className="mt-3 text-xs leading-5 text-tomo-danger"
+                            role="status"
+                        >
+                            Couldn’t add this reminder to Google Calendar. Momo’s
+                            reminder is still saved in TomoCare.
+                        </p>
+                    )}
+
+                    {calendarSyncSucceeded && (
+                        <p
+                            className="mt-3 text-xs leading-5 text-tomo-success"
+                            role="status"
+                        >
+                            Added to Google Calendar.
+                        </p>
+                    )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                         <ReminderPill tone={meta.tone}>
@@ -125,6 +174,18 @@ function isRecordableHomeMedication(reminder) {
         details.reminder_type === "home_medication" &&
         details.requires_appointment === false &&
         ["due_now", "overdue"].includes(reminder.timing_state)
+    )
+}
+
+function isSyncableHomeMedication(reminder) {
+    const details = reminder.details_json || {}
+
+    return (
+        details.reminder_type === "home_medication" &&
+        details.requires_appointment === false &&
+        reminder.calendar_sync_status !== "synced" &&
+        !reminder.google_calendar_url &&
+        ["upcoming", "due_now"].includes(reminder.timing_state)
     )
 }
 
