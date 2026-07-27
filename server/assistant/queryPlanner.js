@@ -1,5 +1,6 @@
 import { resolveDateRange } from "./dateRanges.js"
 import { parseHomeMedicationActionRequest } from "./homeMedicationAction.js"
+import { isLibrelaAppointmentMessageRequest } from "./librelaAppointmentMessage.js"
 
 export function buildQueryPlan(question, options = {}) {
     const q = question.toLowerCase()
@@ -8,6 +9,16 @@ export function buildQueryPlan(question, options = {}) {
         question,
         options
     )
+
+    if (isLibrelaAppointmentMessageRequest(question)) {
+        return basePlan({
+            intent: "librela_appointment_message",
+            subject: "librela",
+            scope: "trusted_librela_schedule",
+            requires_action: true,
+            dateRange,
+        })
+    }
 
     if (homeMedicationAction) {
         return basePlan({

@@ -10,6 +10,7 @@ export function composeGroundedAnswer({
     queryPlan,
     context,
     actionPreparation = null,
+    messageDraftPreparation = null,
 }) {
     let response
 
@@ -46,6 +47,12 @@ export function composeGroundedAnswer({
             response = answerHomeMedicationGivenAction(
                 queryPlan,
                 actionPreparation
+            )
+            break
+
+        case "librela_appointment_message":
+            response = answerLibrelaAppointmentMessage(
+                messageDraftPreparation
             )
             break
 
@@ -1135,6 +1142,86 @@ function answerHomeMedicationGivenAction(queryPlan, preparation) {
     return actionClarificationAnswer(
         "I couldn’t safely prepare that medication update. Nothing has been changed."
     )
+}
+
+function answerLibrelaAppointmentMessage(preparation) {
+    if (preparation?.status === "prepared") {
+        const draft = preparation.draft
+
+        return {
+            answer:
+                `I prepared a Librela appointment request for ${draft.recipient_name} ` +
+                `using Momo’s last verified injection on ${formatDate(draft.dates.last_verified_injection_date)} ` +
+                `and her current due date of ${formatDate(draft.dates.due_date)}. ` +
+                "Review or edit the exact message before copying it.",
+            answer_type: "message_draft_prepared",
+            confidence: "high",
+            citations: [
+                eventCitation(
+                    preparation.injection,
+                    "Last verified Librela injection"
+                ),
+                eventCitation(
+                    preparation.reminder,
+                    "Current Librela reminder"
+                ),
+            ],
+            limitations: [
+                "This is a draft only. TomoCare did not send a message or create an appointment.",
+                "The clinic name comes from a trusted record, but no phone number or email was selected or verified.",
+            ],
+            proposed_action: null,
+            message_draft: draft,
+        }
+    }
+
+    if (preparation?.status === "appointment_exists") {
+        const appointmentDate = getEventPrimaryDate(preparation.appointment)
+
+        return {
+            answer:
+                `I did not prepare another request because I found a future ` +
+                `Librela appointment on ${formatDate(appointmentDate)} in trusted records.`,
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [
+                eventCitation(
+                    preparation.appointment,
+                    "Existing Librela appointment"
+                ),
+            ],
+            limitations: [
+                "No duplicate appointment message was drafted.",
+            ],
+            proposed_action: null,
+            message_draft: null,
+        }
+    }
+
+    const messages = {
+        reminder_not_found:
+            "I couldn’t prepare the message because I don’t see an active planned Librela reminder in trusted records.",
+        due_date_not_found:
+            "I found the Librela reminder, but it does not contain a trusted due date for the request.",
+        injection_not_found:
+            "I found the Librela reminder, but I don’t see a verified prior Librela injection to reference.",
+        recipient_not_found:
+            "I found the Librela schedule, but I couldn’t identify the clinic from trusted records.",
+    }
+
+    return {
+        answer:
+            `${messages[preparation?.status] || "I couldn’t safely prepare that Librela appointment message."} ` +
+            "No message was created or sent.",
+        answer_type: "clarification_needed",
+        confidence: "high",
+        citations: [],
+        limitations: [
+            "TomoCare does not invent missing schedule or recipient details.",
+        ],
+        proposed_action: null,
+        message_draft: null,
+    }
 }
 
 function actionClarificationAnswer(answer) {

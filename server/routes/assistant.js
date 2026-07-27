@@ -3,6 +3,7 @@ import { buildQueryPlan } from "../assistant/queryPlanner.js"
 import { buildTrustedContext } from "../assistant/contextBuilder.js"
 import { composeGroundedAnswer } from "../assistant/answerComposer.js"
 import { prepareAssistantHomeMedicationAction } from "../assistant/homeMedicationAction.js"
+import { prepareLibrelaAppointmentMessage } from "../assistant/librelaAppointmentMessage.js"
 import { getCareDate } from "../lib/careDates.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
@@ -32,12 +33,22 @@ router.post("/pets/:petId/assistant/query", async (req, res) => {
                       currentCareDate,
                   })
                 : null
+        const messageDraftPreparation =
+            queryPlan.intent === "librela_appointment_message"
+                ? prepareLibrelaAppointmentMessage({
+                      context,
+                      currentCareDate,
+                      senderName: ASSISTANT_CARE_ACTOR,
+                      petName: "Momo",
+                  })
+                : null
 
         const response = composeGroundedAnswer({
             question,
             queryPlan,
             context,
             actionPreparation,
+            messageDraftPreparation,
         })
 
         res.json(response)

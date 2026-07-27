@@ -5,11 +5,16 @@ import EvidenceCard from "./EvidenceCard.jsx"
 const SUGGESTED_QUESTIONS = [
     "When was Momo last given Librela?",
     "When is Momo next due for Librela?",
+    "Draft a Librela appointment request.",
     "What reminders are active?",
     "How much have I spent on Librela?",
 ]
 
-export default function AssistantPanel({ petId, onActionPrepared }) {
+export default function AssistantPanel({
+    petId,
+    onActionPrepared,
+    onMessageDraftPrepared,
+}) {
     const [question, setQuestion] = useState("")
     const [answer, setAnswer] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -35,6 +40,13 @@ export default function AssistantPanel({ petId, onActionPrepared }) {
                 result.proposed_action?.id
             ) {
                 onActionPrepared?.(result.proposed_action)
+            }
+
+            if (
+                result.answer_type === "message_draft_prepared" &&
+                result.message_draft
+            ) {
+                onMessageDraftPrepared?.(result.message_draft)
             }
 
             setQuestion("")
@@ -127,6 +139,8 @@ export default function AssistantPanel({ petId, onActionPrepared }) {
 function AssistantAnswer({ answer }) {
     const isActionRequest = answer.answer_type === "action_request"
     const isPreparedAction = answer.answer_type === "action_prepared"
+    const isPreparedMessage =
+        answer.answer_type === "message_draft_prepared"
     const needsClarification = answer.answer_type === "clarification_needed"
 
     return (
@@ -148,7 +162,9 @@ function AssistantAnswer({ answer }) {
                             : "tomo-badge--success"
                     }`}
                 >
-                    {isPreparedAction
+                    {isPreparedMessage
+                        ? "Draft ready"
+                        : isPreparedAction
                         ? "Ready to review"
                         : needsClarification
                           ? "Needs details"

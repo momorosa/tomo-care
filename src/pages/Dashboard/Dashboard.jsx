@@ -4,6 +4,7 @@ import NotificationCard from "../../components/NotificationCard.jsx"
 import ReminderCard from "./ReminderCard.jsx"
 import AssistantPanel from "./AssistantPanel.jsx"
 import CareActionDialog from "./CareActionDialog.jsx"
+import LibrelaAppointmentMessageDialog from "./LibrelaAppointmentMessageDialog.jsx"
 import {
     approveCareAction,
     cancelCareAction,
@@ -228,6 +229,8 @@ export default function Dashboard() {
     const [careSummary, setCareSummary] = useState({})
     const [pendingActionCount, setPendingActionCount] = useState(0)
     const [actionFlow, setActionFlow] = useState(emptyActionFlow)
+    const [appointmentMessageDraft, setAppointmentMessageDraft] =
+        useState(null)
 
     const [result, setResult] = useState(null)
     const [checkingInbox, setCheckingInbox] = useState(false)
@@ -817,6 +820,9 @@ export default function Dashboard() {
                                 <AssistantPanel
                                     petId={PET_ID}
                                     onActionPrepared={reviewAssistantAction}
+                                    onMessageDraftPrepared={
+                                        setAppointmentMessageDraft
+                                    }
                                 />
                             </div>
                         </section>
@@ -917,6 +923,13 @@ export default function Dashboard() {
                 onRetryRecovery={recoverAction}
                 onDone={finishActionFlow}
             />
+
+            {appointmentMessageDraft && (
+                <LibrelaAppointmentMessageDialog
+                    draft={appointmentMessageDraft}
+                    onDismiss={() => setAppointmentMessageDraft(null)}
+                />
+            )}
         </main>
     )
 }

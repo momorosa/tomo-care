@@ -36,3 +36,24 @@ test("keeps Did I give Adequan as a factual status question", () => {
     assert.equal(plan.subject, "adequan")
     assert.equal(plan.requires_action, false)
 })
+
+test("routes an explicit Librela appointment-message request to draft preparation", () => {
+    const plan = buildQueryPlan(
+        "Draft an appointment request for Momo’s next Librela shot."
+    )
+
+    assert.equal(plan.intent, "librela_appointment_message")
+    assert.equal(plan.subject, "librela")
+    assert.equal(plan.scope, "trusted_librela_schedule")
+    assert.equal(plan.requires_action, true)
+})
+
+test("preserves the appointment-status and booking guardrail routes", () => {
+    const statusPlan = buildQueryPlan("Have we made a Librela appointment?")
+    const bookingPlan = buildQueryPlan(
+        "Can you book Momo's Librela appointment?"
+    )
+
+    assert.equal(statusPlan.intent, "appointment_status")
+    assert.equal(bookingPlan.intent, "action_request")
+})
