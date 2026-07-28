@@ -1,5 +1,6 @@
 import { google } from "googleapis"
 import "dotenv/config"
+import { getAppTimeZone } from "./lib/careDates.js"
 
 export const GOOGLE_CALENDAR_SCOPE =
     "https://www.googleapis.com/auth/calendar.events"
@@ -10,7 +11,7 @@ export function getGoogleCalendarConfig() {
     const refreshToken = process.env.GCAL_REFRESH_TOKEN
 
     const calendarId = process.env.GCAL_CALENDAR_ID || "primary"
-    const timezone = process.env.GCAL_TIMEZONE || "America/Los_Angeles"
+    const timezone = process.env.GCAL_TIMEZONE || getAppTimeZone()
 
     if (!clientId) {
         throw new Error("Missing GCAL_CLIENT_ID in .env.")

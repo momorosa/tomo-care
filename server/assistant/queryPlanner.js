@@ -1,8 +1,35 @@
 import { resolveDateRange } from "./dateRanges.js"
+import { parseHomeMedicationActionRequest } from "./homeMedicationAction.js"
+import { isLibrelaAppointmentMessageRequest } from "./librelaAppointmentMessage.js"
 
-export function buildQueryPlan(question) {
+export function buildQueryPlan(question, options = {}) {
     const q = question.toLowerCase()
     const dateRange = resolveDateRange(question)
+    const homeMedicationAction = parseHomeMedicationActionRequest(
+        question,
+        options
+    )
+
+    if (isLibrelaAppointmentMessageRequest(question)) {
+        return basePlan({
+            intent: "librela_appointment_message",
+            subject: "librela",
+            scope: "trusted_librela_schedule",
+            requires_action: true,
+            dateRange,
+        })
+    }
+
+    if (homeMedicationAction) {
+        return basePlan({
+            intent: "home_medication_given_action",
+            subject: homeMedicationAction.medication_subject,
+            scope: "planned_home_medication_reminders",
+            requires_action: true,
+            action: homeMedicationAction,
+            dateRange,
+        })
+    }
 
     if (isActionRequest(q)) {
         return basePlan({
@@ -199,6 +226,7 @@ function basePlan({
     scope = null,
     dateRange,
     requires_action = false,
+    action = null,
 }) {
     return {
         intent,
@@ -207,6 +235,7 @@ function basePlan({
         date_range: dateRange,
         trusted_only: true,
         requires_action,
+        action,
     }
 }
 
@@ -479,6 +508,7 @@ function isHomeMedicationAdministrationQuestion(q) {
     const asksGiven =
         q.includes("did i give") ||
         q.includes("did we give") ||
+        (q.includes("last") && q.includes("give")) ||
         q.includes("gave") ||
         q.includes("given") ||
         q.includes("administer") ||

@@ -86,7 +86,7 @@ export function enrichCitations(citations = [], context = {}) {
             display_value: getDisplayValue(citation, sourceRecord),
             display_date: citation.date || getRecordDate(sourceRecord),
 
-            source_title: sourceDoc?.title || "Source document",
+            source_title: getSourceTitle({ sourceDoc, citation, sourceRecord }),
             source_org: sourceDoc?.source_org || null,
             source_date: sourceDoc?.doc_date || null,
             source_pdf_available: Boolean(sourceDoc?.file_url),
@@ -109,6 +109,20 @@ function getDefaultTitle(citation) {
     if (citation.type === "verified_document") return "Verified document"
 
     return "Evidence"
+}
+
+function getSourceTitle({ sourceDoc, citation, sourceRecord }) {
+    if (sourceDoc?.title) return sourceDoc.title
+
+    if (
+        citation.table === "events" &&
+        sourceRecord?.details_json?.source === "owner_confirmation" &&
+        sourceRecord?.details_json?.care_action_id
+    ) {
+        return "Owner confirmation through an approved TomoCare action"
+    }
+
+    return "Trusted TomoCare record"
 }
 
 function getDisplayValue(citation, sourceRecord) {
@@ -189,6 +203,13 @@ function getEvidenceNote(citation, sourceRecord) {
     }
 
     if (citation.table === "events") {
+        if (
+            sourceRecord.details_json?.source === "owner_confirmation" &&
+            sourceRecord.details_json?.care_action_id
+        ) {
+            return "Verified owner confirmation recorded through the approved action."
+        }
+
         return "Trusted event from TomoCare records."
     }
 

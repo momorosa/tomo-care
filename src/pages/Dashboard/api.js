@@ -4,7 +4,13 @@ async function jsonOrThrow(response, fallbackMessage) {
     const data = await response.json()
 
     if (!response.ok || data.error) {
-        throw new Error(data.error || fallbackMessage)
+        const error = new Error(data.error || fallbackMessage)
+        error.status = response.status
+        error.reason = data.reason || null
+        error.recovery = data.recovery || null
+        error.retryable = Boolean(data.retryable)
+        error.outcomeUnknown = Boolean(data.outcome_unknown)
+        throw error
     }
 
     return data
@@ -51,6 +57,122 @@ export async function fetchVerifiedDocuments(petId) {
     )
 
     return data.documents || []
+}
+
+export async function fetchCareSummary(petId) {
+    const response = await fetch(`/api/pets/${petId}/care-summary`)
+    const data = await jsonOrThrow(response, "Could not load care summary")
+
+    return data.summary || {}
+}
+
+export async function syncReminderToGoogleCalendar(reminderId) {
+    const response = await fetch(
+        `/api/events/${reminderId}/actions/sync-google-calendar`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({}),
+        }
+    )
+
+    return jsonOrThrow(
+        response,
+        "Could not add the reminder to Google Calendar"
+    )
+}
+
+export async function prepareHomeMedicationGiven({
+    petId,
+    reminderId,
+    administeredDate,
+    requestedBy,
+}) {
+    const response = await fetch(
+        `/api/pets/${petId}/actions/home-medication-given/prepare`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+                reminderId,
+                administeredDate,
+                requestedBy,
+            }),
+        }
+    )
+
+    return jsonOrThrow(response, "Could not prepare the medication update")
+}
+
+export async function prepareInsuranceClaimFiled({
+    petId,
+    reminderId,
+    filedDate,
+    requestedBy,
+}) {
+    const response = await fetch(
+        `/api/pets/${petId}/actions/insurance-claim-filed/prepare`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+                reminderId,
+                filedDate,
+                requestedBy,
+            }),
+        }
+    )
+
+    return jsonOrThrow(
+        response,
+        "Could not prepare the insurance claim update"
+    )
+}
+
+export async function fetchCareAction(actionId) {
+    const response = await fetch(`/api/care-actions/${actionId}`)
+    return jsonOrThrow(response, "Could not recover the care action")
+}
+
+export async function fetchPendingCareActions(petId) {
+    const response = await fetch(`/api/pets/${petId}/care-actions/pending`)
+    const data = await jsonOrThrow(
+        response,
+        "Could not load pending care actions"
+    )
+
+    return {
+        count: data.pending_count || 0,
+        actions: data.pending_actions || [],
+    }
+}
+
+export async function approveCareAction(actionId, approvedBy) {
+    const response = await fetch(`/api/care-actions/${actionId}/approve`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ approvedBy }),
+    })
+
+    return jsonOrThrow(response, "Could not approve the care action")
+}
+
+export async function executeCareAction(actionId) {
+    const response = await fetch(`/api/care-actions/${actionId}/execute`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+    })
+
+    return jsonOrThrow(response, "Could not complete the care action")
+}
+
+export async function cancelCareAction(actionId) {
+    const response = await fetch(`/api/care-actions/${actionId}/cancel`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+    })
+
+    return jsonOrThrow(response, "Could not cancel the care action")
 }
 
 export async function askAssistant(petId, question) {

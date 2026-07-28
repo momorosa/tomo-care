@@ -1,6 +1,20 @@
-export default function ReminderCard({ reminder }) {
+export default function ReminderCard({
+    reminder,
+    onRecordGiven,
+    onMarkFiled,
+    onSyncCalendar,
+    calendarSync = null,
+}) {
     const hasCalendarLink = Boolean(reminder.google_calendar_url)
     const meta = getReminderMeta(reminder)
+    const canRecordGiven = isRecordableHomeMedication(reminder)
+    const canMarkFiled = isFileableInsuranceClaim(reminder)
+    const canSyncCalendar = isSyncableHomeMedication(reminder)
+    const isSyncingCalendar = calendarSync?.phase === "syncing"
+    const calendarSyncFailed = calendarSync?.phase === "error"
+    const calendarReauthorizationRequired =
+        calendarSync?.phase === "reauthorization_required"
+    const calendarSyncSucceeded = calendarSync?.phase === "synced"
 
     return (
         <div className={getCardClassName(reminder, meta)}>
@@ -33,17 +47,111 @@ export default function ReminderCard({ reminder }) {
                             )}
                         </div>
 
-                        {hasCalendarLink && (
-                            <a
-                                href={reminder.google_calendar_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={getReminderActionClassName(reminder)}
-                            >
-                                Open
-                            </a>
+                        {(hasCalendarLink ||
+                            canSyncCalendar ||
+                            canRecordGiven ||
+                            canMarkFiled) && (
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                {hasCalendarLink && (
+                                    <a
+                                        href={reminder.google_calendar_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={getReminderActionClassName(reminder)}
+                                    >
+                                        Open calendar
+                                    </a>
+                                )}
+
+                                {canSyncCalendar && (
+                                    <button
+                                        type="button"
+                                        className="tomo-btn tomo-btn-secondary shrink-0 gap-2 px-4 py-1.5 text-xs font-semibold"
+                                        onClick={() => onSyncCalendar?.(reminder)}
+                                        disabled={isSyncingCalendar}
+                                    >
+                                        {isSyncingCalendar && (
+                                            <span
+                                                className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                        {isSyncingCalendar
+                                            ? "Adding…"
+                                            : calendarSyncFailed ||
+                                                calendarReauthorizationRequired
+                                              ? "Try again"
+                                              : "Add to calendar"}
+                                    </button>
+                                )}
+
+                                {canRecordGiven && (
+                                    <button
+                                        type="button"
+                                        className="tomo-btn tomo-btn-primary shrink-0 px-4 py-1.5 text-xs font-semibold"
+                                        onClick={() => onRecordGiven?.(reminder)}
+                                    >
+                                        Mark as given
+                                    </button>
+                                )}
+
+                                {canMarkFiled && (
+                                    <button
+                                        type="button"
+                                        className="tomo-btn tomo-btn-primary shrink-0 px-4 py-1.5 text-xs font-semibold"
+                                        onClick={() => onMarkFiled?.(reminder)}
+                                    >
+                                        Mark as filed
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
+
+                    {calendarSyncFailed && (
+                        <p
+                            className="mt-3 text-xs leading-5 text-tomo-danger"
+                            role="status"
+                        >
+                            Couldn’t add this reminder to Google Calendar. Momo’s
+                            reminder is still saved in TomoCare.
+                        </p>
+                    )}
+
+                    {calendarReauthorizationRequired && (
+                        <div
+                            className="mt-3 rounded-xl border border-tomo-warning/30 bg-tomo-warning/10 p-4 text-sm text-tomo-text"
+                            role="status"
+                        >
+                            <p className="font-semibold text-tomo-text-h">
+                                Reconnect Google Calendar
+                            </p>
+                            <p className="mt-1 leading-6">
+                                Your Google authorization expired. Momo’s
+                                reminder is still saved in TomoCare.
+                            </p>
+                            <p className="mt-3 text-xs leading-5">
+                                From the TomoCare project folder, run:
+                            </p>
+                            <code className="mt-1 block overflow-x-auto rounded-lg bg-tomo-code px-3 py-2 text-xs text-tomo-text-h">
+                                node server/scripts/get-gcal-refresh-token.js
+                            </code>
+                            <p className="mt-2 text-xs leading-5">
+                                Replace <code>GCAL_REFRESH_TOKEN</code> in{" "}
+                                <code>.env</code>, restart TomoCare, then add the
+                                reminder to Calendar again.
+                            </p>
+                        </div>
+                    )}
+
+                    {calendarSyncSucceeded && (
+                        <p
+                            className="mt-3 text-xs leading-5 text-tomo-success"
+                            role="status"
+                        >
+                            Added to Google Calendar.
+                        </p>
+                    )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                         <ReminderPill tone={meta.tone}>
@@ -85,6 +193,35 @@ export default function ReminderCard({ reminder }) {
                 </div>
             </div>
         </div>
+    )
+}
+
+function isRecordableHomeMedication(reminder) {
+    const details = reminder.details_json || {}
+
+    return (
+        details.reminder_type === "home_medication" &&
+        details.requires_appointment === false &&
+        ["due_now", "overdue"].includes(reminder.timing_state)
+    )
+}
+
+function isSyncableHomeMedication(reminder) {
+    const details = reminder.details_json || {}
+
+    return (
+        details.reminder_type === "home_medication" &&
+        details.requires_appointment === false &&
+        reminder.calendar_sync_status !== "synced" &&
+        !reminder.google_calendar_url &&
+        ["upcoming", "due_now"].includes(reminder.timing_state)
+    )
+}
+
+function isFileableInsuranceClaim(reminder) {
+    return (
+        reminder.details_json?.subtype === "Insurance claim" &&
+        reminder.status !== "completed"
     )
 }
 

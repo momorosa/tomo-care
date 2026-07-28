@@ -5,6 +5,16 @@ import {
     getGoogleCalendarConfig,
     getGoogleCalendarService,
 } from "../googleCalendar.js"
+import {
+    buildHomeMedicationCalendarDescription,
+    getStableGoogleCalendarEventId,
+    isHomeMedicationReminder,
+} from "../calendar/reminderCalendar.js"
+import {
+    toGoogleCalendarErrorResponse,
+    toSafeGoogleCalendarErrorLog,
+} from "../calendar/googleCalendarError.js"
+import { getCareDate } from "../lib/careDates.js"
 
 const router = express.Router()
 
@@ -71,7 +81,7 @@ function addMinutes(date, minutes) {
 }
 
 function getReminderTimingState({ reminderDate, dueDate }) {
-    const today = formatIsoDate(new Date())
+    const today = getCareDate()
 
     if (dueDate < today) return "overdue"
     if (reminderDate < today) return "reminder_window_passed"
@@ -79,7 +89,7 @@ function getReminderTimingState({ reminderDate, dueDate }) {
 }
 
 function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
-    const today = formatIsoDate(new Date())
+    const today = getCareDate()
 
     if (claimDeadlineDate < today) return "claim_window_expired"
     if (targetSubmitDate <= today) return "due_now"
@@ -87,7 +97,7 @@ function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
 }
 
 function getHomeMedicationTimingState({ reminderDate, targetAdminDate }) {
-    const today = formatIsoDate(new Date())
+    const today = getCareDate()
 
     if (!targetAdminDate || !reminderDate) return "unknown"
 
@@ -190,6 +200,10 @@ function buildCalendarTitle(event) {
 
 function buildCalendarDescription(event) {
     const details = event?.details_json || {}
+
+    if (isHomeMedicationReminder(event)) {
+        return buildHomeMedicationCalendarDescription(event)
+    }
 
     const lines = [
         "TomoCare reminder",
@@ -570,7 +584,7 @@ router.post(
                 treatmentDate,
                 INSURANCE_ELIGIBILITY_WINDOW_DAYS
             )
-            const today = formatIsoDate(new Date())
+            const today = getCareDate()
 
             if (claimDeadlineDate < today) {
                 return res.status(409).json({
@@ -796,13 +810,34 @@ router.post(
                 action = "updated"
                 calendarEvent = updated.data
             } else {
-                const created = await calendar.events.insert({
-                    calendarId,
-                    requestBody: calendarPayload,
-                })
+                const stableGoogleCalendarEventId =
+                    getStableGoogleCalendarEventId(event.id)
 
-                action = "created"
-                calendarEvent = created.data
+                try {
+                    const created = await calendar.events.insert({
+                        calendarId,
+                        requestBody: {
+                            ...calendarPayload,
+                            id: stableGoogleCalendarEventId,
+                        },
+                    })
+
+                    action = "created"
+                    calendarEvent = created.data
+                } catch (insertError) {
+                    if (Number(insertError?.code) !== 409) {
+                        throw insertError
+                    }
+
+                    const updated = await calendar.events.update({
+                        calendarId,
+                        eventId: stableGoogleCalendarEventId,
+                        requestBody: calendarPayload,
+                    })
+
+                    action = "updated"
+                    calendarEvent = updated.data
+                }
             }
 
             const nowIso = new Date().toISOString()
@@ -859,15 +894,13 @@ router.post(
                 },
             })
         } catch (err) {
-            console.error("[sync-google-calendar] error:", err)
+            console.error(
+                "[sync-google-calendar] error:",
+                toSafeGoogleCalendarErrorLog(err)
+            )
 
-            res.status(500).json({
-                ok: false,
-                error:
-                    err?.message ||
-                    "Failed to sync reminder to Google Calendar.",
-                code: err?.code || null,
-            })
+            const response = toGoogleCalendarErrorResponse(err)
+            res.status(response.status).json(response.body)
         }
     }
 )
@@ -878,13 +911,13 @@ router.get("/debug/google-calendar", async (req, res) => {
         const result = await verifyGoogleCalendarConnection()
         res.json(result)
     } catch (err) {
-        console.error("[google-calendar-health] error:", err)
+        console.error(
+            "[google-calendar-health] error:",
+            toSafeGoogleCalendarErrorLog(err)
+        )
 
-        res.status(500).json({
-            ok: false,
-            error: err?.message || "Failed to connect to Google Calendar.",
-            code: err?.code || null,
-        })
+        const response = toGoogleCalendarErrorResponse(err)
+        res.status(response.status).json(response.body)
     }
 })
 

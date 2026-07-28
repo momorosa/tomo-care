@@ -3,14 +3,41 @@ import { Link, useNavigate } from "react-router-dom"
 import NotificationCard from "../../components/NotificationCard.jsx"
 import ReminderCard from "./ReminderCard.jsx"
 import AssistantPanel from "./AssistantPanel.jsx"
+import CareActionDialog from "./CareActionDialog.jsx"
+import LibrelaAppointmentMessageDialog from "./LibrelaAppointmentMessageDialog.jsx"
 import {
+    approveCareAction,
+    cancelCareAction,
     checkInboxForDocuments,
+    executeCareAction,
+    fetchCareAction,
+    fetchCareSummary,
+    fetchPendingCareActions,
     fetchPendingReviewDocuments,
     fetchReminders,
     fetchVerifiedDocuments,
+    prepareHomeMedicationGiven,
+    prepareInsuranceClaimFiled,
+    syncReminderToGoogleCalendar,
 } from "./api.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const CARE_ACTOR = "Rosa"
+const ACTIVE_ACTION_STORAGE_KEY = "tomocare.active-care-action-id"
+const MARK_HOME_MEDICATION_GIVEN = "mark_home_medication_given"
+const MARK_INSURANCE_CLAIM_FILED = "mark_insurance_claim_filed"
+
+function emptyActionFlow() {
+    return {
+        phase: "idle",
+        reminder: null,
+        action: null,
+        actionType: null,
+        selectedDate: getPacificCareDate(),
+        execution: null,
+        error: null,
+    }
+}
 
 function normalizeReviewDocuments(result) {
     if (!result?.reviewDocuments || !Array.isArray(result.reviewDocuments)) {
@@ -113,6 +140,10 @@ function RemindersSection({
     error,
     onRefresh,
     refreshing,
+    onRecordGiven,
+    onMarkFiled,
+    onSyncCalendar,
+    calendarSyncByReminder,
 }) {
     return (
         <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
@@ -126,7 +157,8 @@ function RemindersSection({
 
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
                         Approved reminders live here after TomoCare prepares them.
-                        Calendar links appear only after you approve the sync.
+                        Add home-medication reminders to Google Calendar whenever
+                        you’re ready.
                     </p>
                 </div>
 
@@ -174,6 +206,12 @@ function RemindersSection({
                         <ReminderCard
                             key={reminder.id}
                             reminder={reminder}
+                            onRecordGiven={onRecordGiven}
+                            onMarkFiled={onMarkFiled}
+                            onSyncCalendar={onSyncCalendar}
+                            calendarSync={
+                                calendarSyncByReminder[reminder.id] || null
+                            }
                         />
                     ))}
                 </div>
@@ -188,6 +226,11 @@ export default function Dashboard() {
     const [pendingReviewDocs, setPendingReviewDocs] = useState([])
     const [reminders, setReminders] = useState([])
     const [verifiedDocuments, setVerifiedDocuments] = useState([])
+    const [careSummary, setCareSummary] = useState({})
+    const [pendingActionCount, setPendingActionCount] = useState(0)
+    const [actionFlow, setActionFlow] = useState(emptyActionFlow)
+    const [appointmentMessageDraft, setAppointmentMessageDraft] =
+        useState(null)
 
     const [result, setResult] = useState(null)
     const [checkingInbox, setCheckingInbox] = useState(false)
@@ -197,6 +240,7 @@ export default function Dashboard() {
 
     const [loadingReminders, setLoadingReminders] = useState(false)
     const [refreshingReminders, setRefreshingReminders] = useState(false)
+    const [calendarSyncByReminder, setCalendarSyncByReminder] = useState({})
 
     const loadPendingReviewDocs = useCallback(async () => {
         try {
@@ -213,6 +257,24 @@ export default function Dashboard() {
             setVerifiedDocuments(documents)
         } catch (err) {
             console.error("[dashboard] verified documents load failed:", err)
+        }
+    }, [])
+
+    const loadCareSummary = useCallback(async () => {
+        try {
+            const summary = await fetchCareSummary(PET_ID)
+            setCareSummary(summary)
+        } catch (err) {
+            console.error("[dashboard] care summary load failed:", err)
+        }
+    }, [])
+
+    const loadPendingCareActions = useCallback(async () => {
+        try {
+            const result = await fetchPendingCareActions(PET_ID)
+            setPendingActionCount(result.count)
+        } catch (err) {
+            console.error("[dashboard] pending action load failed:", err)
         }
     }, [])
 
@@ -239,8 +301,82 @@ export default function Dashboard() {
     useEffect(() => {
         loadPendingReviewDocs()
         loadVerifiedDocuments()
+        loadCareSummary()
+        loadPendingCareActions()
         loadReminders()
-    }, [loadPendingReviewDocs, loadVerifiedDocuments, loadReminders])
+    }, [
+        loadPendingReviewDocs,
+        loadVerifiedDocuments,
+        loadCareSummary,
+        loadPendingCareActions,
+        loadReminders,
+    ])
+
+    useEffect(() => {
+        const actionId = window.sessionStorage.getItem(ACTIVE_ACTION_STORAGE_KEY)
+        if (!actionId) return
+
+        let active = true
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "recovering",
+            error: null,
+        }))
+
+        fetchCareAction(actionId)
+            .then((data) => {
+                if (!active) return
+
+                const action = data.care_action
+                const nextPhase = getRecoveredActionPhase(action)
+
+                if (nextPhase === "idle") {
+                    clearStoredAction()
+                    setActionFlow(emptyActionFlow())
+                    return
+                }
+
+                setActionFlow((current) => ({
+                    ...current,
+                    phase: nextPhase,
+                    action,
+                    actionType: action.action_type,
+                    reminder: buildRecoveredReminder(action),
+                    selectedDate:
+                        getActionDate(action) || current.selectedDate,
+                    execution:
+                        action?.status === "succeeded"
+                            ? { result: action.result_json }
+                            : null,
+                    error:
+                        nextPhase === "recovery_error"
+                            ? new Error(
+                                  "TomoCare could not confirm a final action state yet."
+                              )
+                            : null,
+                }))
+            })
+            .catch((error) => {
+                if (!active) return
+
+                if (error.status === 404) {
+                    clearStoredAction()
+                    setActionFlow(emptyActionFlow())
+                    return
+                }
+
+                setActionFlow((current) => ({
+                    ...current,
+                    phase: "recovery_error",
+                    error,
+                }))
+            })
+
+        return () => {
+            active = false
+        }
+    }, [])
 
     const latestReviewDocuments = useMemo(
         () => normalizeReviewDocuments(result),
@@ -273,12 +409,325 @@ export default function Dashboard() {
             }
 
             await loadVerifiedDocuments()
+            await loadCareSummary()
             await loadReminders({ silent: true })
         } catch (err) {
             setError(err.message)
         } finally {
             setCheckingInbox(false)
         }
+    }
+
+    async function syncReminderCalendar(reminder) {
+        setCalendarSyncByReminder((current) => ({
+            ...current,
+            [reminder.id]: {
+                phase: "syncing",
+            },
+        }))
+
+        try {
+            await syncReminderToGoogleCalendar(reminder.id)
+            await loadReminders({ silent: true })
+
+            setCalendarSyncByReminder((current) => ({
+                ...current,
+                [reminder.id]: {
+                    phase: "synced",
+                },
+            }))
+        } catch (error) {
+            console.error("[dashboard] calendar sync failed:", error)
+
+            setCalendarSyncByReminder((current) => ({
+                ...current,
+                [reminder.id]: {
+                    phase:
+                        error.recovery === "reauthorize_google_calendar"
+                            ? "reauthorization_required"
+                            : "error",
+                },
+            }))
+        }
+    }
+
+    function beginCareAction(reminder, actionType) {
+        if (
+            actionFlow.action &&
+            actionFlow.action.source_event_id === reminder.id &&
+            actionFlow.action.action_type === actionType &&
+            ["proposed", "approved", "succeeded"].includes(
+                actionFlow.action.status
+            )
+        ) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(current.action),
+                error: null,
+            }))
+            return
+        }
+
+        setActionFlow({
+            ...emptyActionFlow(),
+            phase: "choosing",
+            reminder,
+            actionType,
+        })
+    }
+
+    function reviewAssistantAction(action) {
+        storeActiveAction(action.id)
+        void loadPendingCareActions()
+
+        setActionFlow({
+            ...emptyActionFlow(),
+            phase: getRecoveredActionPhase(action),
+            reminder: buildRecoveredReminder(action),
+            action,
+            actionType: action.action_type,
+            selectedDate: getActionDate(action) || getPacificCareDate(),
+            execution:
+                action.status === "succeeded"
+                    ? { result: action.result_json }
+                    : null,
+        })
+    }
+
+    async function prepareAction(event) {
+        event.preventDefault()
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "preparing",
+            error: null,
+        }))
+
+        try {
+            const data =
+                actionFlow.actionType === MARK_INSURANCE_CLAIM_FILED
+                    ? await prepareInsuranceClaimFiled({
+                          petId: PET_ID,
+                          reminderId: actionFlow.reminder.id,
+                          filedDate: actionFlow.selectedDate,
+                          requestedBy: CARE_ACTOR,
+                      })
+                    : await prepareHomeMedicationGiven({
+                          petId: PET_ID,
+                          reminderId: actionFlow.reminder.id,
+                          administeredDate: actionFlow.selectedDate,
+                          requestedBy: CARE_ACTOR,
+                      })
+            const action = data.proposed_action
+
+            storeActiveAction(action.id)
+
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(action),
+                action,
+                actionType: action.action_type,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: null,
+            }))
+            await loadPendingCareActions()
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: "choosing",
+                error,
+            }))
+        }
+    }
+
+    async function cancelProposal({ returnToDate = false } = {}) {
+        const actionId = actionFlow.action?.id
+
+        if (!actionId) {
+            setActionFlow((current) => ({
+                ...emptyActionFlow(),
+                phase: returnToDate ? "choosing" : "idle",
+                reminder: returnToDate ? current.reminder : null,
+                actionType: returnToDate ? current.actionType : null,
+                selectedDate: current.selectedDate,
+            }))
+            return
+        }
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: returnToDate ? "cancelling" : "dismissing",
+            error: null,
+        }))
+
+        try {
+            await cancelCareAction(actionId)
+            clearStoredAction()
+            await loadPendingCareActions()
+
+            setActionFlow((current) => ({
+                ...emptyActionFlow(),
+                phase: returnToDate ? "choosing" : "idle",
+                reminder: returnToDate ? current.reminder : null,
+                actionType: returnToDate ? current.actionType : null,
+                selectedDate: current.selectedDate,
+            }))
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(current.action),
+                error,
+            }))
+        }
+    }
+
+    async function approveAndExecuteAction() {
+        const actionId = actionFlow.action?.id
+        if (!actionId) return
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "approving",
+            error: null,
+        }))
+
+        let approvedAction
+
+        try {
+            const approval = await approveCareAction(actionId, CARE_ACTOR)
+            approvedAction = approval.approved_action
+            setActionFlow((current) => ({
+                ...current,
+                phase: "executing",
+                action: approvedAction,
+            }))
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: "reviewing",
+                error,
+            }))
+            return
+        }
+
+        await runApprovedAction(approvedAction)
+    }
+
+    async function executeApprovedAction() {
+        if (!actionFlow.action?.id) return
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "executing",
+            error: null,
+        }))
+
+        await runApprovedAction(actionFlow.action)
+    }
+
+    async function runApprovedAction(approvedAction) {
+        try {
+            const executionResult = await executeCareAction(approvedAction.id)
+
+            setActionFlow((current) => ({
+                ...current,
+                phase: "succeeded",
+                action: {
+                    ...approvedAction,
+                    status: "succeeded",
+                    result_json: executionResult.execution.result,
+                },
+                execution: executionResult.execution,
+                error: null,
+            }))
+
+            await Promise.all([
+                loadReminders({ silent: true }),
+                loadCareSummary(),
+                loadPendingCareActions(),
+            ])
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: error.outcomeUnknown ? "recovery_error" : "approved",
+                action: approvedAction,
+                error,
+            }))
+        }
+    }
+
+    async function recoverAction() {
+        const actionId = actionFlow.action?.id ||
+            window.sessionStorage.getItem(ACTIVE_ACTION_STORAGE_KEY)
+
+        if (!actionId) {
+            setActionFlow(emptyActionFlow())
+            return
+        }
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "recovering",
+            error: null,
+        }))
+
+        try {
+            const data = await fetchCareAction(actionId)
+            const action = data.care_action
+
+            setActionFlow((current) => ({
+                ...current,
+                phase: getRecoveredActionPhase(action),
+                action,
+                actionType: action.action_type,
+                reminder: current.reminder || buildRecoveredReminder(action),
+                selectedDate:
+                    getActionDate(action) || current.selectedDate,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: null,
+            }))
+
+            if (action.status === "succeeded") {
+                await Promise.all([
+                    loadReminders({ silent: true }),
+                    loadCareSummary(),
+                ])
+            }
+        } catch (error) {
+            setActionFlow((current) => ({
+                ...current,
+                phase: "recovery_error",
+                error,
+            }))
+        }
+    }
+
+    async function dismissActionDialog() {
+        if (actionFlow.action?.status === "proposed") {
+            await cancelProposal()
+            return
+        }
+
+        if (!actionFlow.action) {
+            clearStoredAction()
+        }
+
+        setActionFlow((current) => ({
+            ...current,
+            phase: "idle",
+            error: null,
+        }))
+    }
+
+    function finishActionFlow() {
+        clearStoredAction()
+        setActionFlow(emptyActionFlow())
     }
 
     return (
@@ -357,12 +806,24 @@ export default function Dashboard() {
                                 <StatusTile
                                     tone="brand"
                                     label="Actions"
-                                    value="Gated"
+                                    value={
+                                        pendingActionCount > 0
+                                            ? `${pendingActionCount} pending`
+                                            : actionFlow.phase === "idle"
+                                              ? "Gated"
+                                              : "In review"
+                                    }
                                 />
                             </div>
 
                             <div className="mt-8">
-                                <AssistantPanel petId={PET_ID} />
+                                <AssistantPanel
+                                    petId={PET_ID}
+                                    onActionPrepared={reviewAssistantAction}
+                                    onMessageDraftPrepared={
+                                        setAppointmentMessageDraft
+                                    }
+                                />
                             </div>
                         </section>
 
@@ -410,6 +871,22 @@ export default function Dashboard() {
                                 error={remindersError}
                                 refreshing={refreshingReminders}
                                 onRefresh={() => loadReminders({ silent: true })}
+                                onRecordGiven={(reminder) =>
+                                    beginCareAction(
+                                        reminder,
+                                        MARK_HOME_MEDICATION_GIVEN
+                                    )
+                                }
+                                onMarkFiled={(reminder) =>
+                                    beginCareAction(
+                                        reminder,
+                                        MARK_INSURANCE_CLAIM_FILED
+                                    )
+                                }
+                                onSyncCalendar={syncReminderCalendar}
+                                calendarSyncByReminder={
+                                    calendarSyncByReminder
+                                }
                             />
                         </div>
                     </div>
@@ -417,9 +894,42 @@ export default function Dashboard() {
                     <CareRail
                         reminders={reminders}
                         verifiedDocuments={verifiedDocuments}
+                        careSummary={careSummary}
                     />
                 </div>
             </div>
+
+            <CareActionDialog
+                {...actionFlow}
+                maxDate={getPacificCareDate()}
+                minDate={
+                    actionFlow.actionType === MARK_INSURANCE_CLAIM_FILED
+                        ? actionFlow.reminder?.details_json?.treatment_date
+                        : undefined
+                }
+                onDateChange={(selectedDate) =>
+                    setActionFlow((current) => ({
+                        ...current,
+                        selectedDate,
+                        error: null,
+                    }))
+                }
+                onPrepare={prepareAction}
+                onDismiss={dismissActionDialog}
+                onChangeDate={() => cancelProposal({ returnToDate: true })}
+                onCancelProposal={() => cancelProposal()}
+                onApproveAndExecute={approveAndExecuteAction}
+                onExecute={executeApprovedAction}
+                onRetryRecovery={recoverAction}
+                onDone={finishActionFlow}
+            />
+
+            {appointmentMessageDraft && (
+                <LibrelaAppointmentMessageDialog
+                    draft={appointmentMessageDraft}
+                    onDismiss={() => setAppointmentMessageDraft(null)}
+                />
+            )}
         </main>
     )
 }
@@ -450,7 +960,7 @@ function StatusTile({ label, value, tone = "neutral" }) {
     )
 }
 
-function CareRail({ reminders, verifiedDocuments = [] }) {
+function CareRail({ reminders, verifiedDocuments = [], careSummary = {} }) {
     const activeReminderCount = reminders?.length || 0
 
     return (
@@ -475,8 +985,18 @@ function CareRail({ reminders, verifiedDocuments = [] }) {
                     </div>
 
                     <div className="mt-6 overflow-hidden rounded-xl border border-tomo-border">
-                        <CareContextRow label="Last verified" value="Apr 14" />
-                        <CareContextRow label="Last Librela" value="Apr 14" />
+                        <CareContextRow
+                            label="Latest verified care"
+                            value={formatCompactDate(
+                                careSummary.latest_verified_care?.event_date
+                            )}
+                        />
+                        <CareContextRow
+                            label="Last Librela"
+                            value={formatCompactDate(
+                                careSummary.last_librela?.event_date
+                            )}
+                        />
                         <CareContextRow
                             label="Active reminders"
                             value={activeReminderCount}
@@ -524,6 +1044,81 @@ function CareRail({ reminders, verifiedDocuments = [] }) {
             </div>
         </aside>
     )
+}
+
+function getPacificCareDate() {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(new Date())
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+
+    return `${values.year}-${values.month}-${values.day}`
+}
+
+function getRecoveredActionPhase(action) {
+    if (action?.status === "proposed") return "reviewing"
+    if (action?.status === "approved") return "approved"
+    if (action?.status === "succeeded") return "succeeded"
+    if (action?.status === "executing") return "recovery_error"
+
+    return "idle"
+}
+
+function getActionDate(action) {
+    if (action?.action_type === MARK_INSURANCE_CLAIM_FILED) {
+        return action.preview_json?.filed_date || null
+    }
+
+    return action?.preview_json?.administered_date || null
+}
+
+function buildRecoveredReminder(action) {
+    if (!action?.source_event_id) return null
+
+    if (action.action_type === MARK_INSURANCE_CLAIM_FILED) {
+        return {
+            id: action.source_event_id,
+            title: "Insurance claim",
+            details_json: {
+                subtype: "Insurance claim",
+                insurance_provider:
+                    action.preview_json?.insurance_provider || "Insurance",
+                treatment_date: action.preview_json?.treatment_date || null,
+            },
+        }
+    }
+
+    return {
+        id: action.source_event_id,
+        title: action.preview_json?.care_item || "Home medication",
+        details_json: {
+            reminder_type: "home_medication",
+            care_item: action.preview_json?.care_item || "Home medication",
+        },
+    }
+}
+
+function storeActiveAction(actionId) {
+    window.sessionStorage.setItem(ACTIVE_ACTION_STORAGE_KEY, actionId)
+}
+
+function clearStoredAction() {
+    window.sessionStorage.removeItem(ACTIVE_ACTION_STORAGE_KEY)
+}
+
+function formatCompactDate(value) {
+    if (!value) return "—"
+
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return value
+
+    return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+    }).format(date)
 }
 
 function CareContextRow({ label, value }) {

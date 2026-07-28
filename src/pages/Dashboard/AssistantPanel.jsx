@@ -5,11 +5,16 @@ import EvidenceCard from "./EvidenceCard.jsx"
 const SUGGESTED_QUESTIONS = [
     "When was Momo last given Librela?",
     "When is Momo next due for Librela?",
+    "Draft a Librela appointment request.",
     "What reminders are active?",
     "How much have I spent on Librela?",
 ]
 
-export default function AssistantPanel({ petId }) {
+export default function AssistantPanel({
+    petId,
+    onActionPrepared,
+    onMessageDraftPrepared,
+}) {
     const [question, setQuestion] = useState("")
     const [answer, setAnswer] = useState(null)
     const [loading, setLoading] = useState(false)
@@ -29,6 +34,21 @@ export default function AssistantPanel({ petId }) {
                 question: trimmedQuestion,
                 ...result,
             })
+
+            if (
+                result.answer_type === "action_prepared" &&
+                result.proposed_action?.id
+            ) {
+                onActionPrepared?.(result.proposed_action)
+            }
+
+            if (
+                result.answer_type === "message_draft_prepared" &&
+                result.message_draft
+            ) {
+                onMessageDraftPrepared?.(result.message_draft)
+            }
+
             setQuestion("")
         } catch (err) {
             setError(err?.message || "TomoCare could not answer right now.")
@@ -51,13 +71,14 @@ export default function AssistantPanel({ petId }) {
                         Ask from Momo’s trusted records
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
-                        Phase 3A is read-only. TomoCare can answer from verified records,
-                        cite what it used, and route action requests back to approval.
+                        TomoCare can answer from verified records and prepare
+                        supported updates for your review. Nothing changes without
+                        your approval.
                     </p>
                 </div>
 
                 <span className="tomo-badge tomo-badge--brand shrink-0">
-                    Verified data only
+                    Verified data + approval
                 </span>
             </div>
 
@@ -65,7 +86,7 @@ export default function AssistantPanel({ petId }) {
                 <input
                     value={question}
                     onChange={(event) => setQuestion(event.target.value)}
-                    placeholder="Ask about Librela, reminders, spend, or verified records..."
+                    placeholder="Ask about Momo’s care, or say “I gave Simparica today.”"
                     className="
                         min-h-11 flex-1 rounded-xl border border-tomo-border
                         bg-white/[0.025] px-4 py-2 text-sm text-tomo-text-h
@@ -117,6 +138,10 @@ export default function AssistantPanel({ petId }) {
 
 function AssistantAnswer({ answer }) {
     const isActionRequest = answer.answer_type === "action_request"
+    const isPreparedAction = answer.answer_type === "action_prepared"
+    const isPreparedMessage =
+        answer.answer_type === "message_draft_prepared"
+    const needsClarification = answer.answer_type === "clarification_needed"
 
     return (
         <div className="mt-6 rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
@@ -132,10 +157,20 @@ function AssistantAnswer({ answer }) {
 
                 <span
                     className={`tomo-badge ${
-                        isActionRequest ? "tomo-badge--warning" : "tomo-badge--success"
+                        isActionRequest || needsClarification
+                            ? "tomo-badge--warning"
+                            : "tomo-badge--success"
                     }`}
                 >
-                    {isActionRequest ? "Approval required" : "Grounded answer"}
+                    {isPreparedMessage
+                        ? "Draft ready"
+                        : isPreparedAction
+                        ? "Ready to review"
+                        : needsClarification
+                          ? "Needs details"
+                          : isActionRequest
+                            ? "Approval required"
+                            : "Grounded answer"}
                 </span>
             </div>
 
@@ -175,7 +210,7 @@ function AssistantAnswer({ answer }) {
                 </div>
             )}
 
-            {answer.proposed_action && (
+            {answer.proposed_action && !isPreparedAction && (
                 <div className="mt-5 rounded-xl border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] px-4 py-3">
                     <p className="text-xs uppercase tracking-[0.18em] text-tomo-warning">
                         Routed to approval gate
