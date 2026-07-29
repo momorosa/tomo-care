@@ -194,7 +194,13 @@ test("does not claim success when a succeeded action is missing its result", asy
 })
 
 test("blocks actions that have not been approved", async () => {
-    for (const status of ["proposed", "executing", "failed", "cancelled"]) {
+    for (const status of [
+        "proposed",
+        "executing",
+        "failed",
+        "outcome_unknown",
+        "cancelled",
+    ]) {
         const repository = buildRepository({
             action: buildAction({ status }),
         })

@@ -1,5 +1,11 @@
 import { MARK_HOME_MEDICATION_GIVEN } from "./homeMedicationGiven.js"
 import { MARK_INSURANCE_CLAIM_FILED } from "./insuranceClaimFiled.js"
+import { SEND_LIBRELA_APPOINTMENT_REQUEST } from "./librelaAppointmentRequest.js"
+import {
+    LibrelaAppointmentExecutionError,
+    executeSendLibrelaAppointmentRequest,
+} from "./executeLibrelaAppointmentRequest.js"
+import { createOutboundMessageProvider } from "../messaging/outboundMessageProvider.js"
 import { getCareDate } from "../lib/careDates.js"
 
 const EXECUTION_ACTOR = "tomo-care-backend"
@@ -85,6 +91,7 @@ export async function executeCareAction({
     repository,
     actionId,
     currentCareDate = getCareDate(),
+    outboundMessageProvider,
 }) {
     assertRepository(repository)
     assertRequiredString(actionId, "actionId")
@@ -98,6 +105,67 @@ export async function executeCareAction({
             message: "The care action was not found.",
             recovery: "refresh",
         })
+    }
+
+    if (action.action_type === SEND_LIBRELA_APPOINTMENT_REQUEST) {
+        let execution
+
+        try {
+            execution = await executeSendLibrelaAppointmentRequest({
+                repository,
+                actionId: action.id,
+                provider:
+                    outboundMessageProvider ||
+                    createOutboundMessageProvider(),
+            })
+        } catch (error) {
+            if (error instanceof LibrelaAppointmentExecutionError) {
+                throw executionError({
+                    status: error.status,
+                    reason: error.reason,
+                    message: error.message,
+                    recovery: error.recovery,
+                    retryable: error.retryable,
+                    outcomeUnknown: error.outcomeUnknown,
+                    cause: error,
+                })
+            }
+
+            throw executionError({
+                status: 503,
+                reason: "delivery_outcome_unknown",
+                message:
+                    "TomoCare could not complete or confirm the outbound delivery workflow. The action must be reviewed before any new send attempt.",
+                recovery: "review_delivery",
+                retryable: false,
+                outcomeUnknown: true,
+                cause: error,
+            })
+        }
+
+        if (
+            !execution ||
+            !["executed", "existing"].includes(execution.disposition) ||
+            execution.status !== "succeeded" ||
+            !execution.result
+        ) {
+            throw executionError({
+                status: 502,
+                reason: "invalid_execution_response",
+                message:
+                    "TomoCare received an incomplete message result. Review the action before continuing.",
+                recovery: "review_delivery",
+                outcomeUnknown: true,
+            })
+        }
+
+        return {
+            disposition: execution.disposition,
+            actionId: execution.action_id,
+            actionType: action.action_type,
+            status: execution.status,
+            result: execution.result,
+        }
     }
 
     const executionMethod = EXECUTION_METHODS[action.action_type]

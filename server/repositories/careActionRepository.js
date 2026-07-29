@@ -6,6 +6,23 @@ const REMINDER_RETURN_COLUMNS =
 const VERIFIED_DOCUMENT_RETURN_COLUMNS =
     "id, pet_id, title, doc_type, doc_date, source_org, status"
 
+const EVENT_RETURN_COLUMNS =
+    "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
+
+const PROVIDER_CONTACT_RETURN_COLUMNS = [
+    "id",
+    "organization_name",
+    "channel",
+    "address",
+    "verification_status",
+    "verification_source",
+    "verified_by",
+    "verified_at",
+    "is_active",
+    "created_at",
+    "updated_at",
+].join(", ")
+
 const CARE_ACTION_RETURN_COLUMNS = [
     "id",
     "pet_id",
@@ -87,6 +104,45 @@ export const careActionRepository = {
             .eq("id", documentId)
             .eq("pet_id", petId)
             .eq("status", "verified")
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findEvent({ petId, eventId }) {
+        const { data, error } = await sbAdmin
+            .from("events")
+            .select(EVENT_RETURN_COLUMNS)
+            .eq("id", eventId)
+            .eq("pet_id", petId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findVerifiedProviderContacts({ organizationName, channel }) {
+        const { data, error } = await sbAdmin
+            .from("provider_contacts")
+            .select(PROVIDER_CONTACT_RETURN_COLUMNS)
+            .eq("organization_name", organizationName)
+            .eq("channel", channel)
+            .eq("verification_status", "verified")
+            .eq("is_active", true)
+            .limit(2)
+
+        if (error) throw error
+        return data || []
+    },
+
+    async findVerifiedProviderContactById(providerContactId) {
+        const { data, error } = await sbAdmin
+            .from("provider_contacts")
+            .select(PROVIDER_CONTACT_RETURN_COLUMNS)
+            .eq("id", providerContactId)
+            .eq("verification_status", "verified")
+            .eq("is_active", true)
             .maybeSingle()
 
         if (error) throw error
@@ -181,6 +237,41 @@ export const careActionRepository = {
                 p_action_id: actionId,
                 p_executed_by: executedBy,
                 p_care_date: careDate,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async claimSendLibrelaAppointmentRequest({ actionId, executedBy }) {
+        const { data, error } = await sbAdmin.rpc(
+            "claim_send_librela_appointment_request",
+            {
+                p_action_id: actionId,
+                p_executed_by: executedBy,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async finalizeSendLibrelaAppointmentRequest({
+        actionId,
+        executedBy,
+        deliveryStatus,
+        result,
+        error: errorJson,
+    }) {
+        const { data, error } = await sbAdmin.rpc(
+            "finalize_send_librela_appointment_request",
+            {
+                p_action_id: actionId,
+                p_executed_by: executedBy,
+                p_delivery_status: deliveryStatus,
+                p_result: result,
+                p_error: errorJson,
             }
         )
 
