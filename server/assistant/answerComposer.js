@@ -1153,7 +1153,7 @@ function answerLibrelaAppointmentMessage(preparation) {
                 `I prepared a Librela appointment request for ${draft.recipient_name} ` +
                 `using Momo’s last verified injection on ${formatDate(draft.dates.last_verified_injection_date)} ` +
                 `and her current due date of ${formatDate(draft.dates.due_date)}. ` +
-                "Review or edit the exact message before copying it.",
+                "Review or edit the exact message before approving the mock send.",
             answer_type: "message_draft_prepared",
             confidence: "high",
             citations: [
@@ -1167,8 +1167,8 @@ function answerLibrelaAppointmentMessage(preparation) {
                 ),
             ],
             limitations: [
-                "This is a draft only. TomoCare did not send a message or create an appointment.",
-                "The clinic name comes from a trusted record, but no phone number or email was selected or verified.",
+                "Nothing has been sent yet, and a mock send will not contact the clinic or create an appointment.",
+                "TomoCare verifies the clinic’s active SMS recipient on the server before freezing the request for approval.",
             ],
             proposed_action: null,
             message_draft: draft,
