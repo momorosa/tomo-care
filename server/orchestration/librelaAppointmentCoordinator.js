@@ -260,7 +260,7 @@ function blockedResult({
     }
 }
 
-function buildWorkflowSummary({
+export function buildWorkflowSummary({
     state,
     currentOwner,
     completedRoles,
