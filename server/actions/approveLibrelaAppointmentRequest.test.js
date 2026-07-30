@@ -7,6 +7,7 @@ import {
 import { buildSendLibrelaAppointmentRequestProposal } from "./librelaAppointmentRequest.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const ORCHESTRATION_RUN_ID = "77777777-7777-4777-8777-777777777777"
 const ACTION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 const REMINDER_ID = "11111111-1111-4111-8111-111111111111"
 const INJECTION_ID = "22222222-2222-4222-8222-222222222222"
@@ -61,6 +62,7 @@ function buildRecipient(overrides = {}) {
 function buildAction(overrides = {}) {
     const proposal = buildSendLibrelaAppointmentRequestProposal({
         petId: PET_ID,
+        orchestrationRunId: ORCHESTRATION_RUN_ID,
         reminder: buildReminder(),
         injection: buildInjection(),
         recipient: buildRecipient(),

@@ -11,6 +11,7 @@ import {
 function outboundAction(status, overrides = {}) {
     return {
         id: "action-1",
+        orchestration_run_id: "run-1",
         source_event_id: "reminder-1",
         action_type: SEND_LIBRELA_APPOINTMENT_REQUEST,
         status,
@@ -74,6 +75,7 @@ test("rebuilds the outbound dialog without exposing recipient contact data", () 
     assert.deepEqual(draft, {
         type: "librela_appointment_request",
         status: "draft",
+        workflow_run_id: "run-1",
         recipient_name: "SoMa Animal Hospital",
         recipient_basis: "verified_provider_contact",
         purpose: "Schedule Momo’s next Librela injection",

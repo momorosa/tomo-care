@@ -554,10 +554,16 @@ export default function Dashboard() {
 
     async function prepareAndSendAppointmentRequest(messageBody) {
         const draft = appointmentMessageFlow.draft
+        const orchestrationRunId = draft?.workflow_run_id
         const reminderId = draft?.evidence?.reminder_event_id
         const injectionId = draft?.evidence?.injection_event_id
 
-        if (!draft || !reminderId || !injectionId) {
+        if (
+            !draft ||
+            !orchestrationRunId ||
+            !reminderId ||
+            !injectionId
+        ) {
             setAppointmentMessageFlow((current) => ({
                 ...current,
                 phase: "drafting",
@@ -579,6 +585,7 @@ export default function Dashboard() {
         try {
             const preparation = await prepareLibrelaAppointmentRequest({
                 petId: PET_ID,
+                orchestrationRunId,
                 reminderId,
                 injectionId,
                 messageBody,

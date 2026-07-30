@@ -201,6 +201,7 @@ router.post(
     async (req, res) => {
         const { petId } = req.params
         const {
+            orchestrationRunId,
             reminderId,
             injectionId,
             messageBody,
@@ -211,6 +212,7 @@ router.post(
             const result = await prepareSendLibrelaAppointmentRequest({
                 repository: careActionRepository,
                 petId,
+                orchestrationRunId,
                 reminderId,
                 injectionId,
                 messageBody,

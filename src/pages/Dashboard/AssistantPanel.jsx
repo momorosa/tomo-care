@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { askAssistant } from "./api.js"
+import { buildFreshAssistantAnswer } from "./assistantAnswerAttention.js"
 import EvidenceCard from "./EvidenceCard.jsx"
 
 const SUGGESTED_QUESTIONS = [
@@ -30,10 +31,13 @@ export default function AssistantPanel({
 
         try {
             const result = await askAssistant(petId, trimmedQuestion)
-            setAnswer({
-                question: trimmedQuestion,
-                ...result,
-            })
+            setAnswer((currentAnswer) =>
+                buildFreshAssistantAnswer(
+                    currentAnswer,
+                    trimmedQuestion,
+                    result
+                )
+            )
 
             if (
                 result.answer_type === "action_prepared" &&
@@ -46,7 +50,10 @@ export default function AssistantPanel({
                 result.answer_type === "message_draft_prepared" &&
                 result.message_draft
             ) {
-                onMessageDraftPrepared?.(result.message_draft)
+                onMessageDraftPrepared?.({
+                    ...result.message_draft,
+                    workflow_run_id: result.workflow?.run_id || null,
+                })
             }
 
             setQuestion("")
@@ -130,7 +137,10 @@ export default function AssistantPanel({
             )}
 
             {answer && (
-                <AssistantAnswer answer={answer} />
+                <AssistantAnswer
+                    key={answer.attention_revision}
+                    answer={answer}
+                />
             )}
         </section>
     )
@@ -174,7 +184,11 @@ function AssistantAnswer({ answer }) {
                 </span>
             </div>
 
-            <div className="mt-5 rounded-xl border border-tomo-border bg-[#111219]/60 px-4 py-4">
+            <div
+                className="tomo-answer-fresh mt-5 rounded-xl border border-tomo-border bg-[#111219]/60 px-4 py-4"
+                aria-live="polite"
+                aria-atomic="true"
+            >
                 <p className="text-sm leading-6 text-tomo-text-h">
                     {answer.answer}
                 </p>

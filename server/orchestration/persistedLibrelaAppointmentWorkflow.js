@@ -10,6 +10,13 @@ export const LIBRELA_APPOINTMENT_WORKFLOW =
     "librela_appointment_request"
 
 const WORKFLOW_VERSION = 1
+const RECOVERABLE_RUN_STATUSES = new Set([
+    "in_progress",
+    "awaiting_human_review",
+    "action_succeeded",
+    "action_failed",
+    "action_outcome_unknown",
+])
 
 const DEFAULT_SPECIALISTS = {
     buildRecordsHandoff,
@@ -62,10 +69,7 @@ export async function coordinatePersistedLibrelaAppointmentRequest({
         recovered = created.recovered
     }
 
-    if (
-        run.status === "awaiting_human_review" &&
-        isObject(run.result_json)
-    ) {
+    if (run.status !== "in_progress" && isObject(run.result_json)) {
         const recoveredRun = await recordRecovery({
             repository,
             run,
@@ -396,12 +400,7 @@ async function supersedeChangedRun({
 
     const latest = await repository.findRunById(run.id)
 
-    if (
-        latest &&
-        !["in_progress", "awaiting_human_review"].includes(
-            latest.status
-        )
-    ) {
+    if (latest && !RECOVERABLE_RUN_STATUSES.has(latest.status)) {
         return null
     }
 

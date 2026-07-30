@@ -131,6 +131,7 @@ export async function prepareInsuranceClaimFiled({
 
 export async function prepareLibrelaAppointmentRequest({
     petId,
+    orchestrationRunId,
     reminderId,
     injectionId,
     messageBody,
@@ -142,6 +143,7 @@ export async function prepareLibrelaAppointmentRequest({
             method: "POST",
             headers: JSON_HEADERS,
             body: JSON.stringify({
+                orchestrationRunId,
                 reminderId,
                 injectionId,
                 messageBody,

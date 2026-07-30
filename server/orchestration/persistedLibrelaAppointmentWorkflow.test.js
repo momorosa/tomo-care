@@ -74,6 +74,48 @@ test("recovers the stored draft without repeating specialist work", async () => 
     assert.equal(repository.runs[0].external_action_taken, false)
 })
 
+test("recovers a terminal governed-action projection without restarting specialists", async () => {
+    const repository = createRepository()
+    await coordinate({ repository })
+
+    repository.runs[0].status = "action_succeeded"
+    repository.runs[0].current_step = "complete"
+    repository.runs[0].pending_decision = null
+    repository.runs[0].result_json = {
+        ...repository.runs[0].result_json,
+        status: "action_succeeded",
+        workflow: {
+            ...repository.runs[0].result_json.workflow,
+            state: "complete",
+            governed_action_status: "succeeded",
+            external_action_status: "mock_completed",
+        },
+    }
+
+    const counters = createCounters()
+    const recovered = await coordinate({
+        repository,
+        specialists: countingSpecialists(counters),
+    })
+
+    assert.equal(recovered.status, "action_succeeded")
+    assert.equal(recovered.workflow.state, "complete")
+    assert.equal(
+        recovered.workflow.governed_action_status,
+        "succeeded"
+    )
+    assert.equal(
+        recovered.workflow.external_action_status,
+        "mock_completed"
+    )
+    assert.equal(recovered.workflow.recovered, true)
+    assert.deepEqual(counters, {
+        records: 0,
+        carePlanning: 0,
+        communication: 0,
+    })
+})
+
 test("resumes from the last completed checkpoint after interruption", async () => {
     const repository = createRepository()
     const firstCounters = createCounters()
@@ -302,6 +344,9 @@ function createRepository() {
                         [
                             "in_progress",
                             "awaiting_human_review",
+                            "action_succeeded",
+                            "action_failed",
+                            "action_outcome_unknown",
                         ].includes(run.status)
                 ) || null
             )

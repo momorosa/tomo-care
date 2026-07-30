@@ -12,6 +12,7 @@ export class LibrelaAppointmentPreparationError extends Error {
 export async function prepareSendLibrelaAppointmentRequest({
     repository,
     petId,
+    orchestrationRunId,
     reminderId,
     injectionId,
     messageBody,
@@ -20,14 +21,16 @@ export async function prepareSendLibrelaAppointmentRequest({
 }) {
     assertRepository(repository)
     assertRequiredString(petId, "petId")
+    assertRequiredString(orchestrationRunId, "orchestrationRunId")
     assertRequiredString(reminderId, "reminderId")
     assertRequiredString(injectionId, "injectionId")
     assertRequiredString(messageBody, "messageBody")
     assertRequiredString(requestedBy, "requestedBy")
 
-    const [reminder, injection] = await Promise.all([
+    const [reminder, injection, orchestrationRun] = await Promise.all([
         repository.findReminder({ petId, reminderId }),
         repository.findEvent({ petId, eventId: injectionId }),
+        repository.findOrchestrationRunById(orchestrationRunId),
     ])
 
     if (!reminder) {
@@ -45,6 +48,13 @@ export async function prepareSendLibrelaAppointmentRequest({
             message: "The verified Librela injection was not found.",
         })
     }
+
+    assertEligibleOrchestrationRun({
+        run: orchestrationRun,
+        petId,
+        reminderId,
+        injectionId,
+    })
 
     const organizationName =
         reminder.details_json?.source_org ||
@@ -87,6 +97,7 @@ export async function prepareSendLibrelaAppointmentRequest({
     try {
         proposal = buildSendLibrelaAppointmentRequestProposal({
             petId,
+            orchestrationRunId,
             reminder,
             injection,
             recipient: recipients[0],
@@ -112,7 +123,11 @@ export async function prepareSendLibrelaAppointmentRequest({
     if (existing) {
         return {
             disposition: "existing",
-            action: existing,
+            action: await ensureOrchestrationLink({
+                repository,
+                action: existing,
+                orchestrationRunId,
+            }),
         }
     }
 
@@ -135,18 +150,104 @@ export async function prepareSendLibrelaAppointmentRequest({
 
         return {
             disposition: "existing",
-            action: racedAction,
+            action: await ensureOrchestrationLink({
+                repository,
+                action: racedAction,
+                orchestrationRunId,
+            }),
         }
     }
+}
+
+function assertEligibleOrchestrationRun({
+    run,
+    petId,
+    reminderId,
+    injectionId,
+}) {
+    if (!run) {
+        throw preparationError({
+            status: 404,
+            reason: "orchestration_run_not_found",
+            message:
+                "The appointment workflow was not found. Ask TomoCare to prepare a new request.",
+        })
+    }
+
+    const draft = run.result_json?.draft
+    const evidence = draft?.evidence
+    const eligible =
+        run.pet_id === petId &&
+        run.workflow_type === "librela_appointment_request" &&
+        run.status === "awaiting_human_review" &&
+        run.current_step === "human_review" &&
+        run.external_action_taken === false &&
+        run.result_json?.status === "prepared" &&
+        evidence?.reminder_event_id === reminderId &&
+        evidence?.injection_event_id === injectionId
+
+    if (!eligible) {
+        throw preparationError({
+            status: 409,
+            reason: "orchestration_run_changed",
+            message:
+                "The appointment workflow no longer matches this draft. Ask TomoCare to prepare it again.",
+        })
+    }
+}
+
+async function ensureOrchestrationLink({
+    repository,
+    action,
+    orchestrationRunId,
+}) {
+    if (action.orchestration_run_id === orchestrationRunId) {
+        return action
+    }
+
+    if (action.orchestration_run_id) {
+        throw preparationError({
+            status: 409,
+            reason: "action_link_conflict",
+            message:
+                "This exact request belongs to a different workflow. Review the existing action before continuing.",
+        })
+    }
+
+    const linked = await repository.linkActionToOrchestrationRun({
+        actionId: action.id,
+        orchestrationRunId,
+    })
+
+    if (linked?.orchestration_run_id === orchestrationRunId) {
+        return linked
+    }
+
+    const latest = await repository.findActiveActionByIdempotencyKey(
+        action.idempotency_key
+    )
+
+    if (latest?.orchestration_run_id === orchestrationRunId) {
+        return latest
+    }
+
+    throw preparationError({
+        status: 409,
+        reason: "action_link_changed",
+        message:
+            "The appointment request changed while TomoCare was linking it to the workflow. Review it again.",
+    })
 }
 
 function assertRepository(repository) {
     const requiredMethods = [
         "findReminder",
         "findEvent",
+        "findOrchestrationRunById",
         "findVerifiedProviderContacts",
         "findActiveActionByIdempotencyKey",
         "insertProposedAction",
+        "linkActionToOrchestrationRun",
     ]
 
     for (const method of requiredMethods) {

@@ -16,6 +16,7 @@ const ALLOWED_REQUEST_SOURCES = new Set([
 
 export function buildSendLibrelaAppointmentRequestProposal({
     petId,
+    orchestrationRunId,
     reminder,
     injection,
     recipient,
@@ -24,6 +25,7 @@ export function buildSendLibrelaAppointmentRequestProposal({
     requestedBy,
 }) {
     assertNonBlank(petId, "petId")
+    assertNonBlank(orchestrationRunId, "orchestrationRunId")
     assertNonBlank(requestedBy, "requestedBy")
 
     if (!ALLOWED_REQUEST_SOURCES.has(requestSource)) {
@@ -56,6 +58,7 @@ export function buildSendLibrelaAppointmentRequestProposal({
 
     return {
         pet_id: petId,
+        orchestration_run_id: orchestrationRunId,
         source_event_id: reminder.id,
         action_type: SEND_LIBRELA_APPOINTMENT_REQUEST,
         status: "proposed",

@@ -43,6 +43,7 @@ export function buildRecoveredLibrelaDraft(action) {
     return {
         type: "librela_appointment_request",
         status: "draft",
+        workflow_run_id: action.orchestration_run_id || null,
         recipient_name:
             preview.recipient_name ||
             payload.recipient_name ||

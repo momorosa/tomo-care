@@ -7,6 +7,7 @@ import {
 } from "./librelaAppointmentRequest.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const ORCHESTRATION_RUN_ID = "77777777-7777-4777-8777-777777777777"
 const REMINDER_ID = "11111111-1111-4111-8111-111111111111"
 const INJECTION_ID = "22222222-2222-4222-8222-222222222222"
 const CONTACT_ID = "33333333-3333-4333-8333-333333333333"
@@ -64,6 +65,7 @@ function buildRecipient(overrides = {}) {
 function buildProposal(overrides = {}) {
     return buildSendLibrelaAppointmentRequestProposal({
         petId: PET_ID,
+        orchestrationRunId: ORCHESTRATION_RUN_ID,
         reminder: buildReminder(),
         injection: buildInjection(),
         recipient: buildRecipient(),
@@ -82,6 +84,10 @@ test("freezes the exact message, verified recipient identity, and Librela eviden
         SEND_LIBRELA_APPOINTMENT_REQUEST
     )
     assert.equal(proposal.status, "proposed")
+    assert.equal(
+        proposal.orchestration_run_id,
+        ORCHESTRATION_RUN_ID
+    )
     assert.equal(proposal.source_event_id, REMINDER_ID)
     assert.equal(proposal.payload_json.message_body, MESSAGE_BODY)
     assert.equal(proposal.payload_json.message_sha256, sha256(MESSAGE_BODY))

@@ -26,6 +26,7 @@ const PROVIDER_CONTACT_RETURN_COLUMNS = [
 const CARE_ACTION_RETURN_COLUMNS = [
     "id",
     "pet_id",
+    "orchestration_run_id",
     "source_event_id",
     "action_type",
     "status",
@@ -45,6 +46,16 @@ const CARE_ACTION_RETURN_COLUMNS = [
     "cancelled_at",
     "created_at",
     "updated_at",
+].join(", ")
+
+const ORCHESTRATION_RUN_VALIDATION_COLUMNS = [
+    "id",
+    "pet_id",
+    "workflow_type",
+    "status",
+    "current_step",
+    "result_json",
+    "external_action_taken",
 ].join(", ")
 
 const PENDING_CARE_ACTION_RETURN_COLUMNS = [
@@ -122,6 +133,17 @@ export const careActionRepository = {
         return data || null
     },
 
+    async findOrchestrationRunById(orchestrationRunId) {
+        const { data, error } = await sbAdmin
+            .from("orchestration_runs")
+            .select(ORCHESTRATION_RUN_VALIDATION_COLUMNS)
+            .eq("id", orchestrationRunId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
     async findVerifiedProviderContacts({ organizationName, channel }) {
         const { data, error } = await sbAdmin
             .from("provider_contacts")
@@ -170,6 +192,24 @@ export const careActionRepository = {
 
         if (error) throw error
         return data
+    },
+
+    async linkActionToOrchestrationRun({
+        actionId,
+        orchestrationRunId,
+    }) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .update({
+                orchestration_run_id: orchestrationRunId,
+            })
+            .eq("id", actionId)
+            .is("orchestration_run_id", null)
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
     },
 
     async approveProposedAction({

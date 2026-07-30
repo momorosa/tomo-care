@@ -1176,6 +1176,57 @@ function answerLibrelaAppointmentMessage(preparation) {
         }
     }
 
+    const governedLifecycleAnswers = {
+        action_proposed:
+            "The Librela appointment request is already frozen and waiting for your approval. TomoCare did not prepare a duplicate.",
+        action_approved:
+            "Your approval for the Librela appointment request is already saved. The approved action is waiting to be completed, and TomoCare did not prepare a duplicate.",
+        action_executing:
+            "TomoCare is confirming the existing Librela request result. It did not prepare or retry another message.",
+        action_succeeded:
+            preparation?.workflow?.external_action_status ===
+            "mock_completed"
+                ? "The governed Librela appointment-request test is already complete. The clinic was not contacted, and TomoCare did not prepare a duplicate."
+                : "The governed Librela appointment request is already complete. TomoCare did not prepare a duplicate.",
+        action_failed:
+            "The Librela appointment request has a known delivery failure and is locked for review. TomoCare did not retry or prepare a duplicate.",
+        action_outcome_unknown:
+            "The Librela appointment request has an uncertain delivery outcome and is locked for review. TomoCare did not retry or prepare a duplicate.",
+    }
+
+    if (governedLifecycleAnswers[preparation?.status]) {
+        return {
+            answer: governedLifecycleAnswers[preparation.status],
+            answer_type: "governed_action_status",
+            confidence: "high",
+            citations: [
+                ...(preparation.injection
+                    ? [
+                          eventCitation(
+                              preparation.injection,
+                              "Last verified Librela injection"
+                          ),
+                      ]
+                    : []),
+                ...(preparation.reminder
+                    ? [
+                          eventCitation(
+                              preparation.reminder,
+                              "Current Librela reminder"
+                          ),
+                      ]
+                    : []),
+            ],
+            limitations: [
+                "No new message was prepared or sent.",
+                "Failed or uncertain delivery states are never retried automatically.",
+            ],
+            proposed_action: null,
+            message_draft: null,
+            workflow: preparation.workflow,
+        }
+    }
+
     if (preparation?.status === "appointment_exists") {
         const appointmentDate = getEventPrimaryDate(preparation.appointment)
 

@@ -14,6 +14,7 @@ const ORCHESTRATION_RUN_RETURN_COLUMNS = [
     "state_json",
     "result_json",
     "external_action_taken",
+    "external_action_status",
     "recovery_count",
     "last_resumed_at",
     "completed_at",
@@ -21,7 +22,13 @@ const ORCHESTRATION_RUN_RETURN_COLUMNS = [
     "updated_at",
 ].join(", ")
 
-const ACTIVE_STATUSES = ["in_progress", "awaiting_human_review"]
+const ACTIVE_STATUSES = [
+    "in_progress",
+    "awaiting_human_review",
+    "action_succeeded",
+    "action_failed",
+    "action_outcome_unknown",
+]
 
 export const orchestrationRunRepository = {
     async findActiveRun({ petId, workflowType }) {

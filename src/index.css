@@ -175,6 +175,12 @@
     @apply text-[11px] uppercase tracking-[0.12em] text-tomo-text;
   }
 
+  .tomo-answer-fresh {
+    position: relative;
+    isolation: isolate;
+    animation: tomo-answer-glow 1.35s ease-out 1;
+  }
+
   .tomo-subtle-row {
     background: rgba(255, 255, 255, 0.03);
   }
@@ -190,10 +196,30 @@
   @media (prefers-reduced-motion: reduce) {
     .tomo-btn,
     .tomo-btn::before,
-    .tomo-btn:hover {
+    .tomo-btn:hover,
+    .tomo-answer-fresh,
+    .tomo-answer-fresh::after {
+      animation: none;
       transition: none;
       transform: none;
     }
+
+    .tomo-answer-fresh::after {
+      display: none;
+    }
+  }
+}
+
+@keyframes tomo-answer-glow {
+  0%,
+  15% {
+    border-color: var(--color-tomo-accent);
+    box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.3);
+  }
+
+  100% {
+    border-color: var(--color-tomo-border);
+    box-shadow: none;
   }
 }
 

@@ -341,6 +341,7 @@ async function assertLibrelaAppointmentEvidenceIsCurrent({
     try {
         rebuiltProposal = buildSendLibrelaAppointmentRequestProposal({
             petId: action.pet_id,
+            orchestrationRunId: action.orchestration_run_id,
             reminder,
             injection,
             recipient,
@@ -360,6 +361,8 @@ async function assertLibrelaAppointmentEvidenceIsCurrent({
     }
 
     const frozenProposalMatches =
+        rebuiltProposal.orchestration_run_id ===
+            action.orchestration_run_id &&
         rebuiltProposal.idempotency_key === action.idempotency_key &&
         jsonMatches(rebuiltProposal.preview_json, action.preview_json) &&
         jsonMatches(rebuiltProposal.payload_json, action.payload_json) &&
