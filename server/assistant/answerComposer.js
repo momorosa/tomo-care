@@ -1153,7 +1153,7 @@ function answerLibrelaAppointmentMessage(preparation) {
                 `I prepared a Librela appointment request for ${draft.recipient_name} ` +
                 `using Momo’s last verified injection on ${formatDate(draft.dates.last_verified_injection_date)} ` +
                 `and her current due date of ${formatDate(draft.dates.due_date)}. ` +
-                "Review or edit the exact message before copying it.",
+                "Review or edit the exact message before approving the mock send.",
             answer_type: "message_draft_prepared",
             confidence: "high",
             citations: [
@@ -1167,11 +1167,63 @@ function answerLibrelaAppointmentMessage(preparation) {
                 ),
             ],
             limitations: [
-                "This is a draft only. TomoCare did not send a message or create an appointment.",
-                "The clinic name comes from a trusted record, but no phone number or email was selected or verified.",
+                "Nothing has been sent yet, and a mock send will not contact the clinic or create an appointment.",
+                "TomoCare verifies the clinic’s active SMS recipient on the server before freezing the request for approval.",
             ],
             proposed_action: null,
             message_draft: draft,
+            workflow: preparation.workflow,
+        }
+    }
+
+    const governedLifecycleAnswers = {
+        action_proposed:
+            "The Librela appointment request is already frozen and waiting for your approval. TomoCare did not prepare a duplicate.",
+        action_approved:
+            "Your approval for the Librela appointment request is already saved. The approved action is waiting to be completed, and TomoCare did not prepare a duplicate.",
+        action_executing:
+            "TomoCare is confirming the existing Librela request result. It did not prepare or retry another message.",
+        action_succeeded:
+            preparation?.workflow?.external_action_status ===
+            "mock_completed"
+                ? "The governed Librela appointment-request test is already complete. The clinic was not contacted, and TomoCare did not prepare a duplicate."
+                : "The governed Librela appointment request is already complete. TomoCare did not prepare a duplicate.",
+        action_failed:
+            "The Librela appointment request has a known delivery failure and is locked for review. TomoCare did not retry or prepare a duplicate.",
+        action_outcome_unknown:
+            "The Librela appointment request has an uncertain delivery outcome and is locked for review. TomoCare did not retry or prepare a duplicate.",
+    }
+
+    if (governedLifecycleAnswers[preparation?.status]) {
+        return {
+            answer: governedLifecycleAnswers[preparation.status],
+            answer_type: "governed_action_status",
+            confidence: "high",
+            citations: [
+                ...(preparation.injection
+                    ? [
+                          eventCitation(
+                              preparation.injection,
+                              "Last verified Librela injection"
+                          ),
+                      ]
+                    : []),
+                ...(preparation.reminder
+                    ? [
+                          eventCitation(
+                              preparation.reminder,
+                              "Current Librela reminder"
+                          ),
+                      ]
+                    : []),
+            ],
+            limitations: [
+                "No new message was prepared or sent.",
+                "Failed or uncertain delivery states are never retried automatically.",
+            ],
+            proposed_action: null,
+            message_draft: null,
+            workflow: preparation.workflow,
         }
     }
 
@@ -1195,6 +1247,7 @@ function answerLibrelaAppointmentMessage(preparation) {
             ],
             proposed_action: null,
             message_draft: null,
+            workflow: preparation.workflow,
         }
     }
 
@@ -1221,6 +1274,7 @@ function answerLibrelaAppointmentMessage(preparation) {
         ],
         proposed_action: null,
         message_draft: null,
+        workflow: preparation?.workflow || null,
     }
 }
 

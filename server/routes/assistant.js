@@ -3,10 +3,11 @@ import { buildQueryPlan } from "../assistant/queryPlanner.js"
 import { buildTrustedContext } from "../assistant/contextBuilder.js"
 import { composeGroundedAnswer } from "../assistant/answerComposer.js"
 import { prepareAssistantHomeMedicationAction } from "../assistant/homeMedicationAction.js"
-import { prepareLibrelaAppointmentMessage } from "../assistant/librelaAppointmentMessage.js"
+import { coordinatePersistedLibrelaAppointmentRequest } from "../orchestration/persistedLibrelaAppointmentWorkflow.js"
 import { isReadOnlyEvaluationBlocked } from "../assistant/evalAssertions.js"
 import { getCareDate } from "../lib/careDates.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
+import { orchestrationRunRepository } from "../repositories/orchestrationRunRepository.js"
 
 const router = express.Router()
 const ASSISTANT_CARE_ACTOR = "Rosa"
@@ -50,7 +51,9 @@ router.post("/pets/:petId/assistant/query", async (req, res) => {
                 : null
         const messageDraftPreparation =
             queryPlan.intent === "librela_appointment_message"
-                ? prepareLibrelaAppointmentMessage({
+                ? await coordinatePersistedLibrelaAppointmentRequest({
+                      repository: orchestrationRunRepository,
+                      petId,
                       context,
                       currentCareDate,
                       senderName: ASSISTANT_CARE_ACTOR,

@@ -102,6 +102,20 @@ test("returns an editable, unsent Librela appointment-message draft", () => {
             send_available: false,
         },
     }
+    const workflow = {
+        type: "librela_appointment_request",
+        version: 1,
+        state: "awaiting_human_review",
+        current_owner: "human",
+        completed_roles: [
+            "records",
+            "care_planning",
+            "communication",
+        ],
+        pending_decision: "review_or_edit_message",
+        blocked_reason: null,
+        external_action_taken: false,
+    }
 
     const response = composeGroundedAnswer({
         question: "Draft a Librela appointment request.",
@@ -120,12 +134,14 @@ test("returns an editable, unsent Librela appointment-message draft", () => {
             injection,
             reminder,
             draft,
+            workflow,
         },
     })
 
     assert.equal(response.answer_type, "message_draft_prepared")
     assert.equal(response.proposed_action, null)
     assert.equal(response.message_draft, draft)
+    assert.equal(response.workflow, workflow)
     assert.match(response.answer, /SoMa Animal Hospital/)
     assert.match(response.answer, /June 10, 2026/)
     assert.match(response.answer, /July 29, 2026/)
@@ -170,4 +186,54 @@ test("does not draft a duplicate Librela request when an appointment exists", ()
     assert.equal(response.message_draft, null)
     assert.match(response.answer, /did not prepare another request/)
     assert.match(response.answer, /July 28, 2026/)
+})
+
+test("reports a completed governed request without reopening its draft", () => {
+    const reminder = {
+        id: "reminder-1",
+        event_type: "reminder",
+        event_date: "2026-07-22",
+        status: "planned",
+        details_json: {
+            subtype: "Librela",
+            due_date: "2026-07-29",
+        },
+    }
+    const injection = {
+        id: "injection-1",
+        event_type: "injection",
+        event_date: "2026-06-10",
+        status: "verified",
+        details_json: { subtype: "Librela" },
+    }
+
+    const response = composeGroundedAnswer({
+        question: "Draft a Librela appointment request.",
+        queryPlan: { intent: "librela_appointment_message" },
+        context: {
+            plannedReminders: [reminder],
+            verifiedEvents: [injection],
+            scheduledAppointments: [],
+            documents: [],
+            directLibrelaCostItems: [],
+            librelaVisitCostItems: [],
+            verifiedWeightFacts: [],
+        },
+        messageDraftPreparation: {
+            status: "action_succeeded",
+            injection,
+            reminder,
+            workflow: {
+                state: "complete",
+                external_action_status: "mock_completed",
+                external_action_taken: false,
+            },
+        },
+    })
+
+    assert.equal(response.answer_type, "governed_action_status")
+    assert.equal(response.message_draft, null)
+    assert.equal(response.proposed_action, null)
+    assert.match(response.answer, /test is already complete/i)
+    assert.match(response.answer, /did not prepare a duplicate/i)
 })

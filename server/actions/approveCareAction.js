@@ -6,10 +6,15 @@ import {
     MARK_INSURANCE_CLAIM_FILED,
     buildMarkInsuranceClaimFiledProposal,
 } from "./insuranceClaimFiled.js"
+import {
+    SEND_LIBRELA_APPOINTMENT_REQUEST,
+    buildSendLibrelaAppointmentRequestProposal,
+} from "./librelaAppointmentRequest.js"
 
 const SUPPORTED_ACTION_TYPES = new Set([
     MARK_HOME_MEDICATION_GIVEN,
     MARK_INSURANCE_CLAIM_FILED,
+    SEND_LIBRELA_APPOINTMENT_REQUEST,
 ])
 
 export class ActionApprovalError extends Error {
@@ -121,6 +126,13 @@ async function assertSourceEvidenceIsCurrent({
             repository,
             action,
             currentCareDate,
+        })
+    }
+
+    if (action.action_type === SEND_LIBRELA_APPOINTMENT_REQUEST) {
+        return assertLibrelaAppointmentEvidenceIsCurrent({
+            repository,
+            action,
         })
     }
 }
@@ -259,6 +271,108 @@ async function assertInsuranceClaimEvidenceIsCurrent({
             409,
             "invalid_action_contract",
             "The proposed action no longer matches its trusted evidence."
+        )
+    }
+}
+
+async function assertLibrelaAppointmentEvidenceIsCurrent({
+    repository,
+    action,
+}) {
+    const payload = action.payload_json || {}
+
+    assertReminderSnapshotContract({ action, payload })
+
+    for (const field of [
+        "injection_event_id",
+        "injection_event_updated_at",
+        "provider_contact_id",
+        "provider_contact_updated_at",
+        "message_body",
+        "message_sha256",
+    ]) {
+        if (typeof payload[field] !== "string" || !payload[field].trim()) {
+            throw approvalError(
+                409,
+                "invalid_action_contract",
+                "The proposed outbound request is missing frozen evidence."
+            )
+        }
+    }
+
+    for (const method of ["findEvent", "findVerifiedProviderContactById"]) {
+        if (typeof repository[method] !== "function") {
+            throw new Error(`repository.${method} is required.`)
+        }
+    }
+
+    const [reminder, injection, recipient] = await Promise.all([
+        loadCurrentReminder({ repository, action, payload }),
+        repository.findEvent({
+            petId: action.pet_id,
+            eventId: payload.injection_event_id,
+        }),
+        repository.findVerifiedProviderContactById(
+            payload.provider_contact_id
+        ),
+    ])
+
+    if (!injection || !recipient) {
+        throw approvalError(
+            409,
+            "source_evidence_missing",
+            "The verified injection or clinic recipient is no longer available. Prepare a new request."
+        )
+    }
+
+    if (
+        injection.updated_at !== payload.injection_event_updated_at ||
+        recipient.updated_at !== payload.provider_contact_updated_at
+    ) {
+        throw approvalError(
+            409,
+            "source_evidence_changed",
+            "The verified injection or clinic recipient changed after this request was prepared."
+        )
+    }
+
+    let rebuiltProposal
+
+    try {
+        rebuiltProposal = buildSendLibrelaAppointmentRequestProposal({
+            petId: action.pet_id,
+            orchestrationRunId: action.orchestration_run_id,
+            reminder,
+            injection,
+            recipient,
+            messageBody: payload.message_body,
+            requestSource: action.request_source,
+            requestedBy: action.requested_by,
+        })
+    } catch (error) {
+        throw new ActionApprovalError({
+            status: 409,
+            reason: "action_no_longer_eligible",
+            message:
+                error?.message ||
+                "The Librela appointment request is no longer eligible for approval.",
+            cause: error,
+        })
+    }
+
+    const frozenProposalMatches =
+        rebuiltProposal.orchestration_run_id ===
+            action.orchestration_run_id &&
+        rebuiltProposal.idempotency_key === action.idempotency_key &&
+        jsonMatches(rebuiltProposal.preview_json, action.preview_json) &&
+        jsonMatches(rebuiltProposal.payload_json, action.payload_json) &&
+        jsonMatches(rebuiltProposal.evidence_json, action.evidence_json)
+
+    if (!frozenProposalMatches) {
+        throw approvalError(
+            409,
+            "invalid_action_contract",
+            "The proposed outbound request no longer matches the exact message and trusted recipient that were reviewed."
         )
     }
 }

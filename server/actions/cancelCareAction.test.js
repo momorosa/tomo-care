@@ -88,8 +88,14 @@ test("treats an already-cancelled proposal as an idempotent success", async () =
     assert.equal(repository.calls.cancelProposedAction.length, 0)
 })
 
-test("does not cancel approved, executing, succeeded, or failed actions", async () => {
-    for (const status of ["approved", "executing", "succeeded", "failed"]) {
+test("does not cancel approved, executing, succeeded, failed, or unknown actions", async () => {
+    for (const status of [
+        "approved",
+        "executing",
+        "succeeded",
+        "failed",
+        "outcome_unknown",
+    ]) {
         const repository = buildRepository({
             action: buildAction({ status }),
         })

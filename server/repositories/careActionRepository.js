@@ -6,9 +6,27 @@ const REMINDER_RETURN_COLUMNS =
 const VERIFIED_DOCUMENT_RETURN_COLUMNS =
     "id, pet_id, title, doc_type, doc_date, source_org, status"
 
+const EVENT_RETURN_COLUMNS =
+    "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
+
+const PROVIDER_CONTACT_RETURN_COLUMNS = [
+    "id",
+    "organization_name",
+    "channel",
+    "address",
+    "verification_status",
+    "verification_source",
+    "verified_by",
+    "verified_at",
+    "is_active",
+    "created_at",
+    "updated_at",
+].join(", ")
+
 const CARE_ACTION_RETURN_COLUMNS = [
     "id",
     "pet_id",
+    "orchestration_run_id",
     "source_event_id",
     "action_type",
     "status",
@@ -28,6 +46,16 @@ const CARE_ACTION_RETURN_COLUMNS = [
     "cancelled_at",
     "created_at",
     "updated_at",
+].join(", ")
+
+const ORCHESTRATION_RUN_VALIDATION_COLUMNS = [
+    "id",
+    "pet_id",
+    "workflow_type",
+    "status",
+    "current_step",
+    "result_json",
+    "external_action_taken",
 ].join(", ")
 
 const PENDING_CARE_ACTION_RETURN_COLUMNS = [
@@ -93,6 +121,56 @@ export const careActionRepository = {
         return data || null
     },
 
+    async findEvent({ petId, eventId }) {
+        const { data, error } = await sbAdmin
+            .from("events")
+            .select(EVENT_RETURN_COLUMNS)
+            .eq("id", eventId)
+            .eq("pet_id", petId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findOrchestrationRunById(orchestrationRunId) {
+        const { data, error } = await sbAdmin
+            .from("orchestration_runs")
+            .select(ORCHESTRATION_RUN_VALIDATION_COLUMNS)
+            .eq("id", orchestrationRunId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findVerifiedProviderContacts({ organizationName, channel }) {
+        const { data, error } = await sbAdmin
+            .from("provider_contacts")
+            .select(PROVIDER_CONTACT_RETURN_COLUMNS)
+            .eq("organization_name", organizationName)
+            .eq("channel", channel)
+            .eq("verification_status", "verified")
+            .eq("is_active", true)
+            .limit(2)
+
+        if (error) throw error
+        return data || []
+    },
+
+    async findVerifiedProviderContactById(providerContactId) {
+        const { data, error } = await sbAdmin
+            .from("provider_contacts")
+            .select(PROVIDER_CONTACT_RETURN_COLUMNS)
+            .eq("id", providerContactId)
+            .eq("verification_status", "verified")
+            .eq("is_active", true)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
     async findActiveActionByIdempotencyKey(idempotencyKey) {
         const { data, error } = await sbAdmin
             .from("care_actions")
@@ -114,6 +192,24 @@ export const careActionRepository = {
 
         if (error) throw error
         return data
+    },
+
+    async linkActionToOrchestrationRun({
+        actionId,
+        orchestrationRunId,
+    }) {
+        const { data, error } = await sbAdmin
+            .from("care_actions")
+            .update({
+                orchestration_run_id: orchestrationRunId,
+            })
+            .eq("id", actionId)
+            .is("orchestration_run_id", null)
+            .select(CARE_ACTION_RETURN_COLUMNS)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
     },
 
     async approveProposedAction({
@@ -181,6 +277,41 @@ export const careActionRepository = {
                 p_action_id: actionId,
                 p_executed_by: executedBy,
                 p_care_date: careDate,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async claimSendLibrelaAppointmentRequest({ actionId, executedBy }) {
+        const { data, error } = await sbAdmin.rpc(
+            "claim_send_librela_appointment_request",
+            {
+                p_action_id: actionId,
+                p_executed_by: executedBy,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async finalizeSendLibrelaAppointmentRequest({
+        actionId,
+        executedBy,
+        deliveryStatus,
+        result,
+        error: errorJson,
+    }) {
+        const { data, error } = await sbAdmin.rpc(
+            "finalize_send_librela_appointment_request",
+            {
+                p_action_id: actionId,
+                p_executed_by: executedBy,
+                p_delivery_status: deliveryStatus,
+                p_result: result,
+                p_error: errorJson,
             }
         )
 

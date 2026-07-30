@@ -18,8 +18,15 @@ import {
     fetchVerifiedDocuments,
     prepareHomeMedicationGiven,
     prepareInsuranceClaimFiled,
+    prepareLibrelaAppointmentRequest,
     syncReminderToGoogleCalendar,
 } from "./api.js"
+import {
+    buildRecoveredLibrelaDraft,
+    getRecoveredCareActionPhase,
+    getOutboundExecutionErrorPhase,
+    isLibrelaAppointmentRequest,
+} from "./careActionRecovery.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 const CARE_ACTOR = "Rosa"
@@ -34,6 +41,16 @@ function emptyActionFlow() {
         action: null,
         actionType: null,
         selectedDate: getPacificCareDate(),
+        execution: null,
+        error: null,
+    }
+}
+
+function emptyAppointmentMessageFlow() {
+    return {
+        phase: "idle",
+        draft: null,
+        action: null,
         execution: null,
         error: null,
     }
@@ -229,8 +246,9 @@ export default function Dashboard() {
     const [careSummary, setCareSummary] = useState({})
     const [pendingActionCount, setPendingActionCount] = useState(0)
     const [actionFlow, setActionFlow] = useState(emptyActionFlow)
-    const [appointmentMessageDraft, setAppointmentMessageDraft] =
-        useState(null)
+    const [appointmentMessageFlow, setAppointmentMessageFlow] = useState(
+        emptyAppointmentMessageFlow
+    )
 
     const [result, setResult] = useState(null)
     const [checkingInbox, setCheckingInbox] = useState(false)
@@ -329,11 +347,27 @@ export default function Dashboard() {
                 if (!active) return
 
                 const action = data.care_action
-                const nextPhase = getRecoveredActionPhase(action)
+                const nextPhase = getRecoveredCareActionPhase(action)
 
                 if (nextPhase === "idle") {
                     clearStoredAction()
                     setActionFlow(emptyActionFlow())
+                    setAppointmentMessageFlow(emptyAppointmentMessageFlow())
+                    return
+                }
+
+                if (isLibrelaAppointmentRequest(action)) {
+                    setActionFlow(emptyActionFlow())
+                    setAppointmentMessageFlow({
+                        phase: nextPhase,
+                        draft: buildRecoveredLibrelaDraft(action),
+                        action,
+                        execution:
+                            action.status === "succeeded"
+                                ? { result: action.result_json }
+                                : null,
+                        error: getRecoveredOutboundError(action),
+                    })
                     return
                 }
 
@@ -363,6 +397,7 @@ export default function Dashboard() {
                 if (error.status === 404) {
                     clearStoredAction()
                     setActionFlow(emptyActionFlow())
+                    setAppointmentMessageFlow(emptyAppointmentMessageFlow())
                     return
                 }
 
@@ -462,7 +497,7 @@ export default function Dashboard() {
         ) {
             setActionFlow((current) => ({
                 ...current,
-                phase: getRecoveredActionPhase(current.action),
+                phase: getRecoveredCareActionPhase(current.action),
                 error: null,
             }))
             return
@@ -480,9 +515,24 @@ export default function Dashboard() {
         storeActiveAction(action.id)
         void loadPendingCareActions()
 
+        if (isLibrelaAppointmentRequest(action)) {
+            setActionFlow(emptyActionFlow())
+            setAppointmentMessageFlow({
+                phase: getRecoveredCareActionPhase(action),
+                draft: buildRecoveredLibrelaDraft(action),
+                action,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: getRecoveredOutboundError(action),
+            })
+            return
+        }
+
         setActionFlow({
             ...emptyActionFlow(),
-            phase: getRecoveredActionPhase(action),
+            phase: getRecoveredCareActionPhase(action),
             reminder: buildRecoveredReminder(action),
             action,
             actionType: action.action_type,
@@ -492,6 +542,303 @@ export default function Dashboard() {
                     ? { result: action.result_json }
                     : null,
         })
+    }
+
+    function reviewAppointmentMessageDraft(draft) {
+        setAppointmentMessageFlow({
+            ...emptyAppointmentMessageFlow(),
+            phase: "drafting",
+            draft,
+        })
+    }
+
+    async function prepareAndSendAppointmentRequest(messageBody) {
+        const draft = appointmentMessageFlow.draft
+        const orchestrationRunId = draft?.workflow_run_id
+        const reminderId = draft?.evidence?.reminder_event_id
+        const injectionId = draft?.evidence?.injection_event_id
+
+        if (
+            !draft ||
+            !orchestrationRunId ||
+            !reminderId ||
+            !injectionId
+        ) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "drafting",
+                error: new Error(
+                    "The draft is missing its trusted Librela evidence. Ask TomoCare to prepare a new request."
+                ),
+            }))
+            return
+        }
+
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase: "preparing",
+            error: null,
+        }))
+
+        let action
+
+        try {
+            const preparation = await prepareLibrelaAppointmentRequest({
+                petId: PET_ID,
+                orchestrationRunId,
+                reminderId,
+                injectionId,
+                messageBody,
+                requestedBy: CARE_ACTOR,
+            })
+            action = preparation.proposed_action
+
+            storeActiveAction(action.id)
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: getRecoveredCareActionPhase(action),
+                draft: buildRecoveredLibrelaDraft(action),
+                action,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: getRecoveredOutboundError(action),
+            }))
+            await loadPendingCareActions()
+        } catch (error) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "drafting",
+                error,
+            }))
+            return
+        }
+
+        await continueAppointmentRequest(action)
+    }
+
+    async function continueAppointmentRequest(action) {
+        const phase = getRecoveredCareActionPhase(action)
+
+        if (phase === "reviewing") {
+            await approveAppointmentRequest(action)
+            return
+        }
+
+        if (phase === "approved") {
+            await executeAppointmentRequest(action)
+        }
+    }
+
+    async function approveAppointmentRequest(
+        proposedAction = appointmentMessageFlow.action
+    ) {
+        if (!proposedAction?.id) return
+
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase: "approving",
+            error: null,
+        }))
+
+        let approvedAction
+
+        try {
+            const approval = await approveCareAction(
+                proposedAction.id,
+                CARE_ACTOR
+            )
+            approvedAction = approval.approved_action
+
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "executing",
+                draft: buildRecoveredLibrelaDraft(approvedAction),
+                action: approvedAction,
+                error: null,
+            }))
+        } catch (error) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "reviewing",
+                action: proposedAction,
+                error,
+            }))
+            return
+        }
+
+        await executeAppointmentRequest(approvedAction, {
+            phaseAlreadySet: true,
+        })
+    }
+
+    async function executeAppointmentRequest(
+        approvedAction = appointmentMessageFlow.action,
+        { phaseAlreadySet = false } = {}
+    ) {
+        if (!approvedAction?.id) return
+
+        if (!phaseAlreadySet) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "executing",
+                error: null,
+            }))
+        }
+
+        try {
+            const result = await executeCareAction(approvedAction.id)
+            const succeededAction = {
+                ...approvedAction,
+                status: "succeeded",
+                result_json: result.execution.result,
+            }
+
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "succeeded",
+                draft: buildRecoveredLibrelaDraft(succeededAction),
+                action: succeededAction,
+                execution: result.execution,
+                error: null,
+            }))
+            await loadPendingCareActions()
+        } catch (error) {
+            await recoverAppointmentExecution({
+                actionId: approvedAction.id,
+                fallbackAction: approvedAction,
+                executionError: error,
+            })
+        }
+    }
+
+    async function recoverAppointmentExecution({
+        actionId,
+        fallbackAction,
+        executionError,
+    }) {
+        let action = fallbackAction
+        let phase = getOutboundExecutionErrorPhase(executionError)
+
+        try {
+            const data = await fetchCareAction(actionId)
+            action = data.care_action
+            phase = getRecoveredCareActionPhase(action)
+        } catch {
+            // Preserve the execution error. An unknown provider outcome must
+            // remain locked even if the follow-up status check also fails.
+        }
+
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase,
+            draft: buildRecoveredLibrelaDraft(action) || current.draft,
+            action,
+            execution:
+                action?.status === "succeeded"
+                    ? { result: action.result_json }
+                    : null,
+            error: executionError,
+        }))
+        await loadPendingCareActions()
+    }
+
+    async function editAppointmentMessage() {
+        const action = appointmentMessageFlow.action
+
+        if (!action?.id || action.status !== "proposed") return
+
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase: "cancelling",
+            error: null,
+        }))
+
+        try {
+            await cancelCareAction(action.id)
+            clearStoredAction()
+            await loadPendingCareActions()
+
+            setAppointmentMessageFlow((current) => ({
+                ...emptyAppointmentMessageFlow(),
+                phase: "drafting",
+                draft: current.draft,
+            }))
+        } catch (error) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "reviewing",
+                error,
+            }))
+        }
+    }
+
+    async function recoverAppointmentRequest() {
+        const actionId =
+            appointmentMessageFlow.action?.id ||
+            window.sessionStorage.getItem(ACTIVE_ACTION_STORAGE_KEY)
+
+        if (!actionId) {
+            setAppointmentMessageFlow(emptyAppointmentMessageFlow())
+            return
+        }
+
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase: "recovering",
+            error: null,
+        }))
+
+        try {
+            const data = await fetchCareAction(actionId)
+            const action = data.care_action
+
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: getRecoveredCareActionPhase(action),
+                draft: buildRecoveredLibrelaDraft(action) || current.draft,
+                action,
+                execution:
+                    action.status === "succeeded"
+                        ? { result: action.result_json }
+                        : null,
+                error: getRecoveredOutboundError(action),
+            }))
+        } catch (error) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "recovery_error",
+                error,
+            }))
+        }
+    }
+
+    async function dismissAppointmentMessage() {
+        const action = appointmentMessageFlow.action
+
+        if (action?.status === "proposed") {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "cancelling",
+                error: null,
+            }))
+
+            try {
+                await cancelCareAction(action.id)
+                await loadPendingCareActions()
+            } catch (error) {
+                setAppointmentMessageFlow((current) => ({
+                    ...current,
+                    phase: "reviewing",
+                    error,
+                }))
+                return
+            }
+        }
+
+        clearStoredAction()
+        setAppointmentMessageFlow(emptyAppointmentMessageFlow())
     }
 
     async function prepareAction(event) {
@@ -524,7 +871,7 @@ export default function Dashboard() {
 
             setActionFlow((current) => ({
                 ...current,
-                phase: getRecoveredActionPhase(action),
+                phase: getRecoveredCareActionPhase(action),
                 action,
                 actionType: action.action_type,
                 execution:
@@ -578,7 +925,7 @@ export default function Dashboard() {
         } catch (error) {
             setActionFlow((current) => ({
                 ...current,
-                phase: getRecoveredActionPhase(current.action),
+                phase: getRecoveredCareActionPhase(current.action),
                 error,
             }))
         }
@@ -680,7 +1027,7 @@ export default function Dashboard() {
 
             setActionFlow((current) => ({
                 ...current,
-                phase: getRecoveredActionPhase(action),
+                phase: getRecoveredCareActionPhase(action),
                 action,
                 actionType: action.action_type,
                 reminder: current.reminder || buildRecoveredReminder(action),
@@ -821,7 +1168,7 @@ export default function Dashboard() {
                                     petId={PET_ID}
                                     onActionPrepared={reviewAssistantAction}
                                     onMessageDraftPrepared={
-                                        setAppointmentMessageDraft
+                                        reviewAppointmentMessageDraft
                                     }
                                 />
                             </div>
@@ -924,10 +1271,16 @@ export default function Dashboard() {
                 onDone={finishActionFlow}
             />
 
-            {appointmentMessageDraft && (
+            {appointmentMessageFlow.draft && (
                 <LibrelaAppointmentMessageDialog
-                    draft={appointmentMessageDraft}
-                    onDismiss={() => setAppointmentMessageDraft(null)}
+                    key={appointmentMessageFlow.action?.id || "librela-draft"}
+                    {...appointmentMessageFlow}
+                    onApproveAndSend={prepareAndSendAppointmentRequest}
+                    onApprove={() => approveAppointmentRequest()}
+                    onExecute={() => executeAppointmentRequest()}
+                    onEditMessage={editAppointmentMessage}
+                    onRetryRecovery={recoverAppointmentRequest}
+                    onDismiss={dismissAppointmentMessage}
                 />
             )}
         </main>
@@ -1058,13 +1411,25 @@ function getPacificCareDate() {
     return `${values.year}-${values.month}-${values.day}`
 }
 
-function getRecoveredActionPhase(action) {
-    if (action?.status === "proposed") return "reviewing"
-    if (action?.status === "approved") return "approved"
-    if (action?.status === "succeeded") return "succeeded"
-    if (action?.status === "executing") return "recovery_error"
+function getRecoveredOutboundError(action) {
+    if (action?.status === "failed") {
+        return new Error(
+            "The provider rejected this delivery. The attempt is locked and will not retry automatically."
+        )
+    }
 
-    return "idle"
+    if (
+        action?.status === "executing" ||
+        action?.status === "outcome_unknown"
+    ) {
+        const error = new Error(
+            "TomoCare cannot confirm whether the provider accepted this request. It is locked to prevent a duplicate message."
+        )
+        error.outcomeUnknown = true
+        return error
+    }
+
+    return null
 }
 
 function getActionDate(action) {

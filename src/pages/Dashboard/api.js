@@ -129,6 +129,35 @@ export async function prepareInsuranceClaimFiled({
     )
 }
 
+export async function prepareLibrelaAppointmentRequest({
+    petId,
+    orchestrationRunId,
+    reminderId,
+    injectionId,
+    messageBody,
+    requestedBy,
+}) {
+    const response = await fetch(
+        `/api/pets/${petId}/actions/librela-appointment-request/prepare`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+                orchestrationRunId,
+                reminderId,
+                injectionId,
+                messageBody,
+                requestedBy,
+            }),
+        }
+    )
+
+    return jsonOrThrow(
+        response,
+        "Could not prepare the Librela appointment request"
+    )
+}
+
 export async function fetchCareAction(actionId) {
     const response = await fetch(`/api/care-actions/${actionId}`)
     return jsonOrThrow(response, "Could not recover the care action")

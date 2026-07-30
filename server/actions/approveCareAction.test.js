@@ -212,7 +212,13 @@ test("treats an already-approved action as an idempotent success", async () => {
 })
 
 test("rejects terminal and in-progress action states", async () => {
-    for (const status of ["executing", "succeeded", "failed", "cancelled"]) {
+    for (const status of [
+        "executing",
+        "succeeded",
+        "failed",
+        "outcome_unknown",
+        "cancelled",
+    ]) {
         const repository = buildRepository({
             action: buildAction({ status }),
         })

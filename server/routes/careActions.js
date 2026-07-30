@@ -21,6 +21,11 @@ import {
 } from "../actions/prepareInsuranceClaimFiled.js"
 import { MARK_HOME_MEDICATION_GIVEN } from "../actions/homeMedicationGiven.js"
 import { MARK_INSURANCE_CLAIM_FILED } from "../actions/insuranceClaimFiled.js"
+import { SEND_LIBRELA_APPOINTMENT_REQUEST } from "../actions/librelaAppointmentRequest.js"
+import {
+    LibrelaAppointmentPreparationError,
+    prepareSendLibrelaAppointmentRequest,
+} from "../actions/prepareLibrelaAppointmentRequest.js"
 import { listPendingCareActions } from "../actions/listPendingCareActions.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
@@ -187,6 +192,63 @@ router.post(
     }
 )
 
+// POST /api/pets/:petId/actions/librela-appointment-request/prepare
+//
+// This route freezes one exact message and its trusted clinic recipient. It
+// does not approve or send the message.
+router.post(
+    "/pets/:petId/actions/librela-appointment-request/prepare",
+    async (req, res) => {
+        const { petId } = req.params
+        const {
+            orchestrationRunId,
+            reminderId,
+            injectionId,
+            messageBody,
+            requestedBy,
+        } = req.body || {}
+
+        try {
+            const result = await prepareSendLibrelaAppointmentRequest({
+                repository: careActionRepository,
+                petId,
+                orchestrationRunId,
+                reminderId,
+                injectionId,
+                messageBody,
+                requestSource: "dashboard",
+                requestedBy,
+            })
+
+            return res.status(result.disposition === "created" ? 201 : 200).json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    result.disposition === "created"
+                        ? "Librela appointment request prepared for approval."
+                        : "This exact Librela appointment request is already awaiting action.",
+                proposed_action: result.action,
+            })
+        } catch (error) {
+            if (error instanceof LibrelaAppointmentPreparationError) {
+                return res.status(error.status).json({
+                    ok: false,
+                    reason: error.reason,
+                    error: error.message,
+                })
+            }
+
+            console.error("[librela-appointment-request:prepare] error:", error)
+
+            return res.status(500).json({
+                ok: false,
+                reason: "preparation_failed",
+                error: "Failed to prepare the Librela appointment request.",
+            })
+        }
+    }
+)
+
 // POST /api/care-actions/:actionId/approve
 //
 // Approval records explicit human consent. Execution remains a separate
@@ -335,6 +397,12 @@ function getExecutionMessage({ actionType, disposition }) {
         return wasExecuted
             ? "Insurance claim recorded as filed and the reminder completed."
             : "This insurance claim was already recorded as filed and the reminder is complete."
+    }
+
+    if (actionType === SEND_LIBRELA_APPOINTMENT_REQUEST) {
+        return wasExecuted
+            ? "Librela appointment request sent in mock mode."
+            : "This Librela appointment request was already sent in mock mode."
     }
 
     return wasExecuted
