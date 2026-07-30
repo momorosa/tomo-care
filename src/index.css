@@ -181,6 +181,69 @@
     animation: tomo-answer-glow 1.35s ease-out 1;
   }
 
+  .tomo-voice-status {
+    @apply inline-flex items-center gap-2 text-xs text-tomo-text;
+  }
+
+  .tomo-voice-status__orb {
+    @apply inline-flex h-7 w-7 items-center justify-center gap-0.5 rounded-full border border-tomo-border;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .tomo-voice-status__orb span {
+    display: block;
+    width: 2px;
+    height: 7px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.75;
+  }
+
+  .tomo-voice-status--listening,
+  .tomo-voice-status--speaking {
+    color: var(--color-tomo-accent);
+  }
+
+  .tomo-voice-status--thinking .tomo-voice-status__orb {
+    color: var(--color-tomo-text-h);
+  }
+
+  .tomo-voice-status--waiting_for_review {
+    color: var(--color-tomo-warning);
+  }
+
+  .tomo-voice-status--blocked {
+    color: var(--color-tomo-danger);
+  }
+
+  .tomo-voice-status--listening .tomo-voice-status__orb {
+    border-color: var(--tomo-accent-border);
+    box-shadow: 0 0 0 0 rgba(192, 132, 252, 0.3);
+    animation: tomo-listening-ring 1.4s ease-out infinite;
+  }
+
+  .tomo-voice-status--thinking .tomo-voice-status__orb {
+    animation: tomo-thinking-pulse 1.2s ease-in-out infinite;
+  }
+
+  .tomo-voice-status--speaking .tomo-voice-status__orb span {
+    animation: tomo-speaking-bars 0.72s ease-in-out infinite alternate;
+  }
+
+  .tomo-voice-status--speaking .tomo-voice-status__orb span:nth-child(2) {
+    animation-delay: 0.16s;
+  }
+
+  .tomo-voice-status--speaking .tomo-voice-status__orb span:nth-child(3) {
+    animation-delay: 0.32s;
+  }
+
+  .tomo-voice-recording {
+    @apply text-tomo-danger;
+    background: var(--tomo-danger-bg);
+    border: 1px solid var(--tomo-danger-border);
+  }
+
   .tomo-subtle-row {
     background: rgba(255, 255, 255, 0.03);
   }
@@ -207,6 +270,11 @@
     .tomo-answer-fresh::after {
       display: none;
     }
+
+    .tomo-voice-status__orb,
+    .tomo-voice-status__orb span {
+      animation: none !important;
+    }
   }
 }
 
@@ -220,6 +288,33 @@
   100% {
     border-color: var(--color-tomo-border);
     box-shadow: none;
+  }
+}
+
+@keyframes tomo-listening-ring {
+  70% {
+    box-shadow: 0 0 0 6px rgba(192, 132, 252, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 132, 252, 0);
+  }
+}
+
+@keyframes tomo-thinking-pulse {
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes tomo-speaking-bars {
+  from {
+    height: 4px;
+  }
+
+  to {
+    height: 11px;
   }
 }
 

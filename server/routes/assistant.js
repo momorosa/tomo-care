@@ -1,78 +1,33 @@
 import express from "express"
-import { buildQueryPlan } from "../assistant/queryPlanner.js"
-import { buildTrustedContext } from "../assistant/contextBuilder.js"
-import { composeGroundedAnswer } from "../assistant/answerComposer.js"
-import { prepareAssistantHomeMedicationAction } from "../assistant/homeMedicationAction.js"
-import { coordinatePersistedLibrelaAppointmentRequest } from "../orchestration/persistedLibrelaAppointmentWorkflow.js"
-import { isReadOnlyEvaluationBlocked } from "../assistant/evalAssertions.js"
-import { getCareDate } from "../lib/careDates.js"
-import { careActionRepository } from "../repositories/careActionRepository.js"
-import { orchestrationRunRepository } from "../repositories/orchestrationRunRepository.js"
+import {
+    answerAssistantQuestion,
+    AssistantServiceError,
+} from "../assistant/assistantService.js"
 
 const router = express.Router()
-const ASSISTANT_CARE_ACTOR = "Rosa"
 
 router.post("/pets/:petId/assistant/query", async (req, res) => {
     const { petId } = req.params
     const { question, evaluationMode } = req.body || {}
 
-    if (!question || typeof question !== "string") {
-        return res.status(400).json({ error: "question is required." })
-    }
-
     try {
-        const currentCareDate = getCareDate()
-        const queryPlan = buildQueryPlan(question, { currentCareDate })
-
-        if (
-            isReadOnlyEvaluationBlocked({
-                evaluationMode,
-                queryPlan,
-            })
-        ) {
-            return res.status(409).json({
-                error:
-                    "Read-only assistant evals cannot prepare a care action.",
-                reason: "read_only_eval_action_blocked",
-            })
-        }
-
-        const context = await buildTrustedContext(petId)
-        const actionPreparation =
-            queryPlan.intent === "home_medication_given_action"
-                ? await prepareAssistantHomeMedicationAction({
-                      repository: careActionRepository,
-                      petId,
-                      queryPlan,
-                      context,
-                      requestedBy: ASSISTANT_CARE_ACTOR,
-                      currentCareDate,
-                  })
-                : null
-        const messageDraftPreparation =
-            queryPlan.intent === "librela_appointment_message"
-                ? await coordinatePersistedLibrelaAppointmentRequest({
-                      repository: orchestrationRunRepository,
-                      petId,
-                      context,
-                      currentCareDate,
-                      senderName: ASSISTANT_CARE_ACTOR,
-                      petName: "Momo",
-                  })
-                : null
-
-        const response = composeGroundedAnswer({
+        const response = await answerAssistantQuestion({
+            petId,
             question,
-            queryPlan,
-            context,
-            actionPreparation,
-            messageDraftPreparation,
+            evaluationMode,
         })
 
         res.json(response)
     } catch (err) {
+        if (err instanceof AssistantServiceError) {
+            return res.status(err.status).json({
+                error: err.message,
+                reason: err.reason,
+            })
+        }
+
         console.error("[assistant] query failed:", err)
-        res.status(500).json({
+        return res.status(500).json({
             error: err?.message || "Assistant query failed.",
         })
     }

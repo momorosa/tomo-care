@@ -217,6 +217,18 @@ export async function askAssistant(petId, question) {
     return data
 }
 
+export async function askAssistantByVoice(petId, audioBlob) {
+    const response = await fetch(`/api/pets/${petId}/assistant/voice`, {
+        method: "POST",
+        headers: {
+            "Content-Type": audioBlob.type || "audio/webm",
+        },
+        body: audioBlob,
+    })
+
+    return jsonOrThrow(response, "Could not ask Tomo by voice")
+}
+
 export async function fetchDocumentSourceUrl(docId) {
     const response = await fetch(`/api/documents/${docId}/source-url`)
 

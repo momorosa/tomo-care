@@ -1,0 +1,58 @@
+import { createOpenAiVoiceProvider } from "./openAiVoiceProvider.js"
+import { composeSpokenAnswer } from "./spokenAnswer.js"
+import { TOMO_AI_VOICE_DISCLOSURE } from "./tomoPersonality.js"
+
+export async function answerVoiceQuestion({
+    petId,
+    audioBuffer,
+    contentType,
+    dependencies = {},
+}) {
+    const voiceProvider =
+        dependencies.voiceProvider || createOpenAiVoiceProvider()
+    const answerQuestion = dependencies.answerQuestion
+    const composeSpeech =
+        dependencies.composeSpeech || composeSpokenAnswer
+
+    if (typeof answerQuestion !== "function") {
+        throw new TypeError("answerQuestion dependency is required.")
+    }
+
+    const transcript = await voiceProvider.transcribe({
+        audioBuffer,
+        contentType,
+    })
+    const assistantResponse = await answerQuestion({
+        petId,
+        question: transcript,
+    })
+    const spokenAnswer = composeSpeech(assistantResponse)
+    let audio = null
+    let speechError = null
+
+    try {
+        audio = await voiceProvider.synthesize({
+            text: spokenAnswer,
+            answerType: assistantResponse.answer_type,
+        })
+    } catch (err) {
+        speechError = {
+            error:
+                err?.message ||
+                "Tomo found the answer but could not speak it right now.",
+            reason: err?.reason || "speech_generation_failed",
+        }
+    }
+
+    return {
+        ...assistantResponse,
+        transcript,
+        spoken_answer: spokenAnswer,
+        voice: {
+            audio_base64: audio?.toString("base64") || null,
+            content_type: "audio/mpeg",
+            disclosure: TOMO_AI_VOICE_DISCLOSURE,
+            speech_error: speechError,
+        },
+    }
+}

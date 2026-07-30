@@ -1,7 +1,20 @@
-import { useState } from "react"
-import { askAssistant } from "./api.js"
+import { useEffect, useRef, useState } from "react"
+import { askAssistant, askAssistantByVoice } from "./api.js"
 import { buildFreshAssistantAnswer } from "./assistantAnswerAttention.js"
+import {
+    getVoiceStateAfterAnswer,
+    getVoiceStateAfterPlayback,
+    getVoiceStateLabel,
+    VOICE_STATES,
+} from "./voiceInteractionState.js"
+import {
+    isVoiceCaptureSupported,
+    requestMicrophone,
+    selectSupportedAudioType,
+} from "./voiceRecorder.js"
 import EvidenceCard from "./EvidenceCard.jsx"
+
+const MAX_RECORDING_MS = 30_000
 
 const SUGGESTED_QUESTIONS = [
     "When was Momo last given Librela?",
@@ -20,47 +33,289 @@ export default function AssistantPanel({
     const [answer, setAnswer] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [voiceState, setVoiceState] = useState(VOICE_STATES.IDLE)
+    const [voiceResponse, setVoiceResponse] = useState(null)
+    const [voiceMuted, setVoiceMuted] = useState(false)
+    const recorderRef = useRef(null)
+    const streamRef = useRef(null)
+    const recordingTimerRef = useRef(null)
+    const chunksRef = useRef([])
+    const playbackRef = useRef(null)
+    const voiceMutedRef = useRef(false)
+
+    useEffect(() => {
+        return () => {
+            clearTimeout(recordingTimerRef.current)
+            playbackRef.current?.pause()
+            streamRef.current?.getTracks().forEach((track) => track.stop())
+        }
+    }, [])
+
+    function requiresVisualReview(result) {
+        return (
+            result.answer_type === "action_prepared" ||
+            result.answer_type === "message_draft_prepared"
+        )
+    }
+
+    function routePreparedResult(result) {
+        if (
+            result.answer_type === "action_prepared" &&
+            result.proposed_action?.id
+        ) {
+            onActionPrepared?.(result.proposed_action)
+        }
+
+        if (
+            result.answer_type === "message_draft_prepared" &&
+            result.message_draft
+        ) {
+            onMessageDraftPrepared?.({
+                ...result.message_draft,
+                workflow_run_id: result.workflow?.run_id || null,
+            })
+        }
+    }
+
+    function showAssistantResult(result, askedQuestion) {
+        setAnswer((currentAnswer) =>
+            buildFreshAssistantAnswer(
+                currentAnswer,
+                askedQuestion,
+                result
+            )
+        )
+        routePreparedResult(result)
+        return requiresVisualReview(result)
+    }
+
+    function stopPlayback({ requiresReview = false } = {}) {
+        if (playbackRef.current) {
+            playbackRef.current.pause()
+            playbackRef.current.currentTime = 0
+            playbackRef.current = null
+        }
+
+        setVoiceState(getVoiceStateAfterPlayback({ requiresReview }))
+    }
+
+    async function playVoiceAnswer(
+        nextVoiceResponse = voiceResponse,
+        { requiresReview = false } = {}
+    ) {
+        if (!nextVoiceResponse?.audioUrl || voiceMutedRef.current) {
+            setVoiceState(
+                getVoiceStateAfterAnswer({
+                    willSpeak: false,
+                    requiresReview,
+                })
+            )
+            return
+        }
+
+        stopPlayback({ requiresReview })
+        const playback = new Audio(nextVoiceResponse.audioUrl)
+        playbackRef.current = playback
+
+        playback.addEventListener("play", () => {
+            setVoiceState(VOICE_STATES.SPEAKING)
+        })
+        playback.addEventListener(
+            "ended",
+            () => {
+                playbackRef.current = null
+                setVoiceState(
+                    getVoiceStateAfterPlayback({ requiresReview })
+                )
+            },
+            { once: true }
+        )
+
+        try {
+            await playback.play()
+        } catch {
+            playbackRef.current = null
+            setVoiceState(
+                getVoiceStateAfterPlayback({ requiresReview })
+            )
+        }
+    }
 
     async function handleAsk(nextQuestion) {
         const trimmedQuestion = (nextQuestion || question).trim()
 
         if (!trimmedQuestion) return
 
+        stopPlayback()
         setLoading(true)
         setError("")
+        setVoiceState(VOICE_STATES.THINKING)
 
         try {
             const result = await askAssistant(petId, trimmedQuestion)
-            setAnswer((currentAnswer) =>
-                buildFreshAssistantAnswer(
-                    currentAnswer,
-                    trimmedQuestion,
-                    result
-                )
+            const requiresReview = showAssistantResult(
+                result,
+                trimmedQuestion
             )
-
-            if (
-                result.answer_type === "action_prepared" &&
-                result.proposed_action?.id
-            ) {
-                onActionPrepared?.(result.proposed_action)
-            }
-
-            if (
-                result.answer_type === "message_draft_prepared" &&
-                result.message_draft
-            ) {
-                onMessageDraftPrepared?.({
-                    ...result.message_draft,
-                    workflow_run_id: result.workflow?.run_id || null,
+            setVoiceState(
+                getVoiceStateAfterAnswer({
+                    willSpeak: false,
+                    requiresReview,
                 })
-            }
-
+            )
             setQuestion("")
         } catch (err) {
             setError(err?.message || "TomoCare could not answer right now.")
+            setVoiceState(VOICE_STATES.BLOCKED)
         } finally {
             setLoading(false)
+        }
+    }
+
+    function stopRecording() {
+        clearTimeout(recordingTimerRef.current)
+
+        if (recorderRef.current?.state === "recording") {
+            recorderRef.current.stop()
+        }
+    }
+
+    async function finishVoiceRecording(mimeType) {
+        clearTimeout(recordingTimerRef.current)
+        streamRef.current?.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
+        recorderRef.current = null
+
+        const audioBlob = new Blob(chunksRef.current, {
+            type: mimeType || "audio/webm",
+        })
+        chunksRef.current = []
+
+        if (audioBlob.size === 0) {
+            setError("I didn’t hear anything. Try recording again.")
+            setVoiceState(VOICE_STATES.BLOCKED)
+            return
+        }
+
+        setLoading(true)
+        setVoiceState(VOICE_STATES.THINKING)
+
+        try {
+            const result = await askAssistantByVoice(petId, audioBlob)
+            const transcript = result.transcript?.trim()
+
+            if (!transcript) {
+                throw new Error("I couldn’t make out any words. Try again.")
+            }
+
+            const requiresReview = showAssistantResult(result, transcript)
+            const nextVoiceResponse = {
+                audioUrl: result.voice.audio_base64
+                    ? `data:${result.voice.content_type};base64,${result.voice.audio_base64}`
+                    : null,
+                spokenAnswer: result.spoken_answer,
+                disclosure: result.voice.disclosure,
+                requiresReview,
+            }
+
+            setVoiceResponse(nextVoiceResponse)
+            setQuestion("")
+            if (result.voice.speech_error) {
+                setError(result.voice.speech_error.error)
+            }
+            await playVoiceAnswer(nextVoiceResponse, { requiresReview })
+        } catch (err) {
+            setError(
+                err?.message || "TomoCare could not answer by voice right now."
+            )
+            setVoiceState(VOICE_STATES.BLOCKED)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function startRecording() {
+        stopPlayback()
+        setError("")
+        setVoiceResponse(null)
+
+        if (!isVoiceCaptureSupported()) {
+            setError(
+                "Voice recording is not supported in this browser. You can still type to Tomo."
+            )
+            setVoiceState(VOICE_STATES.BLOCKED)
+            return
+        }
+
+        try {
+            const stream = await requestMicrophone()
+            streamRef.current = stream
+            const mimeType = selectSupportedAudioType()
+            const recorder = mimeType
+                ? new MediaRecorder(stream, { mimeType })
+                : new MediaRecorder(stream)
+
+            recorderRef.current = recorder
+            chunksRef.current = []
+
+            recorder.addEventListener("dataavailable", (event) => {
+                if (event.data?.size > 0) chunksRef.current.push(event.data)
+            })
+            recorder.addEventListener(
+                "stop",
+                () => finishVoiceRecording(recorder.mimeType || mimeType),
+                { once: true }
+            )
+            recorder.addEventListener(
+                "error",
+                () => {
+                    clearTimeout(recordingTimerRef.current)
+                    stream.getTracks().forEach((track) => track.stop())
+                    streamRef.current = null
+                    recorderRef.current = null
+                    setError(
+                        "TomoCare could not finish the recording. You can still type your question."
+                    )
+                    setVoiceState(VOICE_STATES.BLOCKED)
+                },
+                { once: true }
+            )
+
+            recorder.start()
+            setVoiceState(VOICE_STATES.LISTENING)
+            recordingTimerRef.current = setTimeout(
+                stopRecording,
+                MAX_RECORDING_MS
+            )
+        } catch (err) {
+            streamRef.current?.getTracks().forEach((track) => track.stop())
+            streamRef.current = null
+            setError(
+                err?.message ||
+                    "TomoCare could not open the microphone. You can still type your question."
+            )
+            setVoiceState(VOICE_STATES.BLOCKED)
+        }
+    }
+
+    function handleVoiceButton() {
+        if (voiceState === VOICE_STATES.LISTENING) {
+            stopRecording()
+            return
+        }
+
+        startRecording()
+    }
+
+    function toggleMute() {
+        const nextMuted = !voiceMuted
+        setVoiceMuted(nextMuted)
+        voiceMutedRef.current = nextMuted
+
+        if (nextMuted && voiceState === VOICE_STATES.SPEAKING) {
+            stopPlayback({
+                requiresReview: voiceResponse?.requiresReview,
+            })
         }
     }
 
@@ -84,9 +339,12 @@ export default function AssistantPanel({
                     </p>
                 </div>
 
-                <span className="tomo-badge tomo-badge--brand shrink-0">
-                    Verified data + approval
-                </span>
+                <div className="flex flex-col items-start gap-2 md:items-end">
+                    <span className="tomo-badge tomo-badge--brand shrink-0">
+                        Verified data + approval
+                    </span>
+                    <TomoVoiceStatus state={voiceState} />
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 md:flex-row">
@@ -101,6 +359,30 @@ export default function AssistantPanel({
                         focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-tomo-accent
                     "
                 />
+
+                <button
+                    type="button"
+                    onClick={handleVoiceButton}
+                    disabled={
+                        loading &&
+                        voiceState !== VOICE_STATES.LISTENING
+                    }
+                    aria-pressed={voiceState === VOICE_STATES.LISTENING}
+                    className={`tomo-btn min-h-11 px-5 text-sm ${
+                        voiceState === VOICE_STATES.LISTENING
+                            ? "tomo-voice-recording"
+                            : "tomo-btn-secondary"
+                    }`}
+                >
+                    <span className="material-symbols-outlined mr-2 text-lg" aria-hidden="true">
+                        {voiceState === VOICE_STATES.LISTENING
+                            ? "stop_circle"
+                            : "mic"}
+                    </span>
+                    {voiceState === VOICE_STATES.LISTENING
+                        ? "Stop"
+                        : "Speak"}
+                </button>
 
                 <button
                     type="submit"
@@ -130,6 +412,65 @@ export default function AssistantPanel({
                 ))}
             </div>
 
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+                {getVoiceStateLabel(voiceState)}
+            </p>
+
+            {voiceResponse && (
+                <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-tomo-border bg-white/[0.02] px-3 py-2">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            playVoiceAnswer(voiceResponse, {
+                                requiresReview:
+                                    voiceResponse.requiresReview,
+                            })
+                        }
+                        disabled={
+                            loading ||
+                            !voiceResponse.audioUrl ||
+                            voiceState === VOICE_STATES.LISTENING
+                        }
+                        className="tomo-btn tomo-btn-tertiary min-h-9 px-3 text-xs"
+                    >
+                        <span className="material-symbols-outlined mr-1.5 text-base" aria-hidden="true">
+                            replay
+                        </span>
+                        Replay
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            stopPlayback({
+                                requiresReview:
+                                    voiceResponse.requiresReview,
+                            })
+                        }
+                        disabled={voiceState !== VOICE_STATES.SPEAKING}
+                        className="tomo-btn tomo-btn-tertiary min-h-9 px-3 text-xs"
+                    >
+                        <span className="material-symbols-outlined mr-1.5 text-base" aria-hidden="true">
+                            stop
+                        </span>
+                        Stop audio
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggleMute}
+                        aria-pressed={voiceMuted}
+                        className="tomo-btn tomo-btn-tertiary min-h-9 px-3 text-xs"
+                    >
+                        <span className="material-symbols-outlined mr-1.5 text-base" aria-hidden="true">
+                            {voiceMuted ? "volume_off" : "volume_up"}
+                        </span>
+                        {voiceMuted ? "Unmute" : "Mute"}
+                    </button>
+                    <span className="text-xs text-tomo-text">
+                        {voiceResponse.disclosure}
+                    </span>
+                </div>
+            )}
+
             {error && (
                 <div className="mt-5 rounded-xl border border-[color:var(--tomo-danger-border)] bg-[var(--tomo-danger-bg)] px-4 py-3 text-sm text-tomo-danger">
                     {error}
@@ -143,6 +484,23 @@ export default function AssistantPanel({
                 />
             )}
         </section>
+    )
+}
+
+function TomoVoiceStatus({ state }) {
+    return (
+        <div
+            className={`tomo-voice-status tomo-voice-status--${state}`}
+            data-state={state}
+            aria-hidden="true"
+        >
+            <span className="tomo-voice-status__orb">
+                <span />
+                <span />
+                <span />
+            </span>
+            <span>{getVoiceStateLabel(state)}</span>
+        </div>
     )
 }
 

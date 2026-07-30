@@ -18,7 +18,8 @@
         "test:phase3b": "node --test server/actions/*.test.js server/lib/*.test.js server/assistant/*.test.js server/calendar/*.test.js server/dashboard/*.test.js",
         "test:phase3c-backend": "node --test server/actions/*.test.js server/messaging/*.test.js",
         "test:phase3c-ui": "node --test src/pages/Dashboard/*.test.js",
-        "test:phase3c-orchestration": "node --test server/orchestration/*.test.js"
+        "test:phase3c-orchestration": "node --test server/orchestration/*.test.js",
+        "test:phase3d-voice": "node --test server/voice/*.test.js src/pages/Dashboard/voice*.test.js"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.110.7",
