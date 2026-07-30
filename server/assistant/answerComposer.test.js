@@ -102,6 +102,20 @@ test("returns an editable, unsent Librela appointment-message draft", () => {
             send_available: false,
         },
     }
+    const workflow = {
+        type: "librela_appointment_request",
+        version: 1,
+        state: "awaiting_human_review",
+        current_owner: "human",
+        completed_roles: [
+            "records",
+            "care_planning",
+            "communication",
+        ],
+        pending_decision: "review_or_edit_message",
+        blocked_reason: null,
+        external_action_taken: false,
+    }
 
     const response = composeGroundedAnswer({
         question: "Draft a Librela appointment request.",
@@ -120,12 +134,14 @@ test("returns an editable, unsent Librela appointment-message draft", () => {
             injection,
             reminder,
             draft,
+            workflow,
         },
     })
 
     assert.equal(response.answer_type, "message_draft_prepared")
     assert.equal(response.proposed_action, null)
     assert.equal(response.message_draft, draft)
+    assert.equal(response.workflow, workflow)
     assert.match(response.answer, /SoMa Animal Hospital/)
     assert.match(response.answer, /June 10, 2026/)
     assert.match(response.answer, /July 29, 2026/)

@@ -1172,6 +1172,7 @@ function answerLibrelaAppointmentMessage(preparation) {
             ],
             proposed_action: null,
             message_draft: draft,
+            workflow: preparation.workflow,
         }
     }
 
@@ -1195,6 +1196,7 @@ function answerLibrelaAppointmentMessage(preparation) {
             ],
             proposed_action: null,
             message_draft: null,
+            workflow: preparation.workflow,
         }
     }
 
@@ -1221,6 +1223,7 @@ function answerLibrelaAppointmentMessage(preparation) {
         ],
         proposed_action: null,
         message_draft: null,
+        workflow: preparation?.workflow || null,
     }
 }
 
