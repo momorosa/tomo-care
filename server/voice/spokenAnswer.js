@@ -5,9 +5,25 @@ const REVIEW_ANSWER_TYPES = new Set([
     "action_prepared",
     "message_draft_prepared",
 ])
+const PROTECTED_PERIOD = "\uE000"
 
 function splitSentences(text) {
-    return text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((part) => part.trim()) || []
+    const protectedText = text
+        .replace(/(\d)\.(?=\d)/g, `$1${PROTECTED_PERIOD}`)
+        .replace(/\b(?:e\.g|i\.e)\./gi, (match) =>
+            match.replaceAll(".", PROTECTED_PERIOD)
+        )
+        .replace(/\b(?:Dr|Mr|Mrs|Ms|St|vs|etc|No)\./gi, (match) =>
+            match.replace(".", PROTECTED_PERIOD)
+        )
+
+    return (
+        protectedText
+            .match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+            ?.map((part) =>
+                part.replaceAll(PROTECTED_PERIOD, ".").trim()
+            ) || []
+    )
 }
 
 function fitSentences(text, maxCharacters) {

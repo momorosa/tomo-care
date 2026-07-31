@@ -4,6 +4,12 @@ import { prepareAssistantHomeMedicationAction } from "./homeMedicationAction.js"
 import { coordinatePersistedLibrelaAppointmentRequest } from "../orchestration/persistedLibrelaAppointmentWorkflow.js"
 import { isReadOnlyEvaluationBlocked } from "./evalAssertions.js"
 import { getCareDate } from "../lib/careDates.js"
+import {
+    getNextConversationContext,
+    sanitizeConversationContext,
+} from "./conversationContext.js"
+import { createOpenAiSemanticProvider } from "./openAiSemanticProvider.js"
+import { resolveAssistantPlan } from "./semanticUnderstanding.js"
 
 const ASSISTANT_CARE_ACTOR = "Rosa"
 
@@ -20,6 +26,7 @@ export async function answerAssistantQuestion({
     petId,
     question,
     evaluationMode,
+    conversationContext,
     dependencies = {},
 }) {
     if (!petId) {
@@ -39,7 +46,22 @@ export async function answerAssistantQuestion({
         currentCareDate = getCareDate(),
     } = dependencies
 
-    const queryPlan = buildPlan(question, { currentCareDate })
+    const previousContext =
+        sanitizeConversationContext(conversationContext)
+    const semanticProvider =
+        dependencies.semanticProvider === undefined
+            ? createOpenAiSemanticProvider()
+            : dependencies.semanticProvider
+    const {
+        queryPlan,
+        semanticInterpretation,
+    } = await resolveAssistantPlan({
+        question,
+        currentCareDate,
+        conversationContext: previousContext,
+        buildPlan,
+        semanticProvider,
+    })
 
     if (
         isReadOnlyEvaluationBlocked({
@@ -56,10 +78,12 @@ export async function answerAssistantQuestion({
         )
     }
 
-    const buildContext =
-        dependencies.buildContext ||
-        (await import("./contextBuilder.js")).buildTrustedContext
-    const context = await buildContext(petId)
+    const needsTrustedContext = queryPlan.intent !== "social_response"
+    const buildContext = needsTrustedContext
+        ? dependencies.buildContext ||
+          (await import("./contextBuilder.js")).buildTrustedContext
+        : null
+    const context = buildContext ? await buildContext(petId) : {}
     const actionRepository =
         queryPlan.intent === "home_medication_given_action"
             ? dependencies.actionRepository ||
@@ -95,11 +119,20 @@ export async function answerAssistantQuestion({
               })
             : null
 
-    return composeAnswer({
+    const response = composeAnswer({
         question,
         queryPlan,
         context,
         actionPreparation,
         messageDraftPreparation,
     })
+
+    return {
+        ...response,
+        semantic_interpretation: semanticInterpretation,
+        conversation_context: getNextConversationContext({
+            queryPlan,
+            previousContext,
+        }),
+    }
 }

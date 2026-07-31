@@ -195,3 +195,47 @@ test("keeps the grounded answer visible when speech generation fails", async () 
         "speech_generation_failed"
     )
 })
+
+test("passes only bounded prior intent and subject into a voice follow-up", async () => {
+    const answerCalls = []
+    await answerVoiceQuestion({
+        petId: "pet-1",
+        audioBuffer: Buffer.from("raw-audio"),
+        contentType: "audio/webm",
+        conversationContext: {
+            intent: "last_librela",
+            subject: "librela",
+        },
+        dependencies: {
+            voiceProvider: {
+                async transcribe() {
+                    return "What about the one before?"
+                },
+                async synthesize() {
+                    return Buffer.from("safe-mp3")
+                },
+            },
+            answerQuestion: async (input) => {
+                answerCalls.push(input)
+                return {
+                    answer_type: "grounded_answer",
+                    answer:
+                        "The verified Librela injection before that was April 14.",
+                    citations: [
+                        {
+                            type: "trusted_event",
+                            id: "event-1",
+                        },
+                    ],
+                }
+            },
+        },
+    })
+
+    assert.deepEqual(answerCalls[0].conversationContext, {
+        intent: "last_librela",
+        subject: "librela",
+    })
+    assert.equal("answer" in answerCalls[0].conversationContext, false)
+    assert.equal("citations" in answerCalls[0].conversationContext, false)
+})

@@ -42,4 +42,7 @@ test("explains automatic stopping and makes transcript interpretation visible", 
     )
     assert.match(source, /Heard “/)
     assert.match(source, /Interpreted as “/)
+    assert.match(source, /Understood as “/)
+    assert.match(source, /using the previous care question/)
+    assert.match(source, /conversationContextRef/)
 })

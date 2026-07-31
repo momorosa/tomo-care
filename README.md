@@ -124,3 +124,23 @@ Camera. If Tomo does not hear the Mac microphone:
 
 Voice recording stops automatically after Tomo detects speech followed by a
 short pause. The Stop button remains available as a manual fallback.
+
+## Semantic understanding
+
+TomoCare routes explicit supported questions and all governed actions through
+the existing deterministic planner first. If a question is otherwise unknown,
+the server may use a schema-constrained OpenAI interpretation to map natural
+phrasing to one supported read-only intent. The interpretation request uses
+`store: false` and includes no trusted records, answers, citations, or action
+payloads.
+
+Semantic interpretation uses the existing server-only `OPENAI_API_KEY`.
+The default model is `gpt-5.6-terra`; it can be changed locally with:
+
+```text
+TOMO_SEMANTIC_MODEL=gpt-5.6-terra
+```
+
+Conversation context is intentionally limited to the previous supported care
+intent and subject. It is held in the browser session only and is not written
+to the database.

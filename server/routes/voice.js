@@ -8,6 +8,7 @@ import {
     VoiceProviderError,
 } from "../voice/openAiVoiceProvider.js"
 import { answerVoiceQuestion } from "../voice/voiceQuery.js"
+import { sanitizeConversationContext } from "../assistant/conversationContext.js"
 
 const router = express.Router()
 
@@ -35,6 +36,10 @@ router.post(
                 petId: req.params.petId,
                 audioBuffer: req.body,
                 contentType,
+                conversationContext: sanitizeConversationContext({
+                    intent: req.get("X-Tomo-Previous-Intent"),
+                    subject: req.get("X-Tomo-Previous-Subject"),
+                }),
                 dependencies: {
                     answerQuestion: answerAssistantQuestion,
                 },

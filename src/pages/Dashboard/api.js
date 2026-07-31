@@ -204,25 +204,48 @@ export async function cancelCareAction(actionId) {
     return jsonOrThrow(response, "Could not cancel the care action")
 }
 
-export async function askAssistant(petId, question) {
+export async function askAssistant(
+    petId,
+    question,
+    conversationContext = null
+) {
     const response = await fetch(`/api/pets/${petId}/assistant/query`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+            question,
+            conversationContext,
+        }),
     })
 
     const data = await jsonOrThrow(response, "Could not ask TomoCare")
     return data
 }
 
-export async function askAssistantByVoice(petId, audioBlob) {
+export async function askAssistantByVoice(
+    petId,
+    audioBlob,
+    conversationContext = null
+) {
+    const headers = {
+        "Content-Type": audioBlob.type || "audio/webm",
+    }
+
+    if (conversationContext?.intent) {
+        headers["X-Tomo-Previous-Intent"] =
+            conversationContext.intent
+    }
+
+    if (conversationContext?.subject) {
+        headers["X-Tomo-Previous-Subject"] =
+            conversationContext.subject
+    }
+
     const response = await fetch(`/api/pets/${petId}/assistant/voice`, {
         method: "POST",
-        headers: {
-            "Content-Type": audioBlob.type || "audio/webm",
-        },
+        headers,
         body: audioBlob,
     })
 

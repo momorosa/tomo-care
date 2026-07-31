@@ -16,6 +16,32 @@ test("keeps spoken answers concise without changing their first grounded facts",
     )
 })
 
+test("does not split verified weight facts at decimal points", () => {
+    const spoken = composeSpokenAnswer({
+        answer_type: "grounded_answer",
+        answer:
+            "I can summarize Momo’s verified weight trend, but I can’t determine whether it is medically concerning. Momo’s verified weight changed from 15.4 kg (33.95 lb) on February 17, 2025 to 15.2 kg (33.51 lb) on June 10, 2026, which is down 0.2 kg (0.44 lb). Please confirm clinical significance with her vet.",
+    })
+
+    assert.equal(
+        spoken,
+        "I can summarize Momo’s verified weight trend, but I can’t determine whether it is medically concerning. Momo’s verified weight changed from 15.4 kg (33.95 lb) on February 17, 2025 to 15.2 kg (33.51 lb) on June 10, 2026, which is down 0.2 kg (0.44 lb)."
+    )
+})
+
+test("keeps numeric dates and common abbreviations inside their sentences", () => {
+    const spoken = composeSpokenAnswer({
+        answer_type: "grounded_answer",
+        answer:
+            "Dr. Lee recorded the visit on 6.10.2026. Momo weighed 15.2 kg. A third detail remains visible.",
+    })
+
+    assert.equal(
+        spoken,
+        "Dr. Lee recorded the visit on 6.10.2026. Momo weighed 15.2 kg."
+    )
+})
+
 test("adds the fixed visual-review boundary to prepared actions", () => {
     const spoken = composeSpokenAnswer({
         answer_type: "action_prepared",

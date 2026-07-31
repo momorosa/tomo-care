@@ -7,6 +7,7 @@ export async function answerVoiceQuestion({
     petId,
     audioBuffer,
     contentType,
+    conversationContext,
     dependencies = {},
 }) {
     const voiceProvider =
@@ -24,10 +25,16 @@ export async function answerVoiceQuestion({
         contentType,
     })
     const transcriptInterpretation = interpretCareTranscript(transcript)
-    const assistantResponse = await answerQuestion({
+    const assistantInput = {
         petId,
         question: transcriptInterpretation.interpreted,
-    })
+    }
+
+    if (conversationContext) {
+        assistantInput.conversationContext = conversationContext
+    }
+
+    const assistantResponse = await answerQuestion(assistantInput)
     const spokenAnswer = composeSpeech(assistantResponse)
     let audio = null
     let speechError = null

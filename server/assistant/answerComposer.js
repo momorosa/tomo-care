@@ -15,6 +15,14 @@ export function composeGroundedAnswer({
     let response
 
     switch (queryPlan.intent) {
+        case "social_response":
+            response = answerSocialResponse(queryPlan.subject)
+            break
+
+        case "semantic_clarification":
+            response = answerSemanticClarification()
+            break
+
         case "ambiguous_health_question":
             response = answerAmbiguousHealthQuestion()
             break
@@ -132,22 +140,60 @@ function answerLastLibrela(context, queryPlan) {
         .filter((event) => dateInRange(event.event_date, queryPlan.date_range))
         .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))
 
-    const latest = injections[0]
+    const eventOffset = queryPlan.event_offset === 1 ? 1 : 0
+    const latest = injections[eventOffset]
 
     if (!latest) {
         return noTrustedDataAnswer(
-            "I don’t have a verified Librela injection record for that timeframe, so I can’t answer from trusted data."
+            eventOffset === 1
+                ? "I don’t have an earlier verified Librela injection record to show you."
+                : "I don’t have a verified Librela injection record for that timeframe, so I can’t answer from trusted data."
         )
     }
 
     const rangePhrase = getDateRangePhrase(queryPlan.date_range)
 
     return {
-        answer: `Momo’s last verified Librela injection${rangePhrase ? ` ${rangePhrase}` : ""} was on ${formatDate(latest.event_date)}.`,
+        answer:
+            eventOffset === 1
+                ? `The verified Librela injection before that was on ${formatDate(latest.event_date)}.`
+                : `Momo’s last verified Librela injection${rangePhrase ? ` ${rangePhrase}` : ""} was on ${formatDate(latest.event_date)}.`,
         answer_type: "grounded_answer",
         confidence: "high",
         citations: [eventCitation(latest, "Verified Librela injection")],
         limitations: [],
+        proposed_action: null,
+    }
+}
+
+function answerSocialResponse(subject) {
+    const answers = {
+        acknowledgement: "Got it, Rosa.",
+        goodbye: "Talk soon, Rosa. Give Momo a little hello from me.",
+        greeting: "Hi Rosa. What would you like to check for Momo?",
+        positive_feedback:
+            "I’m glad you’re happy with it, Rosa. I’m always happy to help with Momo.",
+        thanks: "You’re welcome, Rosa. I’m always happy to help with Momo.",
+    }
+
+    return {
+        answer: answers[subject] || "I’m here, Rosa.",
+        answer_type: "social_response",
+        confidence: "high",
+        citations: [],
+        limitations: [],
+        proposed_action: null,
+    }
+}
+
+function answerSemanticClarification() {
+    return {
+        answer:
+            "I’m not quite sure what you mean yet. Could you name the medication, record, or care detail you want me to check?",
+        answer_type: "clarification_needed",
+        confidence: "low",
+        citations: [],
+        limitations: ["No care fact or action was inferred."],
         proposed_action: null,
     }
 }

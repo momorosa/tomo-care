@@ -96,3 +96,36 @@ test("preserves the read-only evaluation action boundary", async () => {
             err.reason === "read_only_eval_action_blocked"
     )
 })
+
+test("answers a social turn without loading trusted care records", async () => {
+    let contextCalls = 0
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Thank you!",
+        conversationContext: {
+            intent: "last_librela",
+            subject: "librela",
+        },
+        dependencies: {
+            currentCareDate: "2026-07-30",
+            buildPlan: () => ({
+                intent: "unknown",
+                date_range: { kind: "all_time" },
+            }),
+            buildContext: async () => {
+                contextCalls += 1
+                return {}
+            },
+            semanticProvider: null,
+        },
+    })
+
+    assert.equal(contextCalls, 0)
+    assert.equal(result.answer_type, "social_response")
+    assert.match(result.answer, /You’re welcome, Rosa/)
+    assert.deepEqual(result.citations, [])
+    assert.deepEqual(result.conversation_context, {
+        intent: "last_librela",
+        subject: "librela",
+    })
+})

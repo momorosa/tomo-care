@@ -44,6 +44,7 @@ export default function AssistantPanel({
     const chunksRef = useRef([])
     const playbackRef = useRef(null)
     const voiceMutedRef = useRef(false)
+    const conversationContextRef = useRef(null)
 
     useEffect(() => {
         return () => {
@@ -81,6 +82,11 @@ export default function AssistantPanel({
     }
 
     function showAssistantResult(result, askedQuestion) {
+        if ("conversation_context" in result) {
+            conversationContextRef.current =
+                result.conversation_context
+        }
+
         setAnswer((currentAnswer) =>
             buildFreshAssistantAnswer(
                 currentAnswer,
@@ -155,7 +161,11 @@ export default function AssistantPanel({
         setVoiceState(VOICE_STATES.THINKING)
 
         try {
-            const result = await askAssistant(petId, trimmedQuestion)
+            const result = await askAssistant(
+                petId,
+                trimmedQuestion,
+                conversationContextRef.current
+            )
             const requiresReview = showAssistantResult(
                 result,
                 trimmedQuestion
@@ -208,7 +218,11 @@ export default function AssistantPanel({
         setVoiceState(VOICE_STATES.THINKING)
 
         try {
-            const result = await askAssistantByVoice(petId, audioBlob)
+            const result = await askAssistantByVoice(
+                petId,
+                audioBlob,
+                conversationContextRef.current
+            )
             const transcript = result.transcript?.trim()
 
             if (!transcript) {
@@ -561,6 +575,19 @@ function AssistantAnswer({ answer }) {
                             )}
                         </div>
                     )}
+                    {answer.semantic_interpretation?.status ===
+                        "applied" &&
+                        answer.semantic_interpretation
+                            ?.interpretation_label && (
+                            <p className="mt-2 text-xs text-tomo-text">
+                                {`Understood as “${answer.semantic_interpretation.interpretation_label}”${
+                                    answer.semantic_interpretation
+                                        .used_previous_context
+                                        ? " using the previous care question"
+                                        : ""
+                                }`}
+                            </p>
+                        )}
                 </div>
 
                 <span
@@ -570,7 +597,9 @@ function AssistantAnswer({ answer }) {
                             : "tomo-badge--success"
                     }`}
                 >
-                    {isPreparedMessage
+                    {answer.answer_type === "social_response"
+                        ? "Tomo"
+                        : isPreparedMessage
                         ? "Draft ready"
                         : isPreparedAction
                         ? "Ready to review"

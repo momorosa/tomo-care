@@ -17,6 +17,82 @@ function plannedReminder({
     }
 }
 
+test("answers the bounded Librela one-before follow-up from verified events", () => {
+    const injections = [
+        {
+            id: "latest-injection",
+            doc_id: null,
+            event_type: "injection",
+            event_date: "2026-06-10",
+            status: "verified",
+            details_json: { subtype: "Librela" },
+        },
+        {
+            id: "previous-injection",
+            doc_id: null,
+            event_type: "injection",
+            event_date: "2026-04-14",
+            status: "verified",
+            details_json: { subtype: "Librela" },
+        },
+    ]
+    const response = composeGroundedAnswer({
+        question: "What about the one before?",
+        queryPlan: {
+            intent: "last_librela",
+            subject: "librela",
+            date_range: { kind: "all_time" },
+            event_offset: 1,
+        },
+        context: {
+            librelaInjectionEvents: injections,
+            verifiedEvents: injections,
+            plannedReminders: [],
+            scheduledAppointments: [],
+            documents: [],
+            directLibrelaCostItems: [],
+            librelaVisitCostItems: [],
+            verifiedWeightFacts: [],
+        },
+    })
+
+    assert.match(response.answer, /before that was on April 14, 2026/)
+    assert.equal(response.citations[0].id, "previous-injection")
+})
+
+test("handles thanks as conversation without inventing a care fact", () => {
+    const response = composeGroundedAnswer({
+        question: "Thank you!",
+        queryPlan: {
+            intent: "social_response",
+            subject: "thanks",
+        },
+        context: {},
+    })
+
+    assert.equal(response.answer_type, "social_response")
+    assert.match(response.answer, /always happy to help with Momo/)
+    assert.deepEqual(response.citations, [])
+})
+
+test("responds warmly to positive feedback without inventing a care fact", () => {
+    const response = composeGroundedAnswer({
+        question: "That’s fantastic",
+        queryPlan: {
+            intent: "social_response",
+            subject: "positive_feedback",
+        },
+        context: {},
+    })
+
+    assert.equal(response.answer_type, "social_response")
+    assert.equal(
+        response.answer,
+        "I’m glad you’re happy with it, Rosa. I’m always happy to help with Momo."
+    )
+    assert.deepEqual(response.citations, [])
+})
+
 test("names active reminders by care item in the answer and evidence cards", () => {
     const reminders = [
         plannedReminder({
