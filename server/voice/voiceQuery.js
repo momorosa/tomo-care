@@ -1,6 +1,7 @@
 import { createOpenAiVoiceProvider } from "./openAiVoiceProvider.js"
 import { composeSpokenAnswer } from "./spokenAnswer.js"
 import { TOMO_AI_VOICE_DISCLOSURE } from "./tomoPersonality.js"
+import { interpretCareTranscript } from "./careVocabulary.js"
 
 export async function answerVoiceQuestion({
     petId,
@@ -22,9 +23,10 @@ export async function answerVoiceQuestion({
         audioBuffer,
         contentType,
     })
+    const transcriptInterpretation = interpretCareTranscript(transcript)
     const assistantResponse = await answerQuestion({
         petId,
-        question: transcript,
+        question: transcriptInterpretation.interpreted,
     })
     const spokenAnswer = composeSpeech(assistantResponse)
     let audio = null
@@ -46,7 +48,9 @@ export async function answerVoiceQuestion({
 
     return {
         ...assistantResponse,
-        transcript,
+        transcript: transcriptInterpretation.original,
+        interpreted_transcript: transcriptInterpretation.interpreted,
+        transcript_corrections: transcriptInterpretation.corrections,
         spoken_answer: spokenAnswer,
         voice: {
             audio_base64: audio?.toString("base64") || null,

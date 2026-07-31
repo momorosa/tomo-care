@@ -11,6 +11,7 @@ import {
     isVoiceCaptureSupported,
     requestMicrophone,
     selectSupportedAudioType,
+    startSilenceDetection,
 } from "./voiceRecorder.js"
 import EvidenceCard from "./EvidenceCard.jsx"
 
@@ -39,6 +40,7 @@ export default function AssistantPanel({
     const recorderRef = useRef(null)
     const streamRef = useRef(null)
     const recordingTimerRef = useRef(null)
+    const silenceDetectorCleanupRef = useRef(null)
     const chunksRef = useRef([])
     const playbackRef = useRef(null)
     const voiceMutedRef = useRef(false)
@@ -46,6 +48,7 @@ export default function AssistantPanel({
     useEffect(() => {
         return () => {
             clearTimeout(recordingTimerRef.current)
+            silenceDetectorCleanupRef.current?.()
             playbackRef.current?.pause()
             streamRef.current?.getTracks().forEach((track) => track.stop())
         }
@@ -174,6 +177,8 @@ export default function AssistantPanel({
 
     function stopRecording() {
         clearTimeout(recordingTimerRef.current)
+        silenceDetectorCleanupRef.current?.()
+        silenceDetectorCleanupRef.current = null
 
         if (recorderRef.current?.state === "recording") {
             recorderRef.current.stop()
@@ -182,6 +187,8 @@ export default function AssistantPanel({
 
     async function finishVoiceRecording(mimeType) {
         clearTimeout(recordingTimerRef.current)
+        silenceDetectorCleanupRef.current?.()
+        silenceDetectorCleanupRef.current = null
         streamRef.current?.getTracks().forEach((track) => track.stop())
         streamRef.current = null
         recorderRef.current = null
@@ -270,6 +277,8 @@ export default function AssistantPanel({
                 "error",
                 () => {
                     clearTimeout(recordingTimerRef.current)
+                    silenceDetectorCleanupRef.current?.()
+                    silenceDetectorCleanupRef.current = null
                     stream.getTracks().forEach((track) => track.stop())
                     streamRef.current = null
                     recorderRef.current = null
@@ -283,11 +292,19 @@ export default function AssistantPanel({
 
             recorder.start()
             setVoiceState(VOICE_STATES.LISTENING)
+            silenceDetectorCleanupRef.current = startSilenceDetection(
+                stream,
+                {
+                    onSilence: stopRecording,
+                }
+            )
             recordingTimerRef.current = setTimeout(
                 stopRecording,
                 MAX_RECORDING_MS
             )
         } catch (err) {
+            silenceDetectorCleanupRef.current?.()
+            silenceDetectorCleanupRef.current = null
             streamRef.current?.getTracks().forEach((track) => track.stop())
             streamRef.current = null
             setError(
@@ -392,6 +409,16 @@ export default function AssistantPanel({
                     {loading ? "Asking..." : "Ask"}
                 </button>
             </form>
+
+            {voiceState === VOICE_STATES.LISTENING && (
+                <p
+                    role="status"
+                    className="mt-2 text-xs leading-5 text-tomo-text"
+                >
+                    Listening—Tomo will stop automatically after a short
+                    pause. Tap Stop if you want to finish sooner.
+                </p>
+            )}
 
             <div className="mt-4 flex flex-wrap gap-2">
                 {SUGGESTED_QUESTIONS.map((item) => (
@@ -521,6 +548,19 @@ function AssistantAnswer({ answer }) {
                     <p className="mt-1 text-sm font-medium text-tomo-text-h">
                         {answer.question}
                     </p>
+                    {answer.transcript_corrections?.length > 0 && (
+                        <div className="mt-2 space-y-1 text-xs text-tomo-text">
+                            {answer.transcript_corrections.map(
+                                (correction) => (
+                                    <p
+                                        key={`${correction.heard}-${correction.interpreted_as}`}
+                                    >
+                                        {`Heard “${correction.heard}” · Interpreted as “${correction.interpreted_as}”`}
+                                    </p>
+                                )
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <span

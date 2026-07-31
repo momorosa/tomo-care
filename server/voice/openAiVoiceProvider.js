@@ -1,5 +1,9 @@
 import { Buffer } from "node:buffer"
 import process from "node:process"
+import {
+    TOMO_TRANSCRIPTION_KEYWORDS,
+    TOMO_TRANSCRIPTION_PROMPT,
+} from "./careVocabulary.js"
 import { getTomoSpeechInstructions } from "./tomoPersonality.js"
 
 export const DEFAULT_STT_MODEL = "gpt-transcribe"
@@ -104,6 +108,14 @@ export function createOpenAiVoiceProvider({
                 `tomo-question.${extension}`
             )
             form.append("model", sttModel)
+            form.append("prompt", TOMO_TRANSCRIPTION_PROMPT)
+
+            if (sttModel === DEFAULT_STT_MODEL) {
+                for (const keyword of TOMO_TRANSCRIPTION_KEYWORDS) {
+                    form.append("keywords[]", keyword)
+                }
+                form.append("languages[]", "en")
+            }
 
             const response = await fetchImpl(
                 "https://api.openai.com/v1/audio/transcriptions",

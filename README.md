@@ -110,3 +110,17 @@ Correctness, provenance, and governance come before polish.
 
 This project uses real pet-care data in development, so private PDFs, API keys, OAuth tokens, and environment files are not included in the repository.
 
+## Voice troubleshooting
+
+TomoCare records from the microphone selected by the browser and operating
+system. On a Mac, an iPhone may take over as the input through Continuity
+Camera. If Tomo does not hear the Mac microphone:
+
+1. In macOS, open **System Settings → Sound → Input** and select the Mac
+   microphone.
+2. Reload the TomoCare browser tab and allow microphone access.
+3. If the iPhone still takes over, temporarily turn off **Settings → General →
+   AirPlay & Continuity → Continuity Camera** on the iPhone.
+
+Voice recording stops automatically after Tomo detects speech followed by a
+short pause. The Stop button remains available as a manual fallback.

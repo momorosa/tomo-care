@@ -38,6 +38,25 @@ test("transcribes bounded WebM audio with the configured server credential", asy
         requests[0].options.body.get("file").type,
         "audio/webm"
     )
+    assert.match(
+        requests[0].options.body.get("prompt"),
+        /Momo’s pet care/
+    )
+    assert.deepEqual(
+        requests[0].options.body.getAll("keywords[]"),
+        [
+            "Momo",
+            "Tomo",
+            "Librela",
+            "Simparica Trio",
+            "Adequan",
+            "SoMa Animal Hospital",
+        ]
+    )
+    assert.deepEqual(
+        requests[0].options.body.getAll("languages[]"),
+        ["en"]
+    )
 })
 
 test("synthesizes MP3 using the pinned Tomo voice defaults", async () => {

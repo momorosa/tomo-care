@@ -29,3 +29,17 @@ test("provides non-animated voice states for reduced-motion users", async () => 
     assert.match(css, /prefers-reduced-motion:\s*reduce/)
     assert.match(css, /\.tomo-voice-status__orb span\s*\{[\s\S]*animation:\s*none !important/)
 })
+
+test("explains automatic stopping and makes transcript interpretation visible", async () => {
+    const source = await readFile(
+        new URL("./AssistantPanel.jsx", import.meta.url),
+        "utf8"
+    )
+
+    assert.match(
+        source,
+        /Tomo will stop automatically after a short/
+    )
+    assert.match(source, /Heard “/)
+    assert.match(source, /Interpreted as “/)
+})

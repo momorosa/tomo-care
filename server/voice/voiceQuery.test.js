@@ -52,6 +52,11 @@ test("sends the visible transcript through the shared grounded assistant", async
     ])
     assert.equal(result.transcript, "I gave Simparica today.")
     assert.equal(
+        result.interpreted_transcript,
+        "I gave Simparica today."
+    )
+    assert.deepEqual(result.transcript_corrections, [])
+    assert.equal(
         result.answer,
         "Momo’s last verified Simparica dose was July 20."
     )
@@ -62,6 +67,54 @@ test("sends the visible transcript through the shared grounded assistant", async
         "safe-mp3"
     )
     assert.doesNotMatch(JSON.stringify(result), /raw-audio/)
+})
+
+test("uses a safe care-term interpretation while preserving what was heard", async () => {
+    const answerCalls = []
+    const result = await answerVoiceQuestion({
+        petId: "pet-1",
+        audioBuffer: Buffer.from("raw-audio"),
+        contentType: "audio/webm",
+        dependencies: {
+            voiceProvider: {
+                async transcribe() {
+                    return "How much have I spent on Librella?"
+                },
+                async synthesize() {
+                    return Buffer.from("safe-mp3")
+                },
+            },
+            answerQuestion: async (input) => {
+                answerCalls.push(input)
+                return {
+                    answer_type: "grounded_answer",
+                    answer: "You have spent $100 on verified Librela items.",
+                    citations: [{ type: "cost_item", id: "cost-1" }],
+                }
+            },
+        },
+    })
+
+    assert.deepEqual(answerCalls, [
+        {
+            petId: "pet-1",
+            question: "How much have I spent on Librela?",
+        },
+    ])
+    assert.equal(
+        result.transcript,
+        "How much have I spent on Librella?"
+    )
+    assert.equal(
+        result.interpreted_transcript,
+        "How much have I spent on Librela?"
+    )
+    assert.deepEqual(result.transcript_corrections, [
+        {
+            heard: "Librella",
+            interpreted_as: "Librela",
+        },
+    ])
 })
 
 test("a voice action request can prepare review but cannot approve or execute", async () => {
