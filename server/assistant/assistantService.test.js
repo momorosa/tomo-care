@@ -122,10 +122,320 @@ test("answers a social turn without loading trusted care records", async () => {
 
     assert.equal(contextCalls, 0)
     assert.equal(result.answer_type, "social_response")
-    assert.match(result.answer, /You’re welcome, Rosa/)
+    assert.match(result.answer, /Rosa|happy to help/)
     assert.deepEqual(result.citations, [])
     assert.deepEqual(result.conversation_context, {
         intent: "last_librela",
         subject: "librela",
     })
+})
+
+test("returns wording-sensitive positive feedback without loading care records", async () => {
+    let contextCalls = 0
+    const questions = [
+        "Hey, that’s fantastic, thank you!",
+        "Oh, that’s perfect—that’s what I was looking for.",
+    ]
+    const results = []
+
+    for (const question of questions) {
+        results.push(
+            await answerAssistantQuestion({
+                petId: "pet-1",
+                question,
+                dependencies: {
+                    currentCareDate: "2026-07-31",
+                    semanticProvider: null,
+                    buildContext: async () => {
+                        contextCalls += 1
+                        return {}
+                    },
+                },
+            })
+        )
+    }
+
+    assert.equal(contextCalls, 0)
+    assert.notEqual(results[0].answer, results[1].answer)
+    for (const result of results) {
+        assert.equal(result.answer_type, "social_response")
+        assert.deepEqual(result.citations, [])
+        assert.equal(result.proposed_action, null)
+    }
+})
+
+test("uses generated language as the primary response for harmless social feedback", async () => {
+    let contextCalls = 0
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "That’s exactly what I needed!",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            semanticProvider: {
+                async interpret() {
+                    return {
+                        kind: "social",
+                        social_intent: "positive_feedback",
+                        confidence: "high",
+                        tone: "appreciative",
+                        addressed_tomo: false,
+                        seriousness: "ordinary",
+                        social_response:
+                            "Perfect. I’m glad we landed exactly where you needed.",
+                        personality_opening: "",
+                        personality_closing: "",
+                    }
+                },
+            },
+            buildContext: async () => {
+                contextCalls += 1
+                return {}
+            },
+        },
+    })
+
+    assert.equal(contextCalls, 0)
+    assert.equal(
+        result.answer,
+        "Perfect. I’m glad we landed exactly where you needed."
+    )
+    assert.equal(result.personality.generated_language, "social_response")
+    assert.deepEqual(result.citations, [])
+    assert.equal(result.proposed_action, null)
+})
+
+test("keeps the deterministic factual body unchanged inside generated framing", async () => {
+    const factualAnswer =
+        "Momo’s verified direct Librela spend in 2026 is $349.20."
+    const citations = [{ type: "cost_item", id: "cost-1" }]
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Hey Tomo, what did Queen Momo’s shots cost in 2026?",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            buildPlan: () => ({
+                intent: "spend_summary",
+                subject: "librela",
+                requires_action: false,
+            }),
+            semanticProvider: {
+                async interpret() {
+                    return {
+                        confidence: "high",
+                        tone: "playful",
+                        addressed_tomo: true,
+                        seriousness: "ordinary",
+                        social_response: "",
+                        personality_opening:
+                            "Her Majesty has my full attention.",
+                        personality_closing: "",
+                    }
+                },
+            },
+            buildContext: async () => ({}),
+            composeAnswer: () => ({
+                answer_type: "grounded_answer",
+                answer: factualAnswer,
+                citations,
+                limitations: ["Direct medication line items only."],
+                proposed_action: null,
+            }),
+        },
+    })
+
+    assert.equal(
+        result.answer,
+        `Her Majesty has my full attention. ${factualAnswer}`
+    )
+    assert.ok(result.answer.includes(factualAnswer))
+    assert.equal(result.citations, citations)
+    assert.deepEqual(result.limitations, [
+        "Direct medication line items only.",
+    ])
+    assert.equal(result.proposed_action, null)
+})
+
+test("answers Tomo’s self-description without loading trusted care records", async () => {
+    let contextCalls = 0
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Can you tell me about you? What can you do for me?",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            semanticProvider: null,
+            buildContext: async () => {
+                contextCalls += 1
+                return {}
+            },
+        },
+    })
+
+    assert.equal(contextCalls, 0)
+    assert.equal(result.answer_type, "social_response")
+    assert.match(result.answer, /I’m Tomo—your sidekick for Momo’s care/)
+    assert.deepEqual(result.citations, [])
+})
+
+test("answers the observed Momo-profile question without loading trusted care records", async () => {
+    let contextCalls = 0
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "What do you know about Momo?",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            semanticProvider: null,
+            buildContext: async () => {
+                contextCalls += 1
+                return {}
+            },
+        },
+    })
+
+    assert.equal(contextCalls, 0)
+    assert.equal(result.answer_type, "social_response")
+    assert.match(result.answer, /Momo is Rosa’s beloved senior American Eskimo/)
+    assert.doesNotMatch(result.answer, /I’m Tomo/)
+    assert.deepEqual(result.citations, [])
+})
+
+test("answers the observed last-Simparica question from verified history without preparing an action", async () => {
+    let prepareCalls = 0
+    const administration = {
+        id: "simparica-administration",
+        doc_id: null,
+        event_type: "medication_administration",
+        event_date: "2026-07-26",
+        status: "verified",
+        details_json: {
+            care_item: "Simparica Trio",
+            medication: "Simparica Trio",
+        },
+    }
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Hey Tomo, when was the last time I gave Momo Simparica?",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            semanticProvider: null,
+            buildContext: async () => ({
+                homeMedicationAdministrationEvents: [administration],
+                homeMedicationReminders: [],
+                verifiedEvents: [administration],
+                plannedReminders: [],
+                documents: [],
+            }),
+            prepareMedicationAction: async () => {
+                prepareCalls += 1
+            },
+        },
+    })
+
+    assert.equal(prepareCalls, 0)
+    assert.equal(result.query_plan.intent, "home_medication_status")
+    assert.match(result.answer, /July 26, 2026/)
+    assert.equal(result.proposed_action, null)
+})
+
+test("answers the observed Adequan calendar wording from the planned reminder", async () => {
+    const reminder = {
+        id: "adequan-reminder",
+        doc_id: null,
+        event_type: "reminder",
+        event_date: "2026-08-30",
+        status: "planned",
+        details_json: {
+            care_item: "Adequan",
+            medication: "Adequan",
+            target_admin_date: "2026-08-31",
+            due_date: "2026-08-31",
+        },
+    }
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Is Adequan on my calendar?",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            semanticProvider: null,
+            buildContext: async () => ({
+                homeMedicationAdministrationEvents: [],
+                homeMedicationReminders: [reminder],
+                verifiedEvents: [],
+                plannedReminders: [reminder],
+                documents: [],
+            }),
+        },
+    })
+
+    assert.equal(result.query_plan.intent, "home_medication_due")
+    assert.match(result.answer, /Adequan has a target administration date/)
+    assert.match(result.answer, /planned reminder is set for August 30, 2026/)
+    assert.equal(result.proposed_action, null)
+})
+
+test("answers the observed August calendar wording with a strict month scope", async () => {
+    const reminder = (id, eventDate, detailsJson) => ({
+        id,
+        doc_id: null,
+        event_type: "reminder",
+        event_date: eventDate,
+        status: "planned",
+        details_json: detailsJson,
+    })
+    const reminders = [
+        reminder("librela", "2026-07-22", { subtype: "Librela" }),
+        reminder("simparica", "2026-08-16", {
+            care_item: "Simparica Trio",
+        }),
+        reminder("adequan", "2026-08-30", { care_item: "Adequan" }),
+    ]
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Is anything on my calendar for August?",
+        dependencies: {
+            currentCareDate: "2026-07-31",
+            semanticProvider: null,
+            buildContext: async () => ({
+                plannedReminders: reminders,
+            }),
+        },
+    })
+
+    assert.equal(result.query_plan.date_range.type, "calendar_month")
+    assert.match(result.answer, /2 active planned reminders in August 2026/)
+    assert.match(result.answer, /Separately, there is 1 earlier active reminder/)
+    assert.deepEqual(
+        result.citations.map((citation) => citation.id),
+        ["simparica", "adequan", "librela"]
+    )
+})
+
+test("adds relationship framing after composition without changing evidence", async () => {
+    const citations = [{ type: "cost_item", id: "cost-1" }]
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question:
+            "Hey Tomo, how much has Queen Momo’s luxury wellness program cost in 2026?",
+        dependencies: {
+            currentCareDate: "2026-07-30",
+            buildPlan: () => ({
+                intent: "spend_summary",
+                subject: "librela",
+                requires_action: false,
+            }),
+            buildContext: async () => ({}),
+            composeAnswer: () => ({
+                answer_type: "grounded_answer",
+                answer: "Verified spend is $349.20.",
+                citations,
+                proposed_action: null,
+            }),
+        },
+    })
+
+    assert.match(result.answer, /royal|Majesty/i)
+    assert.ok(result.answer.endsWith("Verified spend is $349.20."))
+    assert.equal(result.personality.mode, "relational")
+    assert.equal(result.personality.framing_applied, true)
+    assert.equal(result.citations, citations)
+    assert.equal(result.proposed_action, null)
 })

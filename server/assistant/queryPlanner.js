@@ -4,7 +4,10 @@ import { isLibrelaAppointmentMessageRequest } from "./librelaAppointmentMessage.
 
 export function buildQueryPlan(question, options = {}) {
     const q = question.toLowerCase()
-    const dateRange = resolveDateRange(question)
+    const dateRange = resolveDateRange(
+        question,
+        options.currentCareDate || new Date()
+    )
     const homeMedicationAction = parseHomeMedicationActionRequest(
         question,
         options
@@ -190,7 +193,11 @@ export function buildQueryPlan(question, options = {}) {
         })
     }
 
-    if (q.includes("reminder") || q.includes("active")) {
+    if (
+        q.includes("reminder") ||
+        q.includes("active") ||
+        isCareCalendarQuestion(q)
+    ) {
         return basePlan({
             intent: "active_reminders",
             subject: "reminders",
@@ -249,6 +256,7 @@ function isActionRequest(q) {
         "call",
         "create",
         "add to calendar",
+        "put on calendar",
         "make appointment",
     ]
 
@@ -256,7 +264,9 @@ function isActionRequest(q) {
         return true
     }
 
-    return /(can you|could you|would you|please).*(schedule|create|book|send|text|email|call|add)/.test(q)
+    return /(can you|could you|would you|please).*(schedule|create|book|send|text|email|call|add|put)/.test(
+        q
+    )
 }
 
 function isLibrelaSpendQuestion(q) {
@@ -523,9 +533,14 @@ function isHomeMedicationDueQuestion(q) {
         q.includes("soon") ||
         q.includes("upcoming") ||
         q.includes("next") ||
-        q.includes("when")
+        q.includes("when") ||
+        q.includes("calendar")
 
     return asksDue && mentionsHomeMedication(q)
+}
+
+function isCareCalendarQuestion(q) {
+    return q.includes("calendar") && !q.includes("google calendar")
 }
 
 function mentionsHomeMedication(q) {

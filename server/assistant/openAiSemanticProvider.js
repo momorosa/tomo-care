@@ -68,12 +68,42 @@ const SEMANTIC_SCHEMA = {
             type: "string",
             enum: [
                 "acknowledgement",
+                "capabilities",
                 "goodbye",
                 "greeting",
+                "momo_profile",
+                "negative_feedback",
                 "positive_feedback",
                 "thanks",
                 "none",
             ],
+        },
+        tone: {
+            type: "string",
+            enum: [
+                "neutral",
+                "warm",
+                "playful",
+                "appreciative",
+                "concerned",
+                "frustrated",
+            ],
+        },
+        addressed_tomo: {
+            type: "boolean",
+        },
+        seriousness: {
+            type: "string",
+            enum: ["ordinary", "sensitive"],
+        },
+        social_response: {
+            type: "string",
+        },
+        personality_opening: {
+            type: "string",
+        },
+        personality_closing: {
+            type: "string",
         },
         interpreted_question: {
             type: "string",
@@ -93,6 +123,12 @@ const SEMANTIC_SCHEMA = {
         "event_offset",
         "confidence",
         "social_intent",
+        "tone",
+        "addressed_tomo",
+        "seriousness",
+        "social_response",
+        "personality_opening",
+        "personality_closing",
         "interpreted_question",
         "clarification_question",
         "used_previous_context",
@@ -119,12 +155,55 @@ Never infer an approval, execution, medication administration, booking, send,
 text, email, calendar change, or other external action. For an action request
 that is not already handled by TomoCare, return clarification.
 
+Treat "calendar" as the user's TomoCare care schedule or planned reminders when
+the utterance asks what is listed or whether a care item is listed. Use
+active_reminders for a general calendar question and home_medication_due for a
+supported home medication such as Adequan or Simparica Trio. Do not claim that
+an item is synced to Google Calendar.
+
 Use social only for ordinary conversation that contains no care question.
+Classify questions about who Tomo is, what Tomo can do, or how Tomo can help as
+social with social_intent capabilities.
+Classify questions asking who Momo is, what is known about Momo, or for a simple
+description of Momo as social with social_intent momo_profile. Never confuse
+Momo, the pet, with Tomo, the assistant.
 Classify praise or delight such as "That's fantastic", "Great", or "Amazing"
 as positive_feedback, not acknowledgement. Use acknowledgement for neutral
 confirmations such as "okay" or "got it". Use unknown when the utterance is
 outside the supported TomoCare scope. Use clarification when the care meaning
 or referent is genuinely ambiguous.
+
+Classify a correction or disappointed reaction such as "that's not what I
+meant", "that's wrong", or "no, that didn't help" as negative_feedback when it
+contains no new care question.
+
+Tone is a bounded conversational signal only. Use playful for obvious jokes or
+lighthearted framing, appreciative for thanks, concerned for worry, frustrated
+for frustration, warm for an ordinary friendly greeting, and neutral otherwise.
+Set addressed_tomo true only when the user directly names Tomo. Set seriousness
+to sensitive for pain, medical judgment, health uncertainty, or consequential
+actions; otherwise use ordinary. These fields never change facts or authority.
+
+You may write bounded personality language in the three language fields. Tomo
+is Rosa's warm, clever, caring sidekick for Momo, with light affectionate humor
+and occasional references to Queen Momo or Her Majesty when Rosa's tone invites
+it. Keep the language natural and concise rather than formulaic.
+
+For greeting, thanks, positive_feedback, negative_feedback, acknowledgement,
+or goodbye, write a fresh social_response of no more than two short sentences.
+For capabilities and momo_profile, leave social_response empty because those
+claims are assembled from deterministic configuration.
+
+For an ordinary care_query, you may write one brief personality_opening or one
+brief personality_closing, but never both. It must be fact-free framing only. It must not include
+dates, numbers, amounts, citations, medical conclusions, record claims, or any
+claim that an action occurred. Do not restate or anticipate the factual answer.
+Leave both fields empty when personality would add little value.
+
+For sensitive questions, clarification, actions, approvals, sending, booking,
+medication administration, or any other consequential turn, leave all three
+language fields empty. Never claim that Tomo sent, scheduled, recorded, updated,
+approved, or completed anything.
 `.trim()
 
 export class SemanticProviderError extends Error {
@@ -204,7 +283,7 @@ export function createOpenAiSemanticProvider({
                                 schema: SEMANTIC_SCHEMA,
                             },
                         },
-                        max_output_tokens: 400,
+                        max_output_tokens: 550,
                     }),
                 }
             )

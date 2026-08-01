@@ -40,7 +40,10 @@ export function parseHomeMedicationActionRequest(
 ) {
     const text = String(question || "").trim()
 
-    if (!looksLikeAdministrationStatement(text)) {
+    if (
+        looksLikeAdministrationQuestion(text) ||
+        !looksLikeAdministrationStatement(text)
+    ) {
         return null
     }
 
@@ -154,6 +157,19 @@ function looksLikeAdministrationStatement(text) {
         /\b(?:i|we)\s+(?:just\s+)?(?:gave|administered)\b/i.test(text) ||
         /\b(?:momo|she)\s+(?:just\s+)?(?:got|received)\b/i.test(text) ||
         /\b(?:record|mark)\b.*\b(?:gave|given|administered)\b/i.test(text)
+    )
+}
+
+function looksLikeAdministrationQuestion(text) {
+    return (
+        /\?\s*$/.test(text) ||
+        /^\s*(?:when|what date|did|have|do you know|can you tell me|could you tell me)\b/i.test(
+            text
+        ) ||
+        /\bwhen\b.*\b(?:gave|give|administered|administer)\b/i.test(text) ||
+        /\b(?:did|have)\s+(?:i|we)\b.*\b(?:give|given|administer)\b/i.test(
+            text
+        )
     )
 }
 

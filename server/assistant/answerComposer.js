@@ -1,6 +1,7 @@
 import { costItemCitation, documentCitation, eventCitation, factCitation, enrichCitations, } from "./citations.js"
 import { dateInRange, getDateRangePhrase, } from "./dateRanges.js"
 import { getCareDate } from "../lib/careDates.js"
+import { TOMO_RELATIONSHIP_PROFILE_V1 } from "./relationshipProfile.js"
 
 const LIBRELA_INTERVAL_DAYS = 49
 const LIBRELA_REMIND_BEFORE_DAYS = 7
@@ -16,7 +17,7 @@ export function composeGroundedAnswer({
 
     switch (queryPlan.intent) {
         case "social_response":
-            response = answerSocialResponse(queryPlan.subject)
+            response = answerSocialResponse(queryPlan.subject, question)
             break
 
         case "semantic_clarification":
@@ -166,18 +167,121 @@ function answerLastLibrela(context, queryPlan) {
     }
 }
 
-function answerSocialResponse(subject) {
-    const answers = {
-        acknowledgement: "Got it, Rosa.",
-        goodbye: "Talk soon, Rosa. Give Momo a little hello from me.",
-        greeting: "Hi Rosa. What would you like to check for Momo?",
-        positive_feedback:
-            "I’m glad you’re happy with it, Rosa. I’m always happy to help with Momo.",
-        thanks: "You’re welcome, Rosa. I’m always happy to help with Momo.",
+const SOCIAL_RESPONSE_POOLS = Object.freeze({
+    positive_feedback: Object.freeze({
+        appreciative: Object.freeze([
+            "You’re very welcome, Rosa. Glad we found exactly what you needed.",
+            "Of course, Rosa. I’m happy that landed just right.",
+            "Anytime, Rosa. I’ve got you and Momo.",
+        ]),
+        celebratory: Object.freeze([
+            "That’s wonderful to hear. Mission accomplished for Queen Momo.",
+            "Yes! I’m glad that worked so well.",
+            "Fantastic—we got exactly where we needed to go.",
+        ]),
+        satisfied: Object.freeze([
+            "Perfect—that’s what I was hoping to hear.",
+            "Glad we found exactly what you needed.",
+            "Excellent—that’s exactly where I wanted us to land.",
+        ]),
+        warm: Object.freeze([
+            "I’m glad that helped, Rosa.",
+            "That makes me happy to hear.",
+            "Good—we found the right answer for you and Momo.",
+        ]),
+    }),
+    thanks: Object.freeze([
+        "You’re very welcome, Rosa.",
+        "Anytime, Rosa. I’ve got you and Momo.",
+        "Always, Rosa.",
+        "Of course—happy to help.",
+    ]),
+    negative_feedback: Object.freeze([
+        "Got it—I took that in the wrong direction. Let’s try again.",
+        "Thanks for correcting me, Rosa. Tell me what I missed.",
+    ]),
+})
+
+function normalizeSocialQuestion(question) {
+    return String(question || "")
+        .toLowerCase()
+        .replace(/[’]/g, "'")
+        .replace(/[^\p{L}\p{N}\s']/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
+function stableSocialVariant(question, variants) {
+    const normalized = normalizeSocialQuestion(question)
+    let hash = 0
+
+    for (const character of normalized) {
+        hash = (hash * 31 + character.codePointAt(0)) >>> 0
     }
 
+    return variants[hash % variants.length]
+}
+
+function getPositiveFeedbackFlavor(question) {
+    const normalized = normalizeSocialQuestion(question)
+    const hasThanks = /\b(thank you|thanks|appreciate(?:d)?(?: it)?)\b/.test(
+        normalized
+    )
+    const soundsSatisfied =
+        /\b(perfect|exactly|what i (?:was )?looking for|what i needed|just what i needed)\b/.test(
+            normalized
+        )
+    const soundsCelebratory =
+        /\b(fantastic|amazing|awesome|wonderful|excellent|love that|woo+hoo+)\b/.test(
+            normalized
+        )
+
+    if (hasThanks) return "appreciative"
+    if (soundsSatisfied) return "satisfied"
+    if (soundsCelebratory) return "celebratory"
+    return "warm"
+}
+
+function selectSocialResponse(subject, question) {
+    if (subject === "positive_feedback") {
+        const flavor = getPositiveFeedbackFlavor(question)
+        return stableSocialVariant(
+            question,
+            SOCIAL_RESPONSE_POOLS.positive_feedback[flavor]
+        )
+    }
+
+    if (subject === "thanks") {
+        return stableSocialVariant(question, SOCIAL_RESPONSE_POOLS.thanks)
+    }
+
+    if (subject === "negative_feedback") {
+        return stableSocialVariant(
+            question,
+            SOCIAL_RESPONSE_POOLS.negative_feedback
+        )
+    }
+
+    return null
+}
+
+function answerSocialResponse(subject, question) {
+    const momo = TOMO_RELATIONSHIP_PROFILE_V1.momo
+    const answers = {
+        acknowledgement: "Got it, Rosa.",
+        capabilities:
+            "I’m Tomo—your sidekick for Momo’s care. I can answer from verified TomoCare records, summarize medication and weight history, check care reminders and due dates, total Librela spending, and prepare care updates or messages for your review. I can be warm and playful with you, but I won’t invent records, make veterinary judgments, or send or change anything without your approval.",
+        goodbye: "Talk soon, Rosa. Give Momo a little hello from me.",
+        greeting: "Hi Rosa. What would you like to check for Momo?",
+        momo_profile:
+            `${momo.name} is Rosa’s beloved senior ${momo.breed}, born ${formatDate(momo.birth_date)}. ` +
+            `She’s ${formatNaturalList(momo.descriptors)}—a ball-catching family queen who loves staying close to her people. ` +
+            "TomoCare keeps these relationship details separate from her verified care records.",
+    }
+    const variedResponse = selectSocialResponse(subject, question)
+
     return {
-        answer: answers[subject] || "I’m here, Rosa.",
+        answer: variedResponse || answers[subject] || "I’m here, Rosa.",
         answer_type: "social_response",
         confidence: "high",
         citations: [],
@@ -372,13 +476,19 @@ function answerAppointmentStatus(context, queryPlan) {
     }
 }
 
-function answerActiveReminders(context) {
-    const reminders = [...context.plannedReminders].sort(
+function answerActiveReminders(context, queryPlan) {
+    const allReminders = [...context.plannedReminders].sort(
         (a, b) => new Date(a.event_date) - new Date(b.event_date)
     )
+    const reminders = allReminders.filter((reminder) =>
+        dateInRange(reminder.event_date, queryPlan.date_range)
+    )
+    const rangePhrase = getDateRangePhrase(queryPlan.date_range)
 
     if (!reminders.length) {
-        return noTrustedDataAnswer("I don’t see any active planned reminders right now.")
+        return noTrustedDataAnswer(
+            `I don’t see any active planned reminders${rangePhrase ? ` ${rangePhrase}` : " right now"}.`
+        )
     }
 
     const reminderText = reminders
@@ -389,18 +499,44 @@ function answerActiveReminders(context) {
         })
         .join("; ")
 
+    const earlierActiveReminders = queryPlan.date_range?.start
+        ? allReminders.filter(
+              (reminder) => reminder.event_date < queryPlan.date_range.start
+          )
+        : []
+    const earlierReminderText = earlierActiveReminders
+        .slice(-2)
+        .map(
+            (reminder) =>
+                `${getReminderLabel(reminder)} on ${formatDate(reminder.event_date)}`
+        )
+        .join("; ")
+    const outsideRangeNote = earlierReminderText
+        ? ` Separately, ${earlierActiveReminders.length === 1 ? "there is 1 earlier active reminder" : `there are ${earlierActiveReminders.length} earlier active reminders`}: ${earlierReminderText}.`
+        : ""
+    const citedReminders = [
+        ...reminders.slice(0, 5),
+        ...earlierActiveReminders.slice(-2),
+    ]
+
     return {
-        answer: `I found ${reminders.length} active planned reminder${reminders.length === 1 ? "" : "s"}: ${reminderText}.`,
+        answer: `I found ${reminders.length} active planned reminder${reminders.length === 1 ? "" : "s"}${rangePhrase ? ` ${rangePhrase}` : ""}: ${reminderText}.${outsideRangeNote}`,
         answer_type: "grounded_answer",
         confidence: "high",
-        citations: reminders
-            .slice(0, 5)
+        citations: citedReminders
             .map((reminder) =>
                 eventCitation(reminder, getReminderCitationLabel(reminder))
             ),
         limitations:
-            reminders.length > 5
-                ? ["Only the first five reminders are shown in this answer."]
+            reminders.length > 5 || earlierActiveReminders.length > 2
+                ? [
+                      reminders.length > 5
+                          ? "Only the first five reminders in the requested timeframe are shown."
+                          : null,
+                      earlierActiveReminders.length > 2
+                          ? "Only the two most recent earlier active reminders are shown separately."
+                          : null,
+                  ].filter(Boolean)
                 : [],
         proposed_action: null,
     }
@@ -955,16 +1091,27 @@ function answerWeightTrend(context, queryPlan) {
     }
 
     const rangePhrase = getDateRangePhrase(queryPlan.date_range)
-    const timeline = weights
-        .map((fact) => `${formatDateShort(fact.fact_date)}: ${formatWeightFact(fact)}`)
-        .join(" → ")
-
     const first = weights[0]
     const latest = weights[weights.length - 1]
     const overallChangeKg = getWeightKg(latest) - getWeightKg(first)
+    const peak = [...weights].sort((a, b) => getWeightKg(b) - getWeightKg(a))[0]
+    const low = [...weights].sort((a, b) => getWeightKg(a) - getWeightKg(b))[0]
+    const peakChangeKg = getWeightKg(latest) - getWeightKg(peak)
+    const recentWeights = weights.slice(-4)
+    const recentFirst = recentWeights[0]
+    const recentChangeKg = getWeightKg(latest) - getWeightKg(recentFirst)
+    const overallDirection = describeWeightDirection(overallChangeKg)
+    const recentDirection = describeRecentWeightDirection(recentWeights)
+    const recentSentence =
+        recentWeights.length >= 3 && recentDirection !== "mixed"
+            ? `The ${recentWeights.length} most recent readings ${recentDirection}, from ${formatWeightFact(recentFirst)} on ${formatDate(recentFirst.fact_date)} to ${formatWeightFact(latest)} on ${formatDate(latest.fact_date)} (${formatSignedWeightChange(recentChangeKg)}).`
+            : ""
 
     return {
-        answer: `Momo’s verified weight trend${rangePhrase ? ` ${rangePhrase}` : ""}: ${timeline}. Overall, she is ${formatSignedWeightChange(overallChangeKg)} from ${formatDate(first.fact_date)} to ${formatDate(latest.fact_date)}.`,
+        answer:
+            `Momo’s verified weight trend${rangePhrase ? ` ${rangePhrase}` : ""} is ${overallDirection}. ` +
+            `Across ${weights.length} verified records from ${formatDate(first.fact_date)} to ${formatDate(latest.fact_date)}, she ranged from ${formatWeightFact(low)} to ${formatWeightFact(peak)}; her latest weight is ${formatWeightFact(latest)}, ${formatSignedWeightChange(overallChangeKg)} from the first record and ${formatSignedWeightChange(peakChangeKg)} from the highest. ` +
+            recentSentence,
         answer_type: "grounded_answer",
         confidence: "high",
         citations: weights.map((fact) => factCitation(fact, "Verified weight")),
@@ -1537,23 +1684,54 @@ function formatSignedWeightChange(changeKg) {
     return `${direction} ${formatDecimal(absKg)} kg (${formatDecimal(absLb)} lb)`
 }
 
+function describeWeightDirection(changeKg) {
+    const absChangeKg = Math.abs(changeKg)
+
+    if (absChangeKg < 0.05) return "stable overall"
+    if (absChangeKg <= 0.25) {
+        return changeKg > 0
+            ? "slightly upward overall"
+            : "slightly downward overall"
+    }
+
+    return changeKg > 0 ? "upward overall" : "downward overall"
+}
+
+function describeRecentWeightDirection(weights) {
+    if (weights.length < 2) return "mixed"
+
+    const values = weights.map(getWeightKg)
+    const nonDecreasing = values.every(
+        (value, index) => index === 0 || value >= values[index - 1] - 0.01
+    )
+    const nonIncreasing = values.every(
+        (value, index) => index === 0 || value <= values[index - 1] + 0.01
+    )
+    const netChange = values[values.length - 1] - values[0]
+
+    if (nonIncreasing && netChange < -0.05) {
+        return "show a gradual downward movement"
+    }
+    if (nonDecreasing && netChange > 0.05) {
+        return "show a gradual upward movement"
+    }
+    if (Math.abs(netChange) < 0.05) return "remain stable"
+
+    return "mixed"
+}
+
 function formatDecimal(value) {
     if (!Number.isFinite(value)) return "unknown"
 
     return Number(value.toFixed(2)).toString()
 }
 
-function formatDateShort(value) {
-    if (!value) return "unknown date"
+function formatNaturalList(values = []) {
+    if (!values.length) return ""
+    if (values.length === 1) return values[0]
+    if (values.length === 2) return `${values[0]} and ${values[1]}`
 
-    const date = new Date(`${value}T00:00:00`)
-    if (Number.isNaN(date.getTime())) return value
-
-    return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-    }).format(date)
+    return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`
 }
 
 function uniqueWeightFactCitations(facts) {

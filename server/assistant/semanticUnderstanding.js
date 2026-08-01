@@ -97,6 +97,25 @@ const INTERPRETATION_LABELS = {
     weight_trend: "Verified weight trend",
 }
 
+const GENERATED_SOCIAL_INTENTS = new Set([
+    "acknowledgement",
+    "goodbye",
+    "greeting",
+    "negative_feedback",
+    "positive_feedback",
+    "thanks",
+])
+
+const RESTRAINED_LANGUAGE_INTENTS = new Set([
+    "action_request",
+    "ambiguous_health_question",
+    "care_recommendation_boundary",
+    "home_medication_given_action",
+    "librela_appointment_message",
+    "medical_judgment_boundary",
+    "semantic_clarification",
+])
+
 function normalizeSocialUtterance(question) {
     return question
         .toLowerCase()
@@ -109,7 +128,24 @@ function getLocalSocialIntent(question) {
     const normalized = normalizeSocialUtterance(question)
     const words = normalized.split(" ").filter(Boolean)
 
-    if (words.length > 8) return null
+    if (
+        /\b(?:tell me about you|tell me about yourself|who are you)\b/.test(
+            normalized
+        ) ||
+        /^(?:tomo )?(?:what can you do(?: for me)?|how can you help(?: me)?)$/.test(
+            normalized
+        )
+    ) {
+        return "capabilities"
+    }
+
+    if (
+        /^(?:tomo )?(?:what do you know about momo|tell me about momo|who is momo|describe momo)$/.test(
+            normalized
+        )
+    ) {
+        return "momo_profile"
+    }
 
     if (
         /^(thank you|thanks|thank you tomo|thanks tomo|much appreciated)$/.test(
@@ -120,12 +156,28 @@ function getLocalSocialIntent(question) {
     }
 
     if (
-        /^(fantastic|that s fantastic|that is fantastic|great|that s great|that is great|amazing|that s amazing|that is amazing|wonderful|perfect)$/.test(
+        /^(?:(?:hey|oh|yes|wow)(?: tomo)? )?(?:(?:that s|that is|it s|it is) )?(?:fantastic|great|amazing|wonderful|perfect|awesome|excellent)(?: (?:that s|that is) (?:exactly )?what i (?:was )?looking for)?(?: thank you| thanks(?: tomo)?)?$/.test(
+            normalized
+        ) ||
+        /^(?:oh )?(?:(?:that s|that is) )?(?:exactly what i (?:was )?looking for|exactly what i needed|just what i needed)(?: thank you| thanks(?: tomo)?)?$/.test(
             normalized
         )
     ) {
         return "positive_feedback"
     }
+
+    if (
+        /^(?:(?:no|sorry|wait)(?: tomo)? )?(?:(?:that s|that is|it s|it is) )?(?:wrong|not right|not correct|not what i meant|not what i asked|not helpful|not working)(?: at all)?$/.test(
+            normalized
+        ) ||
+        /^(?:no )?(?:that|it) (?:didn t|did not) (?:help|answer my question|work)$/.test(
+            normalized
+        )
+    ) {
+        return "negative_feedback"
+    }
+
+    if (words.length > 8) return null
 
     if (/^(hi|hello|hey|hi tomo|hello tomo|hey tomo)$/.test(normalized)) {
         return "greeting"
@@ -207,7 +259,66 @@ function semanticMetadata(interpretation, plan) {
             plan.event_offset === 1
                 ? "Previous verified Librela injection"
                 : INTERPRETATION_LABELS[plan.intent],
+        ...personalityMetadata(interpretation),
+        ...languageMetadata(interpretation),
     }
+}
+
+function personalityMetadata(interpretation) {
+    const supportedTones = new Set([
+        "neutral",
+        "warm",
+        "playful",
+        "appreciative",
+        "concerned",
+        "frustrated",
+    ])
+
+    return {
+        tone: supportedTones.has(interpretation?.tone)
+            ? interpretation.tone
+            : "neutral",
+        addressed_tomo: interpretation?.addressed_tomo === true,
+        seriousness:
+            interpretation?.seriousness === "sensitive"
+                ? "sensitive"
+                : "ordinary",
+    }
+}
+
+function languageMetadata(interpretation) {
+    return {
+        language_generation: "requested",
+        social_response:
+            typeof interpretation?.social_response === "string"
+                ? interpretation.social_response
+                : "",
+        personality_opening:
+            typeof interpretation?.personality_opening === "string"
+                ? interpretation.personality_opening
+                : "",
+        personality_closing:
+            typeof interpretation?.personality_closing === "string"
+                ? interpretation.personality_closing
+                : "",
+    }
+}
+
+async function trySemanticInterpretation(semanticProvider, input) {
+    if (!semanticProvider) return null
+
+    try {
+        return await semanticProvider.interpret(input)
+    } catch {
+        return null
+    }
+}
+
+function shouldRequestDeterministicFraming(queryPlan) {
+    return (
+        queryPlan?.requires_action !== true &&
+        !RESTRAINED_LANGUAGE_INTENTS.has(queryPlan?.intent)
+    )
 }
 
 export async function resolveAssistantPlan({
@@ -220,6 +331,34 @@ export async function resolveAssistantPlan({
     const deterministicPlan = buildPlan(question, { currentCareDate })
 
     if (deterministicPlan.intent !== "unknown") {
+        if (
+            semanticProvider &&
+            shouldRequestDeterministicFraming(deterministicPlan)
+        ) {
+            const interpretation = await trySemanticInterpretation(
+                semanticProvider,
+                { question, currentCareDate, conversationContext }
+            )
+
+            if (interpretation) {
+                return {
+                    queryPlan: deterministicPlan,
+                    semanticInterpretation: {
+                        status: "applied",
+                        mode: "deterministic_with_semantic_language",
+                        confidence: interpretation.confidence || "low",
+                        used_previous_context: false,
+                        interpretation_label:
+                            INTERPRETATION_LABELS[
+                                deterministicPlan.intent
+                            ] || null,
+                        ...personalityMetadata(interpretation),
+                        ...languageMetadata(interpretation),
+                    },
+                }
+            }
+        }
+
         return {
             queryPlan: deterministicPlan,
             semanticInterpretation: null,
@@ -229,6 +368,18 @@ export async function resolveAssistantPlan({
     const localSocialIntent = getLocalSocialIntent(question)
 
     if (localSocialIntent) {
+        const canGenerate = GENERATED_SOCIAL_INTENTS.has(localSocialIntent)
+        const interpretation = canGenerate
+            ? await trySemanticInterpretation(semanticProvider, {
+                  question,
+                  currentCareDate,
+                  conversationContext,
+              })
+            : null
+        const matchesLocalIntent =
+            interpretation?.kind === "social" &&
+            interpretation?.social_intent === localSocialIntent
+
         return {
             queryPlan: socialPlan(
                 localSocialIntent,
@@ -240,6 +391,12 @@ export async function resolveAssistantPlan({
                 confidence: "high",
                 used_previous_context: false,
                 interpretation_label: null,
+                ...(matchesLocalIntent
+                    ? {
+                          ...personalityMetadata(interpretation),
+                          ...languageMetadata(interpretation),
+                      }
+                    : {}),
             },
         }
     }
@@ -254,15 +411,12 @@ export async function resolveAssistantPlan({
         }
     }
 
-    let interpretation
+    const interpretation = await trySemanticInterpretation(
+        semanticProvider,
+        { question, currentCareDate, conversationContext }
+    )
 
-    try {
-        interpretation = await semanticProvider.interpret({
-            question,
-            currentCareDate,
-            conversationContext,
-        })
-    } catch {
+    if (!interpretation) {
         return {
             queryPlan: deterministicPlan,
             semanticInterpretation: {
@@ -275,8 +429,11 @@ export async function resolveAssistantPlan({
     if (interpretation?.kind === "social") {
         const supportedSocial = new Set([
             "acknowledgement",
+            "capabilities",
             "goodbye",
             "greeting",
+            "momo_profile",
+            "negative_feedback",
             "positive_feedback",
             "thanks",
         ])
@@ -293,6 +450,8 @@ export async function resolveAssistantPlan({
                     confidence: interpretation.confidence,
                     used_previous_context: false,
                     interpretation_label: null,
+                    ...personalityMetadata(interpretation),
+                    ...languageMetadata(interpretation),
                 },
             }
         }
@@ -312,6 +471,8 @@ export async function resolveAssistantPlan({
                     interpretation?.used_previous_context
                 ),
                 interpretation_label: null,
+                ...personalityMetadata(interpretation),
+                ...languageMetadata(interpretation),
             },
         }
     }
@@ -338,6 +499,8 @@ export async function resolveAssistantPlan({
             confidence: interpretation?.confidence || "low",
             used_previous_context: false,
             interpretation_label: null,
+            ...personalityMetadata(interpretation),
+            ...languageMetadata(interpretation),
         },
     }
 }

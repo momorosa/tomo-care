@@ -43,6 +43,7 @@ export async function answerVoiceQuestion({
         audio = await voiceProvider.synthesize({
             text: spokenAnswer,
             answerType: assistantResponse.answer_type,
+            personalityMode: assistantResponse.personality?.mode,
         })
     } catch (err) {
         speechError = {

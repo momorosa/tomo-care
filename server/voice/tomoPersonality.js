@@ -19,14 +19,16 @@ export const TOMO_PERSONALITY_V1 = Object.freeze({
 export const TOMO_AI_VOICE_DISCLOSURE =
     "Tomo’s spoken voice is AI-generated."
 
-export function getTomoSpeechInstructions(answerType) {
+export function getTomoSpeechInstructions(answerType, personalityMode) {
     const restrainedTypes = new Set([
         "clarification_needed",
         "unsupported",
         "action_request",
     ])
 
-    const tone = restrainedTypes.has(answerType)
+    const tone =
+        restrainedTypes.has(answerType) ||
+        personalityMode === "restrained"
         ? "calm, clear, and restrained"
         : "warm, bright, caring, and lightly playful"
 

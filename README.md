@@ -128,10 +128,10 @@ short pause. The Stop button remains available as a manual fallback.
 ## Semantic understanding
 
 TomoCare routes explicit supported questions and all governed actions through
-the existing deterministic planner first. If a question is otherwise unknown,
-the server may use a schema-constrained OpenAI interpretation to map natural
-phrasing to one supported read-only intent. The interpretation request uses
-`store: false` and includes no trusted records, answers, citations, or action
+the existing deterministic planner first. A schema-constrained OpenAI request
+may map otherwise unknown phrasing to one supported read-only intent and may
+also return bounded, fact-free personality language. The request uses `store:
+false` and includes no trusted records, composed answers, citations, or action
 payloads.
 
 Semantic interpretation uses the existing server-only `OPENAI_API_KEY`.
@@ -144,3 +144,36 @@ TOMO_SEMANTIC_MODEL=gpt-5.6-terra
 Conversation context is intentionally limited to the previous supported care
 intent and subject. It is held in the browser session only and is not written
 to the database.
+
+## Personality and relationship context
+
+TomoCare keeps a small, versioned relationship profile separate from verified
+care records. It contains only intentional stable details about Rosa, Momo, and
+Tomo's communication style. It is not medical evidence and cannot create or
+change trusted care history.
+
+For an ordinary grounded question, the model may add one short, fact-free
+opening or closing around the deterministically composed answer. The grounded
+answer remains an unchanged contiguous part of the final response. Medical
+judgment, pain, health uncertainty, clarification, message drafts, and governed
+actions always use restrained mode. Personality never changes facts, citations,
+limitations, or action status.
+
+For harmless conversation—greetings, thanks, praise, corrections, frustration,
+and goodbyes—the model may write a fresh response of no more than two short
+sentences. Server validation rejects language containing numbers, amounts,
+care-record claims, medical conclusions, or claims that an action occurred.
+Small deterministic response pools remain available only when OpenAI is
+unavailable, the interpretation does not match the locally recognized intent,
+or generated language fails validation. Social replies never load care records.
+
+Tomo's capability description and Momo's profile remain deterministically
+assembled because they make factual claims about the product and relationship
+profile.
+
+Tomo can also describe Momo from the bounded relationship profile without
+confusing her with Tomo or treating family details as medical evidence. Weight
+trend answers lead with a factual pattern and key comparisons instead of
+reciting every data point. Named-month calendar questions filter the primary
+reminder list to that month; an earlier still-active reminder may be called out
+separately so it is not misrepresented as part of the requested month.

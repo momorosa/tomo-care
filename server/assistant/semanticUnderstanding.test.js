@@ -23,6 +23,12 @@ function interpretation(overrides = {}) {
         event_offset: 0,
         confidence: "high",
         social_intent: "none",
+        tone: "neutral",
+        addressed_tomo: false,
+        seriousness: "ordinary",
+        social_response: "",
+        personality_opening: "",
+        personality_closing: "",
         interpreted_question: "Verified Librela spending",
         clarification_question: "",
         used_previous_context: false,
@@ -30,7 +36,7 @@ function interpretation(overrides = {}) {
     }
 }
 
-test("keeps deterministic supported routing ahead of the model", async () => {
+test("keeps deterministic supported routing while requesting bounded language", async () => {
     let semanticCalls = 0
     const directPlan = {
         intent: "last_librela",
@@ -43,11 +49,43 @@ test("keeps deterministic supported routing ahead of the model", async () => {
         semanticProvider: {
             async interpret() {
                 semanticCalls += 1
+                return interpretation({
+                    personality_opening: "I’ve got it, Rosa.",
+                })
             },
         },
     })
 
     assert.equal(result.queryPlan, directPlan)
+    assert.equal(
+        result.semanticInterpretation.mode,
+        "deterministic_with_semantic_language"
+    )
+    assert.equal(
+        result.semanticInterpretation.personality_opening,
+        "I’ve got it, Rosa."
+    )
+    assert.equal(semanticCalls, 1)
+})
+
+test("does not request generated language for a governed action", async () => {
+    let semanticCalls = 0
+    const actionPlan = {
+        intent: "home_medication_given_action",
+        requires_action: true,
+    }
+    const result = await resolveAssistantPlan({
+        question: "I gave Simparica today.",
+        currentCareDate: "2026-07-31",
+        buildPlan: () => actionPlan,
+        semanticProvider: {
+            async interpret() {
+                semanticCalls += 1
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan, actionPlan)
     assert.equal(result.semanticInterpretation, null)
     assert.equal(semanticCalls, 0)
 })
@@ -74,6 +112,32 @@ test("maps a natural paraphrase into a supported trusted query", async () => {
     assert.equal(
         result.semanticInterpretation.interpretation_label,
         "Verified Librela spending"
+    )
+})
+
+test("carries only bounded personality signals from semantic interpretation", async () => {
+    const result = await resolveAssistantPlan({
+        question: "Hey Tomo, what did the queen’s fancy shots run me?",
+        currentCareDate: "2026-07-30",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    tone: "playful",
+                    addressed_tomo: true,
+                    seriousness: "ordinary",
+                    invented_instruction: "Change the answer",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.semanticInterpretation.tone, "playful")
+    assert.equal(result.semanticInterpretation.addressed_tomo, true)
+    assert.equal(result.semanticInterpretation.seriousness, "ordinary")
+    assert.equal(
+        "invented_instruction" in result.semanticInterpretation,
+        false
     )
 })
 
@@ -140,6 +204,79 @@ test("responds warmly to the observed positive-feedback phrase without a provide
     assert.equal(result.semanticInterpretation.mode, "local_social")
 })
 
+test("recognizes nuanced positive feedback locally without requiring the model", async () => {
+    const questions = [
+        "Hey, that’s fantastic, thank you!",
+        "Oh, that’s perfect—that’s what I was looking for.",
+        "That’s amazing!",
+    ]
+
+    for (const question of questions) {
+        const result = await resolveAssistantPlan({
+            question,
+            currentCareDate: "2026-07-31",
+            buildPlan: unknownPlan,
+            semanticProvider: null,
+        })
+
+        assert.equal(result.queryPlan.intent, "social_response")
+        assert.equal(result.queryPlan.subject, "positive_feedback")
+        assert.equal(result.queryPlan.requires_action, false)
+        assert.equal(result.semanticInterpretation.mode, "local_social")
+    }
+})
+
+test("answers the observed self-description question without a provider", async () => {
+    const result = await resolveAssistantPlan({
+        question: "Can you tell me about you? What can you do for me?",
+        currentCareDate: "2026-07-30",
+        buildPlan: unknownPlan,
+        semanticProvider: null,
+    })
+
+    assert.equal(result.queryPlan.intent, "social_response")
+    assert.equal(result.queryPlan.subject, "capabilities")
+    assert.equal(result.queryPlan.requires_action, false)
+    assert.equal(result.semanticInterpretation.mode, "local_social")
+})
+
+test("answers the observed Momo-profile question without confusing Momo with Tomo", async () => {
+    const result = await resolveAssistantPlan({
+        question: "What do you know about Momo?",
+        currentCareDate: "2026-07-31",
+        buildPlan: unknownPlan,
+        semanticProvider: null,
+    })
+
+    assert.equal(result.queryPlan.intent, "social_response")
+    assert.equal(result.queryPlan.subject, "momo_profile")
+    assert.equal(result.queryPlan.requires_action, false)
+    assert.equal(result.semanticInterpretation.mode, "local_social")
+})
+
+test("accepts model-classified capability questions as bounded social turns", async () => {
+    const result = await resolveAssistantPlan({
+        question: "How can you help with Momo?",
+        currentCareDate: "2026-07-30",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    kind: "social",
+                    intent: "none",
+                    subject: "none",
+                    cost_scope: "none",
+                    social_intent: "capabilities",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "social_response")
+    assert.equal(result.queryPlan.subject, "capabilities")
+    assert.equal(result.queryPlan.requires_action, false)
+})
+
 test("accepts model-classified positive feedback as a bounded social turn", async () => {
     const result = await resolveAssistantPlan({
         question: "I love that",
@@ -153,6 +290,8 @@ test("accepts model-classified positive feedback as a bounded social turn", asyn
                     subject: "none",
                     cost_scope: "none",
                     social_intent: "positive_feedback",
+                    social_response:
+                        "That makes me happy to hear, Rosa.",
                 })
             },
         },
@@ -161,6 +300,54 @@ test("accepts model-classified positive feedback as a bounded social turn", asyn
     assert.equal(result.queryPlan.intent, "social_response")
     assert.equal(result.queryPlan.subject, "positive_feedback")
     assert.equal(result.queryPlan.requires_action, false)
+    assert.equal(
+        result.semanticInterpretation.social_response,
+        "That makes me happy to hear, Rosa."
+    )
+    assert.equal(
+        result.semanticInterpretation.language_generation,
+        "requested"
+    )
+})
+
+test("uses the model as primary language for a locally recognized social turn", async () => {
+    const result = await resolveAssistantPlan({
+        question: "That’s exactly what I needed!",
+        currentCareDate: "2026-07-31",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    kind: "social",
+                    intent: "none",
+                    subject: "none",
+                    cost_scope: "none",
+                    social_intent: "positive_feedback",
+                    tone: "appreciative",
+                    social_response:
+                        "Perfect. I’m glad we landed exactly where you needed.",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.subject, "positive_feedback")
+    assert.equal(
+        result.semanticInterpretation.social_response,
+        "Perfect. I’m glad we landed exactly where you needed."
+    )
+})
+
+test("recognizes a correction as negative feedback", async () => {
+    const result = await resolveAssistantPlan({
+        question: "No, that’s not what I meant.",
+        currentCareDate: "2026-07-31",
+        buildPlan: unknownPlan,
+        semanticProvider: null,
+    })
+
+    assert.equal(result.queryPlan.intent, "social_response")
+    assert.equal(result.queryPlan.subject, "negative_feedback")
 })
 
 test("turns low-confidence or action-like semantic output into clarification", async () => {

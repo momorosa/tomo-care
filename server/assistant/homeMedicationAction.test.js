@@ -107,6 +107,15 @@ test("keeps a factual question out of the action path", () => {
     assert.equal(action, null)
 })
 
+test("keeps the observed last-Simparica question out of the action path", () => {
+    const action = parseHomeMedicationActionRequest(
+        "Hey Tomo, when was the last time I gave Momo Simparica?",
+        { currentCareDate: CURRENT_CARE_DATE }
+    )
+
+    assert.equal(action, null)
+})
+
 test("requires clarification for uncertain wording", () => {
     const action = parseHomeMedicationActionRequest(
         "I think I gave Simparica today.",

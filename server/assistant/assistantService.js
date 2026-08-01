@@ -10,6 +10,7 @@ import {
 } from "./conversationContext.js"
 import { createOpenAiSemanticProvider } from "./openAiSemanticProvider.js"
 import { resolveAssistantPlan } from "./semanticUnderstanding.js"
+import { applyPersonalityFraming } from "./personalityLayer.js"
 
 const ASSISTANT_CARE_ACTOR = "Rosa"
 
@@ -126,9 +127,17 @@ export async function answerAssistantQuestion({
         actionPreparation,
         messageDraftPreparation,
     })
+    const personalizeAnswer =
+        dependencies.personalizeAnswer || applyPersonalityFraming
+    const personalizedResponse = personalizeAnswer({
+        response,
+        question,
+        queryPlan,
+        semanticInterpretation,
+    })
 
     return {
-        ...response,
+        ...personalizedResponse,
         semantic_interpretation: semanticInterpretation,
         conversation_context: getNextConversationContext({
             queryPlan,

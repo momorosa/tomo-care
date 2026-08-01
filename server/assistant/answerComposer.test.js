@@ -60,8 +60,26 @@ test("answers the bounded Librela one-before follow-up from verified events", ()
     assert.equal(response.citations[0].id, "previous-injection")
 })
 
-test("handles thanks as conversation without inventing a care fact", () => {
-    const response = composeGroundedAnswer({
+test("varies thanks deterministically without inventing a care fact", () => {
+    const questions = ["Thank you!", "Thanks, Tomo", "Much appreciated"]
+    const responses = questions.map((question) =>
+        composeGroundedAnswer({
+            question,
+            queryPlan: {
+                intent: "social_response",
+                subject: "thanks",
+            },
+            context: {},
+        })
+    )
+
+    assert.ok(new Set(responses.map((response) => response.answer)).size > 1)
+    for (const response of responses) {
+        assert.equal(response.answer_type, "social_response")
+        assert.deepEqual(response.citations, [])
+    }
+
+    const repeated = composeGroundedAnswer({
         question: "Thank you!",
         queryPlan: {
             intent: "social_response",
@@ -69,27 +87,91 @@ test("handles thanks as conversation without inventing a care fact", () => {
         },
         context: {},
     })
-
-    assert.equal(response.answer_type, "social_response")
-    assert.match(response.answer, /always happy to help with Momo/)
-    assert.deepEqual(response.citations, [])
+    assert.equal(repeated.answer, responses[0].answer)
 })
 
-test("responds warmly to positive feedback without inventing a care fact", () => {
+test("matches bounded positive-feedback variations to Rosa's wording", () => {
+    const questions = [
+        "Hey, that’s fantastic, thank you!",
+        "Oh, that’s perfect—that’s what I was looking for.",
+        "That’s amazing!",
+        "Great.",
+    ]
+    const responses = questions.map((question) =>
+        composeGroundedAnswer({
+            question,
+            queryPlan: {
+                intent: "social_response",
+                subject: "positive_feedback",
+            },
+            context: {},
+        })
+    )
+
+    assert.equal(
+        responses[0].answer,
+        "Of course, Rosa. I’m happy that landed just right."
+    )
+    assert.equal(responses[1].answer, "Glad we found exactly what you needed.")
+    assert.equal(responses[2].answer, "Yes! I’m glad that worked so well.")
+    assert.equal(responses[3].answer, "I’m glad that helped, Rosa.")
+    assert.equal(new Set(responses.map((response) => response.answer)).size, 4)
+
+    for (const response of responses) {
+        assert.equal(response.answer_type, "social_response")
+        assert.deepEqual(response.citations, [])
+        assert.equal(response.proposed_action, null)
+    }
+})
+
+test("keeps a safe correction response available when generation cannot be used", () => {
     const response = composeGroundedAnswer({
-        question: "That’s fantastic",
+        question: "No, that’s not what I meant.",
         queryPlan: {
             intent: "social_response",
-            subject: "positive_feedback",
+            subject: "negative_feedback",
         },
         context: {},
     })
 
     assert.equal(response.answer_type, "social_response")
-    assert.equal(
-        response.answer,
-        "I’m glad you’re happy with it, Rosa. I’m always happy to help with Momo."
-    )
+    assert.match(response.answer, /wrong direction|correcting me/)
+    assert.deepEqual(response.citations, [])
+    assert.equal(response.proposed_action, null)
+})
+
+test("describes Tomo and its bounded capabilities without loading care facts", () => {
+    const response = composeGroundedAnswer({
+        question: "Can you tell me about you? What can you do for me?",
+        queryPlan: {
+            intent: "social_response",
+            subject: "capabilities",
+        },
+        context: {},
+    })
+
+    assert.equal(response.answer_type, "social_response")
+    assert.match(response.answer, /I’m Tomo—your sidekick for Momo’s care/)
+    assert.match(response.answer, /verified TomoCare records/)
+    assert.match(response.answer, /without your approval/)
+    assert.deepEqual(response.citations, [])
+})
+
+test("describes Momo from the bounded relationship profile without describing Tomo", () => {
+    const response = composeGroundedAnswer({
+        question: "What do you know about Momo?",
+        queryPlan: {
+            intent: "social_response",
+            subject: "momo_profile",
+        },
+        context: {},
+    })
+
+    assert.equal(response.answer_type, "social_response")
+    assert.match(response.answer, /beloved senior American Eskimo/)
+    assert.match(response.answer, /August 22, 2014/)
+    assert.match(response.answer, /ball-catching family queen/)
+    assert.doesNotMatch(response.answer, /I’m Tomo|what I can do/i)
     assert.deepEqual(response.citations, [])
 })
 
@@ -144,6 +226,106 @@ test("names active reminders by care item in the answer and evidence cards", () 
             "Insurance claim reminder",
         ]
     )
+})
+
+test("keeps the August reminder list in August and separates an earlier active reminder", () => {
+    const reminders = [
+        plannedReminder({
+            id: "librela-reminder",
+            eventDate: "2026-07-22",
+            detailsJson: { subtype: "Librela" },
+        }),
+        plannedReminder({
+            id: "simparica-reminder",
+            eventDate: "2026-08-16",
+            detailsJson: { care_item: "Simparica Trio" },
+        }),
+        plannedReminder({
+            id: "adequan-reminder",
+            eventDate: "2026-08-30",
+            detailsJson: { care_item: "Adequan" },
+        }),
+        plannedReminder({
+            id: "insurance-reminder",
+            eventDate: "2026-09-10",
+            detailsJson: { subtype: "Insurance claim" },
+        }),
+    ]
+
+    const response = composeGroundedAnswer({
+        question: "Is anything on my calendar for August?",
+        queryPlan: {
+            intent: "active_reminders",
+            subject: "reminders",
+            date_range: {
+                type: "calendar_month",
+                label: "August 2026",
+                start: "2026-08-01",
+                end: "2026-08-31",
+            },
+        },
+        context: {
+            plannedReminders: reminders,
+            verifiedEvents: [],
+            scheduledAppointments: [],
+            documents: [],
+            directLibrelaCostItems: [],
+            librelaVisitCostItems: [],
+            verifiedWeightFacts: [],
+        },
+    })
+
+    assert.match(response.answer, /2 active planned reminders in August 2026/)
+    assert.match(response.answer, /Simparica Trio on August 16, 2026/)
+    assert.match(response.answer, /Adequan on August 30, 2026/)
+    assert.match(response.answer, /Separately, there is 1 earlier active reminder: Librela on July 22, 2026/)
+    assert.doesNotMatch(response.answer, /Insurance claim/)
+    assert.deepEqual(
+        response.citations.map((citation) => citation.id),
+        ["simparica-reminder", "adequan-reminder", "librela-reminder"]
+    )
+})
+
+test("summarizes the weight pattern before supporting it with key comparisons", () => {
+    const weights = [
+        ["weight-1", "2025-02-17", 15.4],
+        ["weight-2", "2025-04-16", 16],
+        ["weight-3", "2025-06-04", 15.8],
+        ["weight-4", "2025-07-18", 16],
+        ["weight-5", "2025-10-20", 16],
+        ["weight-6", "2025-12-22", 15.8],
+        ["weight-7", "2026-02-09", 15.4],
+        ["weight-8", "2026-04-14", 15.4],
+        ["weight-9", "2026-06-10", 15.2],
+    ].map(([id, factDate, valueKg]) => ({
+        id,
+        doc_id: null,
+        fact_type: "weight",
+        fact_date: factDate,
+        status: "verified",
+        value_json: { value_kg: valueKg },
+    }))
+
+    const response = composeGroundedAnswer({
+        question: "Tell me about Momo’s weight trend.",
+        queryPlan: {
+            intent: "weight_trend",
+            subject: "weight",
+            date_range: { type: "all_time", start: null, end: null },
+        },
+        context: {
+            verifiedWeightFacts: weights,
+        },
+    })
+
+    assert.match(response.answer, /^Momo’s verified weight trend is slightly downward overall\./)
+    assert.match(response.answer, /Across 9 verified records/)
+    assert.match(response.answer, /ranged from 15\.2 kg .* to 16 kg/)
+    assert.match(response.answer, /down 0\.2 kg \(0\.44 lb\) from the first record/)
+    assert.match(response.answer, /down 0\.8 kg \(1\.76 lb\) from the highest/)
+    assert.match(response.answer, /4 most recent readings show a gradual downward movement/)
+    assert.doesNotMatch(response.answer, /→/)
+    assert.equal(response.citations.length, 9)
 })
 
 test("returns an editable, unsent Librela appointment-message draft", () => {

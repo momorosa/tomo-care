@@ -15,6 +15,12 @@ function semanticResult(overrides = {}) {
         event_offset: 0,
         confidence: "high",
         social_intent: "none",
+        tone: "neutral",
+        addressed_tomo: false,
+        seriousness: "ordinary",
+        social_response: "",
+        personality_opening: "",
+        personality_closing: "",
         interpreted_question: "Verified Librela spending",
         clarification_question: "",
         used_previous_context: false,
@@ -60,14 +66,56 @@ test("requests a stateless schema-constrained semantic interpretation", async ()
             "positive_feedback"
         )
     )
+    assert.ok(
+        request.text.format.schema.properties.social_intent.enum.includes(
+            "capabilities"
+        )
+    )
+    assert.ok(
+        request.text.format.schema.properties.social_intent.enum.includes(
+            "momo_profile"
+        )
+    )
+    assert.ok(
+        request.text.format.schema.properties.social_intent.enum.includes(
+            "negative_feedback"
+        )
+    )
+    assert.ok(
+        request.text.format.schema.properties.tone.enum.includes(
+            "playful"
+        )
+    )
+    assert.deepEqual(
+        request.text.format.schema.properties.seriousness.enum,
+        ["ordinary", "sensitive"]
+    )
+    assert.ok(
+        request.text.format.schema.required.includes("addressed_tomo")
+    )
+    assert.ok(
+        request.text.format.schema.required.includes("social_response")
+    )
+    assert.ok(
+        request.text.format.schema.required.includes(
+            "personality_opening"
+        )
+    )
+    assert.ok(
+        request.text.format.schema.required.includes(
+            "personality_closing"
+        )
+    )
     assert.equal(
         request.text.format.schema.additionalProperties,
         false
     )
     assert.doesNotMatch(
         calls[0].options.body,
-        /trustedEvents|citations|medical record/i
+        /trustedEvents|verifiedEvents|cost_items|provider_contacts/i
     )
+    assert.match(calls[0].options.body, /fresh social_response/)
+    assert.match(calls[0].options.body, /must not include/)
 })
 
 test("requires server configuration without exposing a credential", async () => {

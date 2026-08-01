@@ -2,10 +2,27 @@ import { getCareDate } from "../lib/careDates.js"
 
 export function resolveDateRange(question, today = new Date()) {
     const q = question.toLowerCase()
-    const todayString = getCareDate(today)
+    const todayString = /^\d{4}-\d{2}-\d{2}$/.test(String(today))
+        ? String(today)
+        : getCareDate(today)
     const currentYear = Number(todayString.slice(0, 4))
 
     const explicitYear = q.match(/\b(20\d{2})\b/)?.[1]
+    const explicitMonth = getExplicitMonth(q)
+
+    if (explicitMonth) {
+        const year = Number(explicitYear || currentYear)
+        const month = explicitMonth.index + 1
+        const monthNumber = String(month).padStart(2, "0")
+        const endDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+
+        return {
+            type: "calendar_month",
+            label: `${explicitMonth.label} ${year}`,
+            start: `${year}-${monthNumber}-01`,
+            end: `${year}-${monthNumber}-${String(endDay).padStart(2, "0")}`,
+        }
+    }
 
     if (explicitYear) {
         return {
@@ -71,5 +88,39 @@ export function getDateRangePhrase(dateRange) {
         return `in ${dateRange.label}`
     }
 
+    if (dateRange.type === "calendar_month") {
+        return `in ${dateRange.label}`
+    }
+
     return ""
+}
+
+function getExplicitMonth(question) {
+    const months = [
+        ["january", "jan"],
+        ["february", "feb"],
+        ["march", "mar"],
+        ["april", "apr"],
+        ["may"],
+        ["june", "jun"],
+        ["july", "jul"],
+        ["august", "aug"],
+        ["september", "sep", "sept"],
+        ["october", "oct"],
+        ["november", "nov"],
+        ["december", "dec"],
+    ]
+
+    for (const [index, aliases] of months.entries()) {
+        if (new RegExp(`\\b(?:${aliases.join("|")})\\b`).test(question)) {
+            return {
+                index,
+                label:
+                    aliases[0].charAt(0).toUpperCase() +
+                    aliases[0].slice(1),
+            }
+        }
+    }
+
+    return null
 }

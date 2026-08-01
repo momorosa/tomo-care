@@ -10,6 +10,16 @@ test("routes the real Simparica wording to last administration, not future sched
     assert.equal(plan.scope, "verified_home_medication_administrations")
 })
 
+test("routes the observed last-Simparica wording to verified history, not an action", () => {
+    const plan = buildQueryPlan(
+        "Hey Tomo, when was the last time I gave Momo Simparica?"
+    )
+
+    assert.equal(plan.intent, "home_medication_status")
+    assert.equal(plan.subject, "simparica_trio")
+    assert.equal(plan.requires_action, false)
+})
+
 test("keeps a due-date question routed to the planned schedule", () => {
     const plan = buildQueryPlan("When is Simparica due next?")
 
@@ -56,4 +66,41 @@ test("preserves the appointment-status and booking guardrail routes", () => {
 
     assert.equal(statusPlan.intent, "appointment_status")
     assert.equal(bookingPlan.intent, "action_request")
+})
+
+test("treats a named home medication on the care calendar as its planned reminder", () => {
+    const plan = buildQueryPlan("Is Adequan on my calendar?")
+
+    assert.equal(plan.intent, "home_medication_due")
+    assert.equal(plan.subject, "adequan")
+    assert.equal(plan.requires_action, false)
+})
+
+test("treats a general care-calendar question as active reminders", () => {
+    const plan = buildQueryPlan("What’s on my calendar?")
+
+    assert.equal(plan.intent, "active_reminders")
+    assert.equal(plan.subject, "reminders")
+})
+
+test("scopes the observed August calendar wording to August only", () => {
+    const plan = buildQueryPlan(
+        "Is anything on my calendar for August?",
+        { currentCareDate: "2026-07-31" }
+    )
+
+    assert.equal(plan.intent, "active_reminders")
+    assert.deepEqual(plan.date_range, {
+        type: "calendar_month",
+        label: "August 2026",
+        start: "2026-08-01",
+        end: "2026-08-31",
+    })
+})
+
+test("does not mistake a calendar-write request for a reminder lookup", () => {
+    const plan = buildQueryPlan("Can you put Adequan on my calendar?")
+
+    assert.equal(plan.intent, "action_request")
+    assert.equal(plan.requires_action, true)
 })

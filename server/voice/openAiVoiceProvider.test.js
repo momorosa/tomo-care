@@ -75,6 +75,7 @@ test("synthesizes MP3 using the pinned Tomo voice defaults", async () => {
     const audio = await provider.synthesize({
         text: "Momo’s last verified injection was June 10.",
         answerType: "grounded_answer",
+        personalityMode: "relational",
     })
     const body = JSON.parse(request.options.body)
 
@@ -84,6 +85,30 @@ test("synthesizes MP3 using the pinned Tomo voice defaults", async () => {
     assert.equal(body.response_format, "mp3")
     assert.match(body.instructions, /Do not add, omit, or paraphrase/)
     assert.equal(audio.toString(), "mp3-audio")
+})
+
+test("uses restrained speech delivery for sensitive answers", async () => {
+    let request
+    const provider = createOpenAiVoiceProvider({
+        apiKey: "server-only-test-key",
+        fetchImpl: async (url, options) => {
+            request = { url, options }
+            return new Response(Buffer.from("mp3-audio"), {
+                status: 200,
+                headers: { "Content-Type": "audio/mpeg" },
+            })
+        },
+    })
+
+    await provider.synthesize({
+        text: "I can summarize the verified trend, but a vet must interpret it.",
+        answerType: "grounded_answer",
+        personalityMode: "restrained",
+    })
+
+    const body = JSON.parse(request.options.body)
+    assert.match(body.instructions, /calm, clear, and restrained/)
+    assert.doesNotMatch(body.instructions, /lightly playful/)
 })
 
 test("rejects empty audio before making a provider call", async () => {

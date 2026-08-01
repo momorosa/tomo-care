@@ -33,6 +33,7 @@ test("sends the visible transcript through the shared grounded assistant", async
                 return {
                     answer_type: "grounded_answer",
                     answer: "Momo’s last verified Simparica dose was July 20.",
+                    personality: { mode: "relational" },
                     citations: [
                         {
                             type: "trusted_event",
@@ -61,6 +62,11 @@ test("sends the visible transcript through the shared grounded assistant", async
         "Momo’s last verified Simparica dose was July 20."
     )
     assert.equal(result.citations[0].id, "event-1")
+    assert.equal(
+        voiceProvider.calls.find((call) => call.method === "synthesize")
+            .input.personalityMode,
+        "relational"
+    )
     assert.equal(result.voice.content_type, "audio/mpeg")
     assert.equal(
         Buffer.from(result.voice.audio_base64, "base64").toString(),
