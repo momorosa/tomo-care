@@ -1,6 +1,9 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { summarizeVerifiedCareEvents } from "./careSummary.js"
+import {
+    summarizePetProfile,
+    summarizeVerifiedCareEvents,
+} from "./careSummary.js"
 
 test("returns the latest verified care date and latest Librela injection", () => {
     const result = summarizeVerifiedCareEvents([
@@ -47,6 +50,26 @@ test("returns null summary items when no verified events exist", () => {
         {
             latest_verified_care: null,
             last_librela: null,
+        }
+    )
+})
+
+test("returns the stored pet profile fields needed for a live age", () => {
+    assert.deepEqual(
+        summarizePetProfile({
+            name: "Momo",
+            breed: "American Eskimo",
+            sex: "female",
+            spayed_neutered: true,
+            birth_date: "2014-08-22",
+            private_note: "do not expose",
+        }),
+        {
+            name: "Momo",
+            breed: "American Eskimo",
+            sex: "female",
+            spayed_neutered: true,
+            birth_date: "2014-08-22",
         }
     )
 })

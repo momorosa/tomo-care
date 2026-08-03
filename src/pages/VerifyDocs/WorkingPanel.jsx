@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { formatDisplayDate } from "../../lib/displayDate.js"
 import { stopWheelIfScrollable } from "./stopWheelIfScrollable.js"
 
 // ─────────────────────────────────────────────
@@ -734,7 +735,7 @@ function EventsBlock({
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-sm font-medium text-tomo-text-h">
                                             {e?.event_type ?? "—"} ·{" "}
-                                            {e?.event_date ?? "—"}
+                                            {formatDisplayDate(e?.event_date)}
                                         </p>
 
                                         {triage && (
@@ -948,7 +949,7 @@ function CostItemsBlock({
                                     </div>
 
                                     <p className="text-xs text-tomo-text">
-                                        {ci?.service_date || "—"} ·{" "}
+                                        {formatDisplayDate(ci?.service_date)} ·{" "}
                                         {ci?.category || "—"} ·{" "}
                                         {ci?.amount ?? "—"} {ci?.currency || ""}
                                     </p>

@@ -6,7 +6,7 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, Librela reminders, and calendar sync. The larger goal is to explore how agentic systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phase 0 and Phase 1 are shipped. Phase 2 is in active development.
+**Status:** Work in progress. Phases 0–2 and the governed Phase 3 assistant foundation are shipped. Phase 3D is building the conversation-centered product experience.
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -125,6 +125,23 @@ Camera. If Tomo does not hear the Mac microphone:
 Voice recording stops automatically after Tomo detects speech followed by a
 short pause. The Stop button remains available as a manual fallback.
 
+## Gmail authorization recovery
+
+If **Check inbox** reports that Tomo's inbox key stopped working, Google's
+saved Gmail authorization is no longer valid. Generate a new refresh token:
+
+```bash
+node server/scripts/get-gmail-refresh-token.js
+```
+
+Open the printed authorization URL, complete consent, replace
+`GMAIL_REFRESH_TOKEN` in the local `.env`, and restart TomoCare. Keep the token
+out of source control and chat.
+
+For an external OAuth app left in Google's **Testing** publishing state, this
+may recur every seven days. Moving the OAuth consent screen to **In production**
+prevents that specific test-token expiration.
+
 ## Semantic understanding
 
 TomoCare routes explicit supported questions and all governed actions through
@@ -177,3 +194,52 @@ trend answers lead with a factual pattern and key comparisons instead of
 reciting every data point. Named-month calendar questions filter the primary
 reminder list to that month; an earlier still-active reminder may be called out
 separately so it is not misrepresented as part of the requested month.
+
+## Conversational home
+
+The Phase 3D home makes Tomo and the current conversation the primary product
+surface. A collapsible care navigation and contextual drawer keep Momo's
+profile, reminders, inbox, and recently verified documents available without
+turning the experience back into a dashboard grid. Closing either sidebar area
+reallocates its width to the Voice/Chat canvas.
+
+Voice is the default mode. Voice and Chat share one session-only transcript, so
+switching modes does not restart the conversation. Refreshing the page or using
+Clear starts a new session; clearing also resets the bounded previous-topic
+anchor. Verified records, citations, reminder actions, and approval dialogs
+continue to use the existing governed backend.
+
+Voice uses an immersive, avatar-first stage rather than the information-dense
+Chat layout. The stage stays visually quiet, while the full scrollable transcript
+opens from the floating control dock with citations and reminder evidence intact.
+When that panel opens, Tomo and the dock recenter within the remaining stage so
+the avatar stays conversationally present instead of being covered. Listening,
+thinking, speaking, playback, and mute controls remain in the dock. The stage
+media is isolated behind one avatar-media seam so the current high-resolution
+placeholder can later be replaced by a Runway character stream without changing
+conversation, voice, transcript, or governance behavior.
+
+Chat starts directly at the session boundary and uses a multiline composer.
+Enter sends; Shift+Enter adds a new line. Tomo's visible identity uses the
+TomoCare logo in both the voice presence and transcript. Reminder citations
+resolve against the same loaded reminder records as the contextual drawer, so
+timing status, display date, and Google Calendar links remain consistent across
+both surfaces.
+
+Compact reminder cards preserve complete category eyebrows, medication names,
+and care-specific icons for quick scanning. Calendar sits in a dedicated footer
+below a divider and remains the final card row when details expand. It opens the
+specific Google Calendar event when TomoCare has its URL, or Google Calendar
+itself when no event link is stored. Calendar sync remains a separate explicit
+action. User-facing record and reminder dates use `MM-DD-YYYY`; database values,
+API payloads, and editable schema fields remain ISO `YYYY-MM-DD` so care logic
+and validation do not change.
+
+Momo's profile reads safe identity fields from the `pets` table. Displayed age
+is calculated from `birth_date` at runtime and changes on her birthday; it is not
+stored as a fixed number in the interface.
+
+Assistant coverage is intentionally narrower than the visible product surface
+today. A follow-up slice will define question coverage, freshness, and privacy
+rules for Profile, Reminders, Inbox, Recently verified, and pending approvals
+before Tomo claims knowledge of every item shown in the app.

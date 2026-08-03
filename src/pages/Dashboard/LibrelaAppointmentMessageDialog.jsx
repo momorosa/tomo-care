@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { formatDisplayDate } from "../../lib/displayDate.js"
 
 const BUSY_PHASES = new Set([
     "preparing",
@@ -495,14 +496,5 @@ function getErrorMessage(error) {
 }
 
 function formatDate(value) {
-    if (!value) return "—"
-
-    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
-    if (Number.isNaN(date.getTime())) return value
-
-    return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-    }).format(date)
+    return formatDisplayDate(value)
 }

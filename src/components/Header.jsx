@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom"
+import tomoCareLogo from "../../assets/tomocare-logo.png"
 
 export default function Header() {
     return (
-        <header className="bg-tomo-bg border-b border-tomo-border">
-            <div className="container mx-auto px-4 py-4">
+        <header className="tomo-app-header h-[73px] border-b border-tomo-border bg-tomo-bg">
+            <div className="flex h-full items-center px-4 md:px-5">
                 <Link
                     to="/"
                     aria-label="Go to TomoCare dashboard"
@@ -20,7 +21,7 @@ export default function Header() {
                     "
                 >
                     <img
-                        src="/assets/tomocare-logo.png"
+                        src={tomoCareLogo}
                         alt=""
                         className="
                             h-10 w-10

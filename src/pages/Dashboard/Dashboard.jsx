@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import NotificationCard from "../../components/NotificationCard.jsx"
-import ReminderCard from "./ReminderCard.jsx"
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
 import AssistantPanel from "./AssistantPanel.jsx"
+import { CareContextDrawer, CareNavigation } from "./CareSidebar.jsx"
 import CareActionDialog from "./CareActionDialog.jsx"
 import LibrelaAppointmentMessageDialog from "./LibrelaAppointmentMessageDialog.jsx"
+import {
+    createConversationalHomeState,
+    reduceConversationalHome,
+} from "./conversationalHomeState.js"
 import {
     approveCareAction,
     cancelCareAction,
@@ -64,181 +66,12 @@ function normalizeReviewDocuments(result) {
     return result.reviewDocuments.filter((doc) => doc?.id)
 }
 
-function CheckResultSummary({ result }) {
-    if (!result) return null
-
-    const reviewDocuments = normalizeReviewDocuments(result)
-
-    const emailsFound = result.emailsFound ?? 0
-    const documentsCreated = result.documentsCreated ?? 0
-    const processedToReview = result.processedToReview ?? reviewDocuments.length
-
-    const skippedDuplicates =
-        result.skippedDuplicates ??
-        result.result?.ingestSummary?.skippedDuplicates ??
-        0
-
-    const failures =
-        result.failedDocuments || result.failures || result.errors || []
-
-    const hasNewReview = processedToReview > 0
-    const safeSkip =
-        emailsFound > 0 &&
-        skippedDuplicates > 0 &&
-        processedToReview === 0 &&
-        documentsCreated === 0
-
-    return (
-        <section className="tomo-surface rounded-2xl p-5">
-            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p className="tomo-section-label mb-2">Latest inbox check</p>
-
-                    <h2 className="text-lg font-semibold text-tomo-text-h">
-                        {hasNewReview
-                            ? "I found something for you to review."
-                            : safeSkip
-                              ? "I found that one already."
-                              : "I did not find anything new."}
-                    </h2>
-
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
-                        {hasNewReview
-                            ? "I processed the source PDF and prepared it for verification. Nothing has been added to Momo’s trusted care record yet."
-                            : safeSkip
-                              ? "The matching document already exists, so I skipped it safely and left verified records untouched."
-                              : "No new canonical vet PDFs were ready to process this time."}
-                    </p>
-                </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                <SummaryItem label="Emails found" value={emailsFound} />
-                <SummaryItem label="Documents created" value={documentsCreated} />
-                <SummaryItem label="Ready for review" value={processedToReview} />
-                <SummaryItem label="Duplicates skipped" value={skippedDuplicates} />
-            </div>
-
-            {failures.length > 0 && (
-                <div className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3">
-                    <p className="text-sm font-medium text-red-200">
-                        Some documents failed to process.
-                    </p>
-
-                    <ul className="mt-2 space-y-1 text-xs text-red-100/80">
-                        {failures.map((failure, index) => (
-                            <li key={index}>
-                                {typeof failure === "string"
-                                    ? failure
-                                    : failure?.message ||
-                                      failure?.error ||
-                                      JSON.stringify(failure)}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </section>
-    )
-}
-
-function SummaryItem({ label, value }) {
-    return (
-        <div className="rounded-xl border border-tomo-border bg-white/[0.03] px-4 py-3">
-            <p className="text-2xl font-semibold text-tomo-text-h">{value}</p>
-            <p className="mt-1 text-xs text-tomo-text">{label}</p>
-        </div>
-    )
-}
-
-function RemindersSection({
-    reminders,
-    loading,
-    error,
-    onRefresh,
-    refreshing,
-    onRecordGiven,
-    onMarkFiled,
-    onSyncCalendar,
-    calendarSyncByReminder,
-}) {
-    return (
-        <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p className="tomo-section-label mb-2">Momo’s reminders</p>
-
-                    <h2 className="text-lg font-semibold text-tomo-text-h">
-                        What needs attention next
-                    </h2>
-
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
-                        Approved reminders live here after TomoCare prepares them.
-                        Add home-medication reminders to Google Calendar whenever
-                        you’re ready.
-                    </p>
-                </div>
-
-                <button
-                    type="button"
-                    className="tomo-btn tomo-btn-secondary shrink-0 gap-2"
-                    onClick={onRefresh}
-                    disabled={refreshing}
-                >
-                    {refreshing && (
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    )}
-                    Refresh
-                </button>
-            </div>
-
-            {loading && (
-                <p className="text-sm text-tomo-text">Loading reminders…</p>
-            )}
-
-            {error && (
-                <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3">
-                    <p className="text-sm font-medium text-red-200">
-                        Could not load reminders
-                    </p>
-                    <p className="mt-1 text-sm text-red-100/80">{error}</p>
-                </div>
-            )}
-
-            {!loading && !error && reminders.length === 0 && (
-                <div className="rounded-2xl border border-tomo-border bg-white/[0.03] p-4">
-                    <p className="text-sm font-medium text-tomo-text-h">
-                        No planned reminders yet.
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-tomo-text">
-                        Once you approve a document and create a reminder, it will
-                        appear here.
-                    </p>
-                </div>
-            )}
-
-            {!loading && !error && reminders.length > 0 && (
-                <div className="space-y-3">
-                    {reminders.map((reminder) => (
-                        <ReminderCard
-                            key={reminder.id}
-                            reminder={reminder}
-                            onRecordGiven={onRecordGiven}
-                            onMarkFiled={onMarkFiled}
-                            onSyncCalendar={onSyncCalendar}
-                            calendarSync={
-                                calendarSyncByReminder[reminder.id] || null
-                            }
-                        />
-                    ))}
-                </div>
-            )}
-        </section>
-    )
-}
-
 export default function Dashboard() {
-    const navigate = useNavigate()
+    const [homeLayout, dispatchHomeLayout] = useReducer(
+        reduceConversationalHome,
+        undefined,
+        createConversationalHomeState
+    )
 
     const [pendingReviewDocs, setPendingReviewDocs] = useState([])
     const [reminders, setReminders] = useState([])
@@ -253,7 +86,7 @@ export default function Dashboard() {
     const [result, setResult] = useState(null)
     const [checkingInbox, setCheckingInbox] = useState(false)
 
-    const [error, setError] = useState("")
+    const [error, setError] = useState(null)
     const [remindersError, setRemindersError] = useState("")
 
     const [loadingReminders, setLoadingReminders] = useState(false)
@@ -423,13 +256,9 @@ export default function Dashboard() {
             ? latestReviewDocuments
             : pendingReviewDocs
 
-    const firstReviewDocument = reviewDocuments[0] || null
-    const cardIsFromInboxCheck = latestReviewDocuments.length > 0
-    const hasPendingReview = reviewDocuments.length > 0
-
     async function checkInbox() {
         setCheckingInbox(true)
-        setError("")
+        setError(null)
         setResult(null)
 
         try {
@@ -447,7 +276,7 @@ export default function Dashboard() {
             await loadCareSummary()
             await loadReminders({ silent: true })
         } catch (err) {
-            setError(err.message)
+            setError(err)
         } finally {
             setCheckingInbox(false)
         }
@@ -1078,172 +907,82 @@ export default function Dashboard() {
     }
 
     return (
-        <main className="min-h-[calc(100svh-73px)] bg-tomo-bg text-tomo-text">
-            <div className="mx-auto max-w-[1440px] px-6 py-8 md:px-8 md:py-10">
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-                    <div className="min-w-0">
-                        <section className="pb-8">
-                            <p className="tomo-section-label mb-4">
-                                Momo’s care desk
-                            </p>
+        <main className="tomo-conversational-home bg-tomo-bg text-tomo-text">
+            <div
+                className={`tomo-home-grid ${
+                    homeLayout.navigationCollapsed
+                        ? "tomo-home-grid--nav-collapsed"
+                        : ""
+                } ${homeLayout.drawerOpen ? "" : "tomo-home-grid--drawer-closed"}`}
+            >
+                <CareNavigation
+                    activeSection={homeLayout.activeSection}
+                    collapsed={homeLayout.navigationCollapsed}
+                    reminderCount={reminders.length}
+                    reviewCount={reviewDocuments.length}
+                    onSelect={(section) =>
+                        dispatchHomeLayout({ type: "select_section", section })
+                    }
+                    onCollapse={() =>
+                        dispatchHomeLayout({ type: "collapse_navigation" })
+                    }
+                    onExpand={() =>
+                        dispatchHomeLayout({ type: "expand_navigation" })
+                    }
+                />
 
-                            <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                                <div>
-                                    <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight text-tomo-text-h md:text-5xl">
-                                        Hi Rosa,
-                                    </h1>
-
-                                    <p className="text-4xl font-semibold leading-tight tracking-tight text-tomo-text-h md:text-5xl">
-                                        Momo’s care is on track today.
-                                    </p>
-
-                                    <p className="mt-6 max-w-2xl text-base leading-7 text-tomo-text">
-                                        I watch the inbox for new vet PDFs, prepare each
-                                        record, and bring anything new to you before it
-                                        joins Momo’s trusted history.
-                                    </p>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="tomo-btn tomo-btn-primary shrink-0 gap-2 px-6 py-2"
-                                    onClick={checkInbox}
-                                    disabled={checkingInbox}
-                                >
-                                    {checkingInbox && (
-                                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                    )}
-                                    {checkingInbox ? "Checking inbox…" : "Check inbox"}
-                                </button>
-                            </div>
-
-                            {checkingInbox && (
-                                <p className="mt-3 text-[11px] text-tomo-text">
-                                    This can take up to ~30s.
-                                </p>
-                            )}
-
-                            <div className="mt-8 grid overflow-hidden rounded-2xl border border-tomo-border bg-white/[0.025] md:grid-cols-4">
-                                <StatusTile
-                                    tone="success"
-                                    label="Inbox"
-                                    value={checkingInbox ? "Checking" : "Ready"}
-                                />
-
-                                <StatusTile
-                                    tone="success"
-                                    label="Review"
-                                    value={
-                                        hasPendingReview
-                                            ? `${reviewDocuments.length} waiting`
-                                            : "Clear"
-                                    }
-                                />
-
-                                <StatusTile
-                                    tone="warning"
-                                    label="Reminders"
-                                    value={
-                                        reminders.length > 0
-                                            ? `${reminders.length} active`
-                                            : "Clear"
-                                    }
-                                />
-
-                                <StatusTile
-                                    tone="brand"
-                                    label="Actions"
-                                    value={
-                                        pendingActionCount > 0
-                                            ? `${pendingActionCount} pending`
-                                            : actionFlow.phase === "idle"
-                                              ? "Gated"
-                                              : "In review"
-                                    }
-                                />
-                            </div>
-
-                            <div className="mt-8">
-                                <AssistantPanel
-                                    petId={PET_ID}
-                                    onActionPrepared={reviewAssistantAction}
-                                    onMessageDraftPrepared={
-                                        reviewAppointmentMessageDraft
-                                    }
-                                />
-                            </div>
-                        </section>
-
-                        <div className="space-y-5">
-                            {error && (
-                                <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-4">
-                                    <p className="text-sm font-medium text-red-200">
-                                        Inbox check failed
-                                    </p>
-                                    <p className="mt-1 text-sm text-red-100/80">
-                                        {error}
-                                    </p>
-                                </div>
-                            )}
-
-                            <CheckResultSummary result={result} />
-
-                            {firstReviewDocument && (
-                                <NotificationCard
-                                    eyebrow="Needs your review"
-                                    title="New document ready for review"
-                                    body={
-                                        cardIsFromInboxCheck
-                                            ? "I found and processed a new document. Please review it before I add it to Momo’s trusted care record."
-                                            : "A document is waiting in the verification queue. Please review it before I add it to Momo’s trusted care record."
-                                    }
-                                    meta={[
-                                        firstReviewDocument.title,
-                                        firstReviewDocument.source_org,
-                                        firstReviewDocument.doc_type,
-                                        reviewDocuments.length > 1
-                                            ? `${reviewDocuments.length} documents ready`
-                                            : null,
-                                    ]}
-                                    actionLabel="Review now"
-                                    onAction={() =>
-                                        navigate(`/review/${firstReviewDocument.id}`)
-                                    }
-                                />
-                            )}
-
-                            <RemindersSection
-                                reminders={reminders}
-                                loading={loadingReminders}
-                                error={remindersError}
-                                refreshing={refreshingReminders}
-                                onRefresh={() => loadReminders({ silent: true })}
-                                onRecordGiven={(reminder) =>
-                                    beginCareAction(
-                                        reminder,
-                                        MARK_HOME_MEDICATION_GIVEN
-                                    )
-                                }
-                                onMarkFiled={(reminder) =>
-                                    beginCareAction(
-                                        reminder,
-                                        MARK_INSURANCE_CLAIM_FILED
-                                    )
-                                }
-                                onSyncCalendar={syncReminderCalendar}
-                                calendarSyncByReminder={
-                                    calendarSyncByReminder
-                                }
-                            />
-                        </div>
-                    </div>
-
-                    <CareRail
+                {homeLayout.drawerOpen && (
+                    <CareContextDrawer
+                        section={homeLayout.activeSection}
                         reminders={reminders}
+                        loadingReminders={loadingReminders}
+                        remindersError={remindersError}
+                        refreshingReminders={refreshingReminders}
+                        reviewDocuments={reviewDocuments}
                         verifiedDocuments={verifiedDocuments}
                         careSummary={careSummary}
+                        inboxResult={result}
+                        inboxError={error}
+                        checkingInbox={checkingInbox}
+                        calendarSyncByReminder={calendarSyncByReminder}
+                        onClose={() =>
+                            dispatchHomeLayout({ type: "close_drawer" })
+                        }
+                        onCheckInbox={checkInbox}
+                        onRefreshReminders={() =>
+                            loadReminders({ silent: true })
+                        }
+                        onRecordGiven={(reminder) =>
+                            beginCareAction(
+                                reminder,
+                                MARK_HOME_MEDICATION_GIVEN
+                            )
+                        }
+                        onMarkFiled={(reminder) =>
+                            beginCareAction(
+                                reminder,
+                                MARK_INSURANCE_CLAIM_FILED
+                            )
+                        }
+                        onSyncCalendar={syncReminderCalendar}
                     />
-                </div>
+                )}
+
+                <AssistantPanel
+                    petId={PET_ID}
+                    reminders={reminders}
+                    pendingActionCount={pendingActionCount}
+                    contextDrawerOpen={homeLayout.drawerOpen}
+                    onToggleContext={() =>
+                        dispatchHomeLayout({
+                            type: homeLayout.drawerOpen
+                                ? "close_drawer"
+                                : "open_drawer",
+                        })
+                    }
+                    onActionPrepared={reviewAssistantAction}
+                    onMessageDraftPrepared={reviewAppointmentMessageDraft}
+                />
             </div>
 
             <CareActionDialog
@@ -1284,118 +1023,6 @@ export default function Dashboard() {
                 />
             )}
         </main>
-    )
-}
-
-function StatusTile({ label, value, tone = "neutral" }) {
-    const dotClass =
-        tone === "success"
-            ? "bg-tomo-success"
-            : tone === "warning"
-              ? "bg-tomo-warning"
-              : tone === "brand"
-                ? "bg-tomo-accent"
-                : "bg-tomo-text"
-
-    return (
-        <div className="border-b border-tomo-border px-5 py-4 md:border-b-0 md:border-r last:border-r-0">
-            <div className="flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${dotClass}`} />
-                <p className="text-[11px] uppercase tracking-[0.18em] text-tomo-text">
-                    {label}
-                </p>
-            </div>
-
-            <p className="mt-2 text-lg font-semibold text-tomo-text-h">
-                {value}
-            </p>
-        </div>
-    )
-}
-
-function CareRail({ reminders, verifiedDocuments = [], careSummary = {} }) {
-    const activeReminderCount = reminders?.length || 0
-
-    return (
-        <aside className="hidden border-l border-tomo-border pl-8 lg:block">
-            <div className="sticky top-8 flex min-h-[calc(100svh-140px)] flex-col">
-                <section className="rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
-                    <div className="flex items-center gap-4">
-                        <img
-                            src="/assets/momoPic.png"
-                            alt=""
-                            className="h-14 w-14 rounded-full"
-                        />
-
-                        <div>
-                            <h2 className="text-2xl font-semibold text-tomo-text-h">
-                                Momo
-                            </h2>
-                            <p className="text-sm font-medium text-tomo-text">
-                                American Eskimo · 11 yrs
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 overflow-hidden rounded-xl border border-tomo-border">
-                        <CareContextRow
-                            label="Latest verified care"
-                            value={formatCompactDate(
-                                careSummary.latest_verified_care?.event_date
-                            )}
-                        />
-                        <CareContextRow
-                            label="Last Librela"
-                            value={formatCompactDate(
-                                careSummary.last_librela?.event_date
-                            )}
-                        />
-                        <CareContextRow
-                            label="Active reminders"
-                            value={activeReminderCount}
-                        />
-                        <CareContextRow label="Primary vet" value="SoMa" />
-                    </div>
-                </section>
-
-                <section className="mt-8">
-                    <div className="flex items-center justify-between">
-                        <p className="tomo-section-label">Recently verified</p>
-                        <p className="text-sm font-semibold text-tomo-success">
-                            {verifiedDocuments.length}
-                        </p>
-                    </div>
-
-                    <div className="mt-5 space-y-2">
-                        {verifiedDocuments.length > 0 ? (
-                            verifiedDocuments.slice(0, 5).map((doc) => (
-                                <RecentRecord
-                                    key={doc.id}
-                                    id={doc.id}
-                                    title={doc.title || "Verified document"}
-                                    sourceOrg={doc.source_org}
-                                    date={doc.doc_date}
-                                />
-                            ))
-                        ) : (
-                            <p className="text-sm text-tomo-text">
-                                No verified records yet.
-                            </p>
-                        )}
-                    </div>
-                </section>
-
-                <div className="mt-auto rounded-2xl border border-tomo-accent/40 bg-tomo-accent/10 p-5">
-                    <p className="tomo-section-label text-tomo-accent">
-                        Approval-gated
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-tomo-text">
-                        Nothing reaches Momo’s record or your calendar until you
-                        approve it.
-                    </p>
-                </div>
-            </div>
-        </aside>
     )
 }
 
@@ -1472,52 +1099,4 @@ function storeActiveAction(actionId) {
 
 function clearStoredAction() {
     window.sessionStorage.removeItem(ACTIVE_ACTION_STORAGE_KEY)
-}
-
-function formatCompactDate(value) {
-    if (!value) return "—"
-
-    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
-    if (Number.isNaN(date.getTime())) return value
-
-    return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-    }).format(date)
-}
-
-function CareContextRow({ label, value }) {
-    return (
-        <div className="flex items-center justify-between border-b border-tomo-border px-4 py-3 last:border-b-0">
-            <p className="text-sm font-medium text-tomo-text">{label}</p>
-            <p className="text-sm font-semibold text-tomo-text-h">{value}</p>
-        </div>
-    )
-}
-
-function RecentRecord({ id, title, sourceOrg, date }) {
-    return (
-        <Link
-            to={`/review/${id}`}
-            className="
-                tomo-quiet-link
-                group flex gap-3 rounded-xl px-2 py-2 -mx-2
-                transition-colors
-                hover:bg-white/[0.035]
-            "
-        >
-            <span className="mt-1.5 h-2.5 w-2.5 rounded-sm bg-tomo-success" />
-
-            <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-tomo-text-h transition-colors group-hover:text-white">
-                    {title}
-                </p>
-
-                <p className="text-sm text-tomo-text">
-                    {date || "Unknown date"}
-                    {sourceOrg ? ` · ${sourceOrg}` : ""}
-                </p>
-            </div>
-        </Link>
-    )
 }

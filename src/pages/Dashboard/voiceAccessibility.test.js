@@ -13,6 +13,7 @@ test("loads every Material Symbol used by the voice controls", async () => {
         "replay",
         "stop",
         "stop_circle",
+        "subject",
         "volume_off",
         "volume_up",
     ]) {
@@ -28,6 +29,8 @@ test("provides non-animated voice states for reduced-motion users", async () => 
 
     assert.match(css, /prefers-reduced-motion:\s*reduce/)
     assert.match(css, /\.tomo-voice-status__orb span\s*\{[\s\S]*animation:\s*none !important/)
+    assert.match(css, /\.tomo-voice-stage__focus,[\s\S]*transition:\s*none !important/)
+    assert.match(css, /\.tomo-voice-stage__avatar,[\s\S]*animation:\s*none !important/)
 })
 
 test("explains automatic stopping and makes transcript interpretation visible", async () => {
@@ -38,7 +41,7 @@ test("explains automatic stopping and makes transcript interpretation visible", 
 
     assert.match(
         source,
-        /Tomo will stop automatically after a short/
+        /Pause naturally when you’re done/
     )
     assert.match(source, /Heard “/)
     assert.match(source, /Interpreted as “/)

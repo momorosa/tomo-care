@@ -1,6 +1,10 @@
 import express from "express"
 import { sbAdmin } from "../supabase.js"
 import { processGmailInbox } from "../gmail/processGmailDocuments.js"
+import {
+    toGmailErrorResponse,
+    toSafeGmailErrorLog,
+} from "../gmail/gmailError.js"
 
 const router = express.Router()
 
@@ -69,12 +73,13 @@ router.post("/gmail/check-inbox", async (req, res) => {
             result,
         })
     } catch (error) {
-        console.error("[gmail/check-inbox] error:", error)
+        console.error(
+            "[gmail/check-inbox] error:",
+            toSafeGmailErrorLog(error)
+        )
 
-        res.status(500).json({
-            ok: false,
-            error: error?.message || "Failed to check Gmail inbox",
-        })
+        const response = toGmailErrorResponse(error)
+        res.status(response.status).json(response.body)
     }
 })
 

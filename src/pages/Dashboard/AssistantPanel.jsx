@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import tomoVoiceAvatar from "../../../assets/tomo-voice-avatar-placeholder.webp"
+import tomoLogo from "../../../assets/tomocare-logo.png"
 import { askAssistant, askAssistantByVoice } from "./api.js"
 import { buildFreshAssistantAnswer } from "./assistantAnswerAttention.js"
+import {
+    appendConversationExchange,
+    CONVERSATION_MODES,
+} from "./conversationalHomeState.js"
 import {
     getVoiceStateAfterAnswer,
     getVoiceStateAfterPlayback,
@@ -19,24 +25,28 @@ const MAX_RECORDING_MS = 30_000
 
 const SUGGESTED_QUESTIONS = [
     "When was Momo last given Librela?",
-    "When is Momo next due for Librela?",
-    "Draft a Librela appointment request.",
     "What reminders are active?",
-    "How much have I spent on Librela?",
+    "Tell me about Momo’s weight trend.",
 ]
 
 export default function AssistantPanel({
     petId,
+    pendingActionCount = 0,
+    reminders = [],
+    contextDrawerOpen,
+    onToggleContext,
     onActionPrepared,
     onMessageDraftPrepared,
 }) {
+    const [mode, setMode] = useState(CONVERSATION_MODES.VOICE)
     const [question, setQuestion] = useState("")
-    const [answer, setAnswer] = useState(null)
+    const [sessionTurns, setSessionTurns] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [voiceState, setVoiceState] = useState(VOICE_STATES.IDLE)
     const [voiceResponse, setVoiceResponse] = useState(null)
     const [voiceMuted, setVoiceMuted] = useState(false)
+    const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(false)
     const recorderRef = useRef(null)
     const streamRef = useRef(null)
     const recordingTimerRef = useRef(null)
@@ -45,6 +55,8 @@ export default function AssistantPanel({
     const playbackRef = useRef(null)
     const voiceMutedRef = useRef(false)
     const conversationContextRef = useRef(null)
+    const lastAnswerRef = useRef(null)
+    const transcriptEndRef = useRef(null)
 
     useEffect(() => {
         return () => {
@@ -54,6 +66,13 @@ export default function AssistantPanel({
             streamRef.current?.getTracks().forEach((track) => track.stop())
         }
     }, [])
+
+    useEffect(() => {
+        transcriptEndRef.current?.scrollIntoView({
+            block: "nearest",
+            behavior: "smooth",
+        })
+    }, [sessionTurns.length])
 
     function requiresVisualReview(result) {
         return (
@@ -83,16 +102,17 @@ export default function AssistantPanel({
 
     function showAssistantResult(result, askedQuestion) {
         if ("conversation_context" in result) {
-            conversationContextRef.current =
-                result.conversation_context
+            conversationContextRef.current = result.conversation_context
         }
 
-        setAnswer((currentAnswer) =>
-            buildFreshAssistantAnswer(
-                currentAnswer,
-                askedQuestion,
-                result
-            )
+        const answer = buildFreshAssistantAnswer(
+            lastAnswerRef.current,
+            askedQuestion,
+            result
+        )
+        lastAnswerRef.current = answer
+        setSessionTurns((turns) =>
+            appendConversationExchange(turns, askedQuestion, answer)
         )
         routePreparedResult(result)
         return requiresVisualReview(result)
@@ -133,9 +153,7 @@ export default function AssistantPanel({
             "ended",
             () => {
                 playbackRef.current = null
-                setVoiceState(
-                    getVoiceStateAfterPlayback({ requiresReview })
-                )
+                setVoiceState(getVoiceStateAfterPlayback({ requiresReview }))
             },
             { once: true }
         )
@@ -144,9 +162,7 @@ export default function AssistantPanel({
             await playback.play()
         } catch {
             playbackRef.current = null
-            setVoiceState(
-                getVoiceStateAfterPlayback({ requiresReview })
-            )
+            setVoiceState(getVoiceStateAfterPlayback({ requiresReview }))
         }
     }
 
@@ -166,10 +182,7 @@ export default function AssistantPanel({
                 trimmedQuestion,
                 conversationContextRef.current
             )
-            const requiresReview = showAssistantResult(
-                result,
-                trimmedQuestion
-            )
+            const requiresReview = showAssistantResult(result, trimmedQuestion)
             setVoiceState(
                 getVoiceStateAfterAnswer({
                     willSpeak: false,
@@ -234,7 +247,6 @@ export default function AssistantPanel({
                 audioUrl: result.voice.audio_base64
                     ? `data:${result.voice.content_type};base64,${result.voice.audio_base64}`
                     : null,
-                spokenAnswer: result.spoken_answer,
                 disclosure: result.voice.disclosure,
                 requiresReview,
             }
@@ -246,9 +258,7 @@ export default function AssistantPanel({
             }
             await playVoiceAnswer(nextVoiceResponse, { requiresReview })
         } catch (err) {
-            setError(
-                err?.message || "TomoCare could not answer by voice right now."
-            )
+            setError(err?.message || "TomoCare could not answer by voice right now.")
             setVoiceState(VOICE_STATES.BLOCKED)
         } finally {
             setLoading(false)
@@ -306,16 +316,10 @@ export default function AssistantPanel({
 
             recorder.start()
             setVoiceState(VOICE_STATES.LISTENING)
-            silenceDetectorCleanupRef.current = startSilenceDetection(
-                stream,
-                {
-                    onSilence: stopRecording,
-                }
-            )
-            recordingTimerRef.current = setTimeout(
-                stopRecording,
-                MAX_RECORDING_MS
-            )
+            silenceDetectorCleanupRef.current = startSilenceDetection(stream, {
+                onSilence: stopRecording,
+            })
+            recordingTimerRef.current = setTimeout(stopRecording, MAX_RECORDING_MS)
         } catch (err) {
             silenceDetectorCleanupRef.current?.()
             silenceDetectorCleanupRef.current = null
@@ -344,9 +348,7 @@ export default function AssistantPanel({
         voiceMutedRef.current = nextMuted
 
         if (nextMuted && voiceState === VOICE_STATES.SPEAKING) {
-            stopPlayback({
-                requiresReview: voiceResponse?.requiresReview,
-            })
+            stopPlayback({ requiresReview: voiceResponse?.requiresReview })
         }
     }
 
@@ -355,292 +357,620 @@ export default function AssistantPanel({
         handleAsk()
     }
 
+    function clearSession() {
+        stopPlayback()
+        setSessionTurns([])
+        setVoiceResponse(null)
+        setQuestion("")
+        setError("")
+        setVoiceState(VOICE_STATES.IDLE)
+        setVoiceTranscriptOpen(false)
+        conversationContextRef.current = null
+        lastAnswerRef.current = null
+    }
+
+    const showSuggestions = sessionTurns.length === 0 && !loading
+    const reminderById = useMemo(
+        () => new Map(reminders.map((reminder) => [reminder.id, reminder])),
+        [reminders]
+    )
+
     return (
-        <section className="rounded-2xl border border-tomo-border bg-white/[0.035] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)]">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p className="tomo-section-label">Ask TomoCare</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-tomo-text-h">
-                        Ask from Momo’s trusted records
-                    </h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-tomo-text">
-                        TomoCare can answer from verified records and prepare
-                        supported updates for your review. Nothing changes without
-                        your approval.
-                    </p>
+        <section
+            className={`tomo-conversation-panel tomo-conversation-panel--${mode}`}
+            aria-label="Talk with Tomo"
+        >
+            <header className="tomo-conversation-header">
+                <div className="flex min-w-0 items-center gap-3">
+                    <span
+                        className={`tomo-presence-dot tomo-presence-dot--${voiceState}`}
+                        aria-hidden="true"
+                    />
+                    <div className="min-w-0">
+                        <h1 className="text-lg font-semibold text-tomo-text-h">Tomo</h1>
+                        <p className="truncate text-xs text-tomo-text">
+                            {getVoiceStateLabel(voiceState)}
+                        </p>
+                    </div>
                 </div>
 
-                <div className="flex flex-col items-start gap-2 md:items-end">
-                    <span className="tomo-badge tomo-badge--brand shrink-0">
-                        Verified data + approval
-                    </span>
-                    <TomoVoiceStatus state={voiceState} />
-                </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 md:flex-row">
-                <input
-                    value={question}
-                    onChange={(event) => setQuestion(event.target.value)}
-                    placeholder="Ask about Momo’s care, or say “I gave Simparica today.”"
-                    className="
-                        min-h-11 flex-1 rounded-xl border border-tomo-border
-                        bg-white/[0.025] px-4 py-2 text-sm text-tomo-text-h
-                        placeholder:text-tomo-text/70
-                        focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-tomo-accent
-                    "
-                />
-
-                <button
-                    type="button"
-                    onClick={handleVoiceButton}
-                    disabled={
-                        loading &&
-                        voiceState !== VOICE_STATES.LISTENING
-                    }
-                    aria-pressed={voiceState === VOICE_STATES.LISTENING}
-                    className={`tomo-btn min-h-11 px-5 text-sm ${
-                        voiceState === VOICE_STATES.LISTENING
-                            ? "tomo-voice-recording"
-                            : "tomo-btn-secondary"
-                    }`}
-                >
-                    <span className="material-symbols-outlined mr-2 text-lg" aria-hidden="true">
-                        {voiceState === VOICE_STATES.LISTENING
-                            ? "stop_circle"
-                            : "mic"}
-                    </span>
-                    {voiceState === VOICE_STATES.LISTENING
-                        ? "Stop"
-                        : "Speak"}
-                </button>
-
-                <button
-                    type="submit"
-                    disabled={loading || !question.trim()}
-                    className="tomo-btn tomo-btn-primary min-h-11 px-5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    {loading ? "Asking..." : "Ask"}
-                </button>
-            </form>
-
-            {voiceState === VOICE_STATES.LISTENING && (
-                <p
-                    role="status"
-                    className="mt-2 text-xs leading-5 text-tomo-text"
-                >
-                    Listening—Tomo will stop automatically after a short
-                    pause. Tap Stop if you want to finish sooner.
-                </p>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-2">
-                {SUGGESTED_QUESTIONS.map((item) => (
+                <div className="flex items-center gap-2">
+                    {pendingActionCount > 0 && (
+                        <span className="tomo-badge tomo-badge--warning hidden md:inline-flex">
+                            {pendingActionCount} pending
+                        </span>
+                    )}
                     <button
-                        key={item}
                         type="button"
-                        disabled={loading}
-                        onClick={() => handleAsk(item)}
-                        className="
-                            tomo-quiet-link rounded-full border border-tomo-border
-                            bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-tomo-text
-                            transition-colors hover:border-tomo-accent/40 hover:bg-white/[0.04] hover:text-tomo-text-h
-                            disabled:cursor-not-allowed disabled:opacity-50
-                        "
+                        className="tomo-icon-button"
+                        onClick={onToggleContext}
+                        aria-pressed={contextDrawerOpen}
+                        aria-label={
+                            contextDrawerOpen
+                                ? "Hide care details"
+                                : "Show care details"
+                        }
+                        title={
+                            contextDrawerOpen
+                                ? "Hide care details"
+                                : "Show care details"
+                        }
                     >
-                        {item}
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                            {contextDrawerOpen ? "menu_open" : "menu"}
+                        </span>
                     </button>
-                ))}
-            </div>
+
+                    <div className="tomo-mode-switch" role="group" aria-label="Conversation mode">
+                        <ModeButton
+                            active={mode === CONVERSATION_MODES.VOICE}
+                            icon="graphic_eq"
+                            label="Voice"
+                            onClick={() => setMode(CONVERSATION_MODES.VOICE)}
+                        />
+                        <ModeButton
+                            active={mode === CONVERSATION_MODES.CHAT}
+                            icon="chat"
+                            label="Chat"
+                            onClick={() => setMode(CONVERSATION_MODES.CHAT)}
+                        />
+                    </div>
+                </div>
+            </header>
+
+            {mode === CONVERSATION_MODES.VOICE ? (
+                <VoiceStage
+                    voiceState={voiceState}
+                    sessionTurns={sessionTurns}
+                    loading={loading}
+                    transcriptOpen={voiceTranscriptOpen}
+                    reminderById={reminderById}
+                    error={error}
+                    response={voiceResponse}
+                    muted={voiceMuted}
+                    onClear={clearSession}
+                    onToggleTranscript={() =>
+                        setVoiceTranscriptOpen((open) => !open)
+                    }
+                    onVoiceButton={handleVoiceButton}
+                    onReplay={() =>
+                        playVoiceAnswer(voiceResponse, {
+                            requiresReview: voiceResponse?.requiresReview,
+                        })
+                    }
+                    onStop={() =>
+                        stopPlayback({
+                            requiresReview: voiceResponse?.requiresReview,
+                        })
+                    }
+                    onToggleMute={toggleMute}
+                    transcriptEndRef={transcriptEndRef}
+                />
+            ) : (
+                <>
+                    <div className="tomo-conversation-scroll">
+                        <SessionTranscript
+                            sessionTurns={sessionTurns}
+                            showSuggestions={showSuggestions}
+                            reminderById={reminderById}
+                            onAsk={handleAsk}
+                            onClear={clearSession}
+                            transcriptEndRef={transcriptEndRef}
+                        />
+                    </div>
+
+                    <footer className="tomo-conversation-composer">
+                        <form
+                            onSubmit={handleSubmit}
+                            className="tomo-chat-composer-box"
+                        >
+                            <label className="sr-only" htmlFor="tomo-chat-input">
+                                Message Tomo
+                            </label>
+                            <textarea
+                                id="tomo-chat-input"
+                                value={question}
+                                onChange={(event) => setQuestion(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (
+                                        event.key === "Enter" &&
+                                        !event.shiftKey &&
+                                        !event.nativeEvent.isComposing
+                                    ) {
+                                        event.preventDefault()
+                                        if (!loading && question.trim()) handleAsk()
+                                    }
+                                }}
+                                placeholder="Ask Tomo about Momo’s care…"
+                                className="tomo-chat-input"
+                                rows={3}
+                            />
+                            <button
+                                type="submit"
+                                disabled={loading || !question.trim()}
+                                className="tomo-btn tomo-btn-primary min-h-11 min-w-11 px-3"
+                                aria-label="Send message"
+                            >
+                                <span
+                                    className="material-symbols-outlined"
+                                    aria-hidden="true"
+                                >
+                                    arrow_upward
+                                </span>
+                            </button>
+                        </form>
+
+                        {error && <ConversationError message={error} />}
+                        <VerifiedCareBoundary />
+                    </footer>
+                </>
+            )}
 
             <p className="sr-only" aria-live="polite" aria-atomic="true">
                 {getVoiceStateLabel(voiceState)}
             </p>
+        </section>
+    )
+}
 
-            {voiceResponse && (
-                <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-tomo-border bg-white/[0.02] px-3 py-2">
-                    <button
-                        type="button"
-                        onClick={() =>
-                            playVoiceAnswer(voiceResponse, {
-                                requiresReview:
-                                    voiceResponse.requiresReview,
-                            })
-                        }
-                        disabled={
-                            loading ||
-                            !voiceResponse.audioUrl ||
-                            voiceState === VOICE_STATES.LISTENING
-                        }
-                        className="tomo-btn tomo-btn-tertiary min-h-9 px-3 text-xs"
-                    >
-                        <span className="material-symbols-outlined mr-1.5 text-base" aria-hidden="true">
-                            replay
-                        </span>
-                        Replay
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() =>
-                            stopPlayback({
-                                requiresReview:
-                                    voiceResponse.requiresReview,
-                            })
-                        }
-                        disabled={voiceState !== VOICE_STATES.SPEAKING}
-                        className="tomo-btn tomo-btn-tertiary min-h-9 px-3 text-xs"
-                    >
-                        <span className="material-symbols-outlined mr-1.5 text-base" aria-hidden="true">
-                            stop
-                        </span>
-                        Stop audio
-                    </button>
-                    <button
-                        type="button"
-                        onClick={toggleMute}
-                        aria-pressed={voiceMuted}
-                        className="tomo-btn tomo-btn-tertiary min-h-9 px-3 text-xs"
-                    >
-                        <span className="material-symbols-outlined mr-1.5 text-base" aria-hidden="true">
-                            {voiceMuted ? "volume_off" : "volume_up"}
-                        </span>
-                        {voiceMuted ? "Unmute" : "Mute"}
-                    </button>
-                    <span className="text-xs text-tomo-text">
-                        {voiceResponse.disclosure}
-                    </span>
+function ModeButton({ active, icon, label, onClick }) {
+    return (
+        <button
+            type="button"
+            className={`tomo-mode-switch__button ${active ? "tomo-mode-switch__button--active" : ""}`}
+            onClick={onClick}
+            aria-pressed={active}
+        >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">
+                {icon}
+            </span>
+            <span className="hidden sm:inline">{label}</span>
+        </button>
+    )
+}
+
+function VoiceStage({
+    voiceState,
+    sessionTurns,
+    loading,
+    transcriptOpen,
+    reminderById,
+    error,
+    response,
+    muted,
+    onClear,
+    onToggleTranscript,
+    onVoiceButton,
+    onReplay,
+    onStop,
+    onToggleMute,
+    transcriptEndRef,
+}) {
+    return (
+        <section
+            className={`tomo-voice-stage tomo-voice-stage--${voiceState} ${
+                transcriptOpen ? "tomo-voice-stage--transcript-open" : ""
+            }`}
+            aria-label="Voice conversation with Tomo"
+        >
+            <div className="tomo-voice-stage__focus">
+                <div
+                    className="tomo-voice-stage__media"
+                    data-avatar-media="placeholder"
+                >
+                    <img
+                        src={tomoVoiceAvatar}
+                        alt="Tomo, Momo’s care companion"
+                        className="tomo-voice-stage__avatar"
+                    />
                 </div>
-            )}
+                <div className="tomo-voice-stage__veil" aria-hidden="true" />
 
-            {error && (
-                <div className="mt-5 rounded-xl border border-[color:var(--tomo-danger-border)] bg-[var(--tomo-danger-bg)] px-4 py-3 text-sm text-tomo-danger">
-                    {error}
+                <div className="tomo-voice-stage__status" aria-hidden="true">
+                    <VoiceStatusOrb voiceState={voiceState} />
+                    <span>{getVoiceStateLabel(voiceState)}</span>
                 </div>
-            )}
 
-            {answer && (
-                <AssistantAnswer
-                    key={answer.attention_revision}
-                    answer={answer}
+                <VoiceControlDock
+                    voiceState={voiceState}
+                    loading={loading}
+                    transcriptOpen={transcriptOpen}
+                    response={response}
+                    muted={muted}
+                    error={error}
+                    onToggleTranscript={onToggleTranscript}
+                    onVoiceButton={onVoiceButton}
+                    onReplay={onReplay}
+                    onStop={onStop}
+                    onToggleMute={onToggleMute}
+                />
+            </div>
+
+            {transcriptOpen && (
+                <VoiceTranscriptSheet
+                    sessionTurns={sessionTurns}
+                    reminderById={reminderById}
+                    onClear={onClear}
+                    onClose={onToggleTranscript}
+                    transcriptEndRef={transcriptEndRef}
                 />
             )}
         </section>
     )
 }
 
-function TomoVoiceStatus({ state }) {
+function VoiceControlDock({
+    voiceState,
+    loading,
+    transcriptOpen,
+    response,
+    muted,
+    error,
+    onToggleTranscript,
+    onVoiceButton,
+    onReplay,
+    onStop,
+    onToggleMute,
+}) {
+    const listening = voiceState === VOICE_STATES.LISTENING
+
     return (
-        <div
-            className={`tomo-voice-status tomo-voice-status--${state}`}
-            data-state={state}
-            aria-hidden="true"
+        <div className="tomo-voice-stage__controls">
+            {error && <ConversationError message={error} compact />}
+            <div className={`tomo-voice-dock tomo-voice-dock--${voiceState}`}>
+                <button
+                    type="button"
+                    onClick={onVoiceButton}
+                    disabled={loading && !listening}
+                    aria-pressed={listening}
+                    className={`tomo-voice-dock__primary ${
+                        listening ? "tomo-voice-dock__primary--listening" : ""
+                    }`}
+                >
+                    <span className="tomo-voice-dock__icon" aria-hidden="true">
+                        <span className="material-symbols-outlined">
+                            {listening ? "stop" : "mic"}
+                        </span>
+                    </span>
+                    <span className="tomo-voice-dock__copy">
+                        <strong>
+                            {listening
+                                ? "Listening…"
+                                : loading
+                                  ? "Tomo is thinking…"
+                                  : "Start speaking"}
+                        </strong>
+                        <small>
+                            {listening
+                                ? "Pause naturally when you’re done"
+                                : getVoiceStateLabel(voiceState)}
+                        </small>
+                    </span>
+                </button>
+
+                {response && (
+                    <VoicePlaybackControls
+                        response={response}
+                        loading={loading}
+                        state={voiceState}
+                        muted={muted}
+                        onReplay={onReplay}
+                        onStop={onStop}
+                        onToggleMute={onToggleMute}
+                    />
+                )}
+                <button
+                    type="button"
+                    className="tomo-voice-transcript-control"
+                    onClick={onToggleTranscript}
+                    aria-expanded={transcriptOpen}
+                    aria-controls="tomo-voice-transcript"
+                >
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                        subject
+                    </span>
+                    <span>Transcript</span>
+                </button>
+            </div>
+            <VerifiedCareBoundary />
+        </div>
+    )
+}
+
+function VoiceTranscriptSheet({
+    sessionTurns,
+    reminderById,
+    onClear,
+    onClose,
+    transcriptEndRef,
+}) {
+    return (
+        <aside
+            id="tomo-voice-transcript"
+            className="tomo-voice-transcript-sheet"
+            aria-label="Full session transcript"
         >
+            <header className="tomo-voice-transcript-sheet__header">
+                <div>
+                    <p className="tomo-section-label">Today · Session only</p>
+                    <h2>Conversation</h2>
+                </div>
+                <div className="flex items-center gap-1">
+                    {sessionTurns.length > 0 && (
+                        <button
+                            type="button"
+                            className="tomo-btn tomo-btn-tertiary px-2 py-1 text-xs"
+                            onClick={onClear}
+                        >
+                            Clear
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className="tomo-icon-button"
+                        onClick={onClose}
+                        aria-label="Close full transcript"
+                    >
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                            close
+                        </span>
+                    </button>
+                </div>
+            </header>
+            <div className="tomo-voice-transcript-sheet__body">
+                {sessionTurns.length === 0 ? (
+                    <EmptyConversation />
+                ) : (
+                    <div className="space-y-6">
+                        {sessionTurns.map((turn) =>
+                            turn.role === "user" ? (
+                                <UserTurn key={turn.id}>{turn.text}</UserTurn>
+                            ) : (
+                                <AssistantTurn
+                                    key={turn.id}
+                                    answer={turn.answer}
+                                    reminderById={reminderById}
+                                />
+                            )
+                        )}
+                    </div>
+                )}
+                <div ref={transcriptEndRef} />
+            </div>
+        </aside>
+    )
+}
+
+function SessionTranscript({
+    sessionTurns,
+    showSuggestions,
+    reminderById,
+    onAsk,
+    onClear,
+    transcriptEndRef,
+}) {
+    return (
+        <section className="tomo-session-transcript" aria-label="Current session transcript">
+            <div className="flex items-center justify-between gap-3 border-b border-tomo-border pb-2">
+                <p className="text-xs text-tomo-text">Today · Session only</p>
+                {sessionTurns.length > 0 && (
+                    <button
+                        type="button"
+                        className="tomo-btn tomo-btn-tertiary px-2 py-1 text-xs"
+                        onClick={onClear}
+                    >
+                        Clear
+                    </button>
+                )}
+            </div>
+
+            {sessionTurns.length === 0 ? (
+                <EmptyConversation />
+            ) : (
+                <div className="mt-5 space-y-6">
+                    {sessionTurns.map((turn) =>
+                        turn.role === "user" ? (
+                            <UserTurn key={turn.id}>{turn.text}</UserTurn>
+                        ) : (
+                            <AssistantTurn
+                                key={turn.id}
+                                answer={turn.answer}
+                                reminderById={reminderById}
+                            />
+                        )
+                    )}
+                </div>
+            )}
+
+            {showSuggestions && (
+                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                    {SUGGESTED_QUESTIONS.map((item) => (
+                        <button
+                            key={item}
+                            type="button"
+                            onClick={() => onAsk(item)}
+                            className="tomo-suggestion"
+                        >
+                            {item}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <div ref={transcriptEndRef} />
+        </section>
+    )
+}
+
+function VoiceStatusOrb({ voiceState }) {
+    return (
+        <span className={`tomo-voice-status tomo-voice-status--${voiceState}`}>
             <span className="tomo-voice-status__orb">
                 <span />
                 <span />
                 <span />
             </span>
-            <span>{getVoiceStateLabel(state)}</span>
+        </span>
+    )
+}
+
+function VerifiedCareBoundary() {
+    return (
+        <p className="tomo-verified-boundary">
+            <span
+                className="material-symbols-outlined text-sm text-tomo-success"
+                aria-hidden="true"
+            >
+                verified_user
+            </span>
+            Answers use verified records. Changes still require approval.
+        </p>
+    )
+}
+
+function ConversationError({ message, compact = false }) {
+    return (
+        <div
+            className={`tomo-conversation-error ${
+                compact ? "tomo-conversation-error--compact" : ""
+            }`}
+            role="alert"
+        >
+            {message}
         </div>
     )
 }
 
-function AssistantAnswer({ answer }) {
+function EmptyConversation() {
+    return (
+        <div className="mx-auto mt-8 max-w-lg text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-tomo-text-h">
+                What should we check for Momo?
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-tomo-text">
+                Ask from Momo’s trusted records. The same session continues when you
+                switch back to Voice.
+            </p>
+        </div>
+    )
+}
+
+function UserTurn({ children }) {
+    return (
+        <div className="ml-auto max-w-[86%] rounded-2xl rounded-br-md bg-white/[0.08] px-4 py-3 text-base leading-6 text-tomo-text-h">
+            <p className="mb-1 text-[11px] uppercase tracking-[0.12em] text-tomo-text">
+                You
+            </p>
+            <p>{children}</p>
+        </div>
+    )
+}
+
+function AssistantTurn({ answer, reminderById }) {
     const isActionRequest = answer.answer_type === "action_request"
     const isPreparedAction = answer.answer_type === "action_prepared"
-    const isPreparedMessage =
-        answer.answer_type === "message_draft_prepared"
+    const isPreparedMessage = answer.answer_type === "message_draft_prepared"
     const needsClarification = answer.answer_type === "clarification_needed"
+    const badgeLabel =
+        answer.answer_type === "social_response"
+            ? "Tomo"
+            : isPreparedMessage
+              ? "Draft ready"
+              : isPreparedAction
+                ? "Ready to review"
+                : needsClarification
+                  ? "Needs details"
+                  : isActionRequest
+                    ? "Approval required"
+                    : "Grounded answer"
 
     return (
-        <div className="mt-6 rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-tomo-text">
-                        You asked
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-tomo-text-h">
-                        {answer.question}
-                    </p>
-                    {answer.transcript_corrections?.length > 0 && (
-                        <div className="mt-2 space-y-1 text-xs text-tomo-text">
-                            {answer.transcript_corrections.map(
-                                (correction) => (
-                                    <p
-                                        key={`${correction.heard}-${correction.interpreted_as}`}
-                                    >
-                                        {`Heard “${correction.heard}” · Interpreted as “${correction.interpreted_as}”`}
-                                    </p>
-                                )
-                            )}
-                        </div>
-                    )}
-                    {answer.semantic_interpretation?.status ===
-                        "applied" &&
-                        answer.semantic_interpretation
-                            ?.interpretation_label && (
-                            <p className="mt-2 text-xs text-tomo-text">
-                                {`Understood as “${answer.semantic_interpretation.interpretation_label}”${
-                                    answer.semantic_interpretation
-                                        .used_previous_context
-                                        ? " using the previous care question"
-                                        : ""
-                                }`}
-                            </p>
-                        )}
-                </div>
-
+        <article className="max-w-[92%]">
+            <div className="flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-tomo-border">
+                    <img src={tomoLogo} alt="" className="h-full w-full object-cover" />
+                </span>
+                <p className="text-xs font-semibold text-tomo-text-h">Tomo</p>
                 <span
-                    className={`tomo-badge ${
+                    className={`tomo-badge ml-auto ${
                         isActionRequest || needsClarification
                             ? "tomo-badge--warning"
                             : "tomo-badge--success"
                     }`}
                 >
-                    {answer.answer_type === "social_response"
-                        ? "Tomo"
-                        : isPreparedMessage
-                        ? "Draft ready"
-                        : isPreparedAction
-                        ? "Ready to review"
-                        : needsClarification
-                          ? "Needs details"
-                          : isActionRequest
-                            ? "Approval required"
-                            : "Grounded answer"}
+                    {badgeLabel}
                 </span>
             </div>
 
-            <div
-                className="tomo-answer-fresh mt-5 rounded-xl border border-tomo-border bg-[#111219]/60 px-4 py-4"
+            <p
+                className="tomo-answer-fresh mt-3 text-base leading-7 text-tomo-text-h"
                 aria-live="polite"
-                aria-atomic="true"
             >
-                <p className="text-sm leading-6 text-tomo-text-h">
-                    {answer.answer}
-                </p>
-            </div>
+                {answer.answer}
+            </p>
+
+            {answer.transcript_corrections?.length > 0 && (
+                <div className="mt-2 space-y-1 text-xs text-tomo-text">
+                    {answer.transcript_corrections.map((correction) => (
+                        <p key={`${correction.heard}-${correction.interpreted_as}`}>
+                            {`Heard “${correction.heard}” · Interpreted as “${correction.interpreted_as}”`}
+                        </p>
+                    ))}
+                </div>
+            )}
+
+            {answer.semantic_interpretation?.status === "applied" &&
+                answer.semantic_interpretation?.interpretation_label && (
+                    <p className="mt-2 text-xs text-tomo-text">
+                        {`Understood as “${answer.semantic_interpretation.interpretation_label}”${
+                            answer.semantic_interpretation.used_previous_context
+                                ? " using the previous care question"
+                                : ""
+                        }`}
+                    </p>
+                )}
 
             {answer.citations?.length > 0 && (
-                <div className="mt-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-tomo-text">
-                        Evidence
-                    </p>
-
+                <details className="mt-4 rounded-xl border border-tomo-border bg-white/[0.02] px-3 py-2">
+                    <summary className="cursor-pointer text-xs font-medium text-tomo-text-h">
+                        View {answer.citations.length} verified{" "}
+                        {answer.citations.length === 1 ? "source" : "sources"}
+                    </summary>
                     <div className="mt-3 space-y-2">
                         {answer.citations.map((citation, index) => (
                             <EvidenceCard
                                 key={`${citation.type}-${citation.id || index}`}
                                 citation={citation}
+                                reminder={reminderById.get(citation.id) || null}
                             />
                         ))}
                     </div>
-                </div>
+                </details>
             )}
 
             {answer.limitations?.length > 0 && (
-                <div className="mt-5 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-tomo-text">
+                <div className="mt-4 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-tomo-text">
                         Limits
                     </p>
                     <ul className="mt-2 space-y-1 text-sm leading-6 text-tomo-text">
@@ -652,14 +982,67 @@ function AssistantAnswer({ answer }) {
             )}
 
             {answer.proposed_action && !isPreparedAction && (
-                <div className="mt-5 rounded-xl border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-tomo-warning">
+                <div className="mt-4 rounded-xl border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-tomo-warning">
                         Routed to approval gate
                     </p>
                     <p className="mt-2 text-sm leading-6 text-tomo-text-h">
                         {answer.proposed_action.reason}
                     </p>
                 </div>
+            )}
+        </article>
+    )
+}
+
+function VoicePlaybackControls({
+    response,
+    loading,
+    state,
+    muted,
+    onReplay,
+    onStop,
+    onToggleMute,
+}) {
+    return (
+        <div className="tomo-voice-playback-controls">
+            <button
+                type="button"
+                onClick={onReplay}
+                disabled={loading || !response.audioUrl || state === VOICE_STATES.LISTENING}
+                className="tomo-voice-playback-control"
+            >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                    replay
+                </span>
+                Replay
+            </button>
+            <button
+                type="button"
+                onClick={onStop}
+                disabled={state !== VOICE_STATES.SPEAKING}
+                className="tomo-voice-playback-control"
+            >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                    stop_circle
+                </span>
+                Stop audio
+            </button>
+            <button
+                type="button"
+                onClick={onToggleMute}
+                aria-pressed={muted}
+                className="tomo-voice-playback-control"
+            >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                    {muted ? "volume_off" : "volume_up"}
+                </span>
+                {muted ? "Unmute" : "Mute"}
+            </button>
+            {response.disclosure && (
+                <span className="tomo-voice-playback-controls__disclosure">
+                    {response.disclosure}
+                </span>
             )}
         </div>
     )

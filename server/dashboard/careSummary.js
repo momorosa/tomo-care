@@ -14,6 +14,21 @@ export function summarizeVerifiedCareEvents(events = []) {
     }
 }
 
+export function summarizePetProfile(pet) {
+    if (!pet) return null
+
+    return {
+        name: pet.name || null,
+        breed: pet.breed || null,
+        sex: pet.sex || null,
+        spayed_neutered:
+            typeof pet.spayed_neutered === "boolean"
+                ? pet.spayed_neutered
+                : null,
+        birth_date: pet.birth_date || null,
+    }
+}
+
 function isLibrelaRelated(event) {
     const details = event?.details_json || {}
     const haystack = [

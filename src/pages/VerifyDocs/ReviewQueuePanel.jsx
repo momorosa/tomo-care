@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { formatDisplayDate } from "../../lib/displayDate.js"
 import { stopWheelIfScrollable } from "./stopWheelIfScrollable"
 
 function QueueItem({ doc, active, onSelect }) {
@@ -26,7 +27,8 @@ function QueueItem({ doc, active, onSelect }) {
         </span>
       </div>
       <p className="text-xs text-tomo-text mt-1 truncate">
-        {doc.source_org || "Unknown source"} · {doc.doc_date || ""}
+        {doc.source_org || "Unknown source"} ·{" "}
+        {formatDisplayDate(doc.doc_date, "Date pending")}
       </p>
     </button>
   )

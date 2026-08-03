@@ -5,7 +5,7 @@ import VerifyDocs from "./pages/VerifyDocs/VerifyDocs.jsx"
 
 export default function App() {
     return (
-        <div className="tomo-theme min-h-screen bg-tomo-bg text-tomo-text">
+        <div className="tomo-theme min-h-screen overflow-x-hidden bg-tomo-bg text-tomo-text">
             <Header />
 
             <Routes>

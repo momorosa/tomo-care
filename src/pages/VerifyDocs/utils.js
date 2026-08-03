@@ -1,3 +1,9 @@
+import { formatDisplayDate as formatCareDate } from "../../lib/displayDate.js"
+
+export function formatDisplayDate(value) {
+    return formatCareDate(value, "date pending")
+}
+
 export function looksLikeLibrela(doc) {
     const extracted = doc?.text_extracted || {}
     const haystack = [
@@ -10,14 +16,4 @@ export function looksLikeLibrela(doc) {
         .toLowerCase()
 
     return haystack.includes("librela")
-}
-
-export function formatDisplayDate(value) {
-    if (!value) return "date pending"
-
-    return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-    })
 }
