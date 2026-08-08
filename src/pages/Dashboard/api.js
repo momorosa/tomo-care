@@ -252,6 +252,16 @@ export async function askAssistantByVoice(
     return jsonOrThrow(response, "Could not ask Tomo by voice")
 }
 
+export async function createRunwayAvatarSession() {
+    const response = await fetch("/api/avatar/sessions", {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({}),
+    })
+
+    return jsonOrThrow(response, "Tomo’s live animation could not start")
+}
+
 export async function fetchDocumentSourceUrl(docId) {
     const response = await fetch(`/api/documents/${docId}/source-url`)
 

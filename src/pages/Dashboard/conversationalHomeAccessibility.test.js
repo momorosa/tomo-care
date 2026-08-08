@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises"
 const dashboardUrl = new URL("./Dashboard.jsx", import.meta.url)
 const sidebarUrl = new URL("./CareSidebar.jsx", import.meta.url)
 const assistantUrl = new URL("./AssistantPanel.jsx", import.meta.url)
+const avatarMediaUrl = new URL("./RunwayAvatarMedia.jsx", import.meta.url)
 const evidenceUrl = new URL("./EvidenceCard.jsx", import.meta.url)
 const cssUrl = new URL("../../index.css", import.meta.url)
 const appUrl = new URL("../../App.jsx", import.meta.url)
@@ -198,13 +199,18 @@ test("keeps Chat readable, uses Tomo branding, and provides a calm multiline com
 })
 
 test("gives Voice a centered avatar stage with transcript detail on demand", async () => {
-    const [source, css] = await Promise.all([
+    const [source, avatarSource, css] = await Promise.all([
         readFile(assistantUrl, "utf8"),
+        readFile(avatarMediaUrl, "utf8"),
         readFile(cssUrl, "utf8"),
     ])
 
     assert.match(source, /assets\/tomo-voice-avatar-placeholder\.webp/)
-    assert.match(source, /data-avatar-media="placeholder"/)
+    assert.match(source, /<RunwayAvatarMedia/)
+    assert.match(avatarSource, /data-avatar-media=/)
+    assert.match(avatarSource, /"runway-live"\s*:\s*"placeholder"/)
+    assert.match(avatarSource, /Animate Tomo/)
+    assert.match(avatarSource, /End live animation/)
     assert.match(source, /aria-label="Voice conversation with Tomo"/)
     assert.match(source, /aria-label="Full session transcript"/)
     assert.match(source, /aria-expanded=\{transcriptOpen\}/)
@@ -224,6 +230,7 @@ test("gives Voice a centered avatar stage with transcript detail on demand", asy
     )
     assert.match(css, /\.tomo-voice-transcript-sheet\s*\{[\s\S]*position: absolute/)
     assert.match(css, /\.tomo-voice-dock\s*\{[\s\S]*backdrop-filter: blur/)
+    assert.match(css, /\.tomo-avatar-media__video\s*\{[\s\S]*object-fit: cover/)
 })
 
 test("uses a neutral eyebrow color for reminder categories", async () => {

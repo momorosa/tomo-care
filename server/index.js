@@ -9,6 +9,7 @@ import careActionsRoutes from "./routes/careActions.js"
 import assistantRoutes from "./routes/assistant.js"
 import voiceRoutes from "./routes/voice.js"
 import dashboardRoutes from "./routes/dashboard.js"
+import avatarRoutes from "./routes/avatar.js"
 
 
 const app = express()
@@ -23,5 +24,6 @@ app.use("/api", careActionsRoutes)
 app.use("/api", assistantRoutes)
 app.use("/api", voiceRoutes)
 app.use("/api", dashboardRoutes)
+app.use("/api", avatarRoutes)
 
 app.listen(3001, () => console.log("API running on http://localhost:3001"))

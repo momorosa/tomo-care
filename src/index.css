@@ -389,9 +389,68 @@
   }
 
   .tomo-voice-stage__media {
-    z-index: -3;
+    z-index: 0;
     overflow: hidden;
     background: #1d7f3f;
+  }
+
+  .tomo-avatar-media {
+    position: absolute;
+    inset: 0;
+  }
+
+  .tomo-avatar-media__fallback,
+  .tomo-avatar-media__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 220ms ease-out;
+  }
+
+  .tomo-avatar-media__video {
+    z-index: 1;
+    object-fit: cover;
+    object-position: 50% 47%;
+    opacity: 0;
+    background: #132018;
+  }
+
+  .tomo-avatar-media--ready .tomo-avatar-media__video {
+    opacity: 1;
+  }
+
+  .tomo-avatar-media--ready .tomo-avatar-media__fallback {
+    opacity: 0;
+  }
+
+  .tomo-avatar-media__controls {
+    position: absolute;
+    z-index: 3;
+    top: 20px;
+    right: 20px;
+  }
+
+  .tomo-avatar-live-control,
+  .tomo-avatar-live-status {
+    @apply inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 px-3 text-xs font-medium text-white/80;
+    background: rgba(14, 16, 20, 0.52);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(18px) saturate(125%);
+  }
+
+  .tomo-avatar-live-control {
+    @apply transition-colors hover:bg-black/65 hover:text-white disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .tomo-avatar-live-control .material-symbols-outlined {
+    font-size: 17px;
+  }
+
+  .tomo-avatar-media__error {
+    @apply absolute right-5 top-[68px] z-[3] max-w-xs rounded-xl border border-white/15 px-3 py-2 text-xs text-white/80;
+    background: rgba(38, 25, 30, 0.78);
+    backdrop-filter: blur(16px);
   }
 
   .tomo-voice-stage__avatar {
@@ -405,7 +464,7 @@
   }
 
   .tomo-voice-stage__veil {
-    z-index: -2;
+    z-index: 2;
     pointer-events: none;
     background:
       linear-gradient(180deg, rgba(12, 14, 18, 0.12) 0%, transparent 32%, rgba(10, 12, 15, 0.22) 64%, rgba(10, 11, 14, 0.76) 100%),
@@ -842,6 +901,9 @@
     .tomo-home-grid,
     .tomo-voice-stage__focus,
     .tomo-voice-stage__avatar,
+    .tomo-avatar-media__fallback,
+    .tomo-avatar-media__video,
+    .tomo-avatar-live-control,
     .tomo-voice-transcript-sheet,
     .tomo-inbox-check__dot {
       animation: none !important;

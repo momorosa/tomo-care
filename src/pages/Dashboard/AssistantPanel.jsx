@@ -20,6 +20,7 @@ import {
     startSilenceDetection,
 } from "./voiceRecorder.js"
 import EvidenceCard from "./EvidenceCard.jsx"
+import RunwayAvatarMedia from "./RunwayAvatarMedia.jsx"
 
 const MAX_RECORDING_MS = 30_000
 
@@ -57,6 +58,7 @@ export default function AssistantPanel({
     const conversationContextRef = useRef(null)
     const lastAnswerRef = useRef(null)
     const transcriptEndRef = useRef(null)
+    const avatarMediaRef = useRef(null)
 
     useEffect(() => {
         return () => {
@@ -119,6 +121,9 @@ export default function AssistantPanel({
     }
 
     function stopPlayback({ requiresReview = false } = {}) {
+        const avatarStop = avatarMediaRef.current?.stopSpeech()
+        avatarStop?.catch?.(() => null)
+
         if (playbackRef.current) {
             playbackRef.current.pause()
             playbackRef.current.currentTime = 0
@@ -143,6 +148,26 @@ export default function AssistantPanel({
         }
 
         stopPlayback({ requiresReview })
+
+        if (avatarMediaRef.current?.isReady()) {
+            setVoiceState(VOICE_STATES.SPEAKING)
+
+            try {
+                const result = await avatarMediaRef.current.speak(
+                    nextVoiceResponse.audioUrl
+                )
+
+                if (result) {
+                    setVoiceState(
+                        getVoiceStateAfterPlayback({ requiresReview })
+                    )
+                    return
+                }
+            } catch {
+                // Preserve the existing local voice path if live animation fails.
+            }
+        }
+
         const playback = new Audio(nextVoiceResponse.audioUrl)
         playbackRef.current = playback
 
@@ -359,6 +384,7 @@ export default function AssistantPanel({
 
     function clearSession() {
         stopPlayback()
+        avatarMediaRef.current?.end()
         setSessionTurns([])
         setVoiceResponse(null)
         setQuestion("")
@@ -448,6 +474,7 @@ export default function AssistantPanel({
                     error={error}
                     response={voiceResponse}
                     muted={voiceMuted}
+                    avatarMediaRef={avatarMediaRef}
                     onClear={clearSession}
                     onToggleTranscript={() =>
                         setVoiceTranscriptOpen((open) => !open)
@@ -558,6 +585,7 @@ function VoiceStage({
     error,
     response,
     muted,
+    avatarMediaRef,
     onClear,
     onToggleTranscript,
     onVoiceButton,
@@ -574,14 +602,12 @@ function VoiceStage({
             aria-label="Voice conversation with Tomo"
         >
             <div className="tomo-voice-stage__focus">
-                <div
-                    className="tomo-voice-stage__media"
-                    data-avatar-media="placeholder"
-                >
-                    <img
-                        src={tomoVoiceAvatar}
-                        alt="Tomo, Momo’s care companion"
-                        className="tomo-voice-stage__avatar"
+                <div className="tomo-voice-stage__media">
+                    <RunwayAvatarMedia
+                        ref={avatarMediaRef}
+                        fallbackSrc={tomoVoiceAvatar}
+                        fallbackAlt="Tomo, Momo’s care companion"
+                        muted={muted}
                     />
                 </div>
                 <div className="tomo-voice-stage__veil" aria-hidden="true" />
