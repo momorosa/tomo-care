@@ -70,7 +70,11 @@ test("forwards only synthesized audio through the Runway session", async () => {
     assert.equal(session.sayCalls[0].options.addToChatCtx, false)
     assert.deepEqual(
         sent.map((entry) => entry.message.status),
-        [AVATAR_STATUS.ACCEPTED, AVATAR_STATUS.COMPLETED]
+        [
+            AVATAR_STATUS.ACCEPTED,
+            AVATAR_STATUS.PLAYING,
+            AVATAR_STATUS.COMPLETED,
+        ]
     )
     assert.deepEqual(cleaned, [3])
 })

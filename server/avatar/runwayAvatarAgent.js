@@ -116,6 +116,11 @@ export function createAvatarSpeechReceiver({
                 requestId,
                 interrupted: false,
             }
+            await sendStatus(
+                participant.identity,
+                requestId,
+                AVATAR_STATUS.PLAYING
+            )
 
             await handle.waitForPlayout()
 

@@ -119,11 +119,36 @@ test("sends only the finished MP3 and resolves after Runway playback", async () 
             new Response(Buffer.from("safe-mp3"), {
                 headers: { "Content-Type": "audio/mpeg" },
             }),
+        now: (() => {
+            const values = [100, 112, 120, 128, 138, 202]
+            return () => values.shift()
+        })(),
     })
     const room = harness.rooms[0]
-    const speech = client.sendSpeech("data:audio/mpeg;base64,c2FmZS1tcDM=")
+    let playbackStarted = false
+    const speech = client.sendSpeech(
+        "data:audio/mpeg;base64,c2FmZS1tcDM=",
+        {
+            onPlaybackStarted: () => {
+                playbackStarted = true
+            },
+        }
+    )
     await new Promise((resolve) => setImmediate(resolve))
 
+    await room.emitStatus(
+        createAvatarStatus({
+            requestId: "speech-123",
+            status: AVATAR_STATUS.ACCEPTED,
+        })
+    )
+    await room.emitStatus(
+        createAvatarStatus({
+            requestId: "speech-123",
+            status: AVATAR_STATUS.PLAYING,
+        })
+    )
+    assert.equal(playbackStarted, true)
     await room.emitStatus(
         createAvatarStatus({
             requestId: "speech-123",
@@ -131,7 +156,16 @@ test("sends only the finished MP3 and resolves after Runway playback", async () 
         })
     )
 
-    assert.deepEqual(await speech, { status: AVATAR_STATUS.COMPLETED })
+    assert.deepEqual(await speech, {
+        status: AVATAR_STATUS.COMPLETED,
+        timings: {
+            audio_prepare_ms: 12,
+            speech_transfer_ms: 8,
+            avatar_startup_ms: 18,
+            avatar_playback_ms: 64,
+            avatar_total_ms: 102,
+        },
+    })
     assert.equal(room.sentBytes.length, 1)
     assert.equal(room.sentBytes[0].options.topic, AVATAR_SPEECH_TOPIC)
     assert.equal(room.sentBytes[0].options.mimeType, "audio/mpeg")
@@ -161,5 +195,5 @@ test("sends a bounded stop control without replaying audio locally", async () =>
             status: AVATAR_STATUS.INTERRUPTED,
         })
     )
-    assert.deepEqual(await speech, { status: AVATAR_STATUS.INTERRUPTED })
+    assert.equal((await speech).status, AVATAR_STATUS.INTERRUPTED)
 })

@@ -42,6 +42,7 @@ export async function connectRunwayAvatar({
     fetchImpl = globalThis.fetch,
     createId = () => globalThis.crypto.randomUUID(),
     speechTimeoutMs = DEFAULT_SPEECH_TIMEOUT_MS,
+    now = () => globalThis.performance?.now?.() ?? Date.now(),
 } = {}) {
     if (!session?.livekit_url || !session?.token) {
         throw new RunwayAvatarClientError(
@@ -62,8 +63,18 @@ export async function connectRunwayAvatar({
 
         if (!pending) return
 
-        if (message.status === AVATAR_STATUS.ACCEPTED) return
+        if (message.status === AVATAR_STATUS.ACCEPTED) {
+            pending.acceptedAt = now()
+            return
+        }
 
+        if (message.status === AVATAR_STATUS.PLAYING) {
+            pending.playingAt = now()
+            pending.onPlaybackStarted?.()
+            return
+        }
+
+        const completedAt = now()
         clearTimeout(pending.timer)
         pendingSpeech.delete(requestId)
         if (currentRequestId === requestId) currentRequestId = null
@@ -72,7 +83,33 @@ export async function connectRunwayAvatar({
             message.status === AVATAR_STATUS.COMPLETED ||
             message.status === AVATAR_STATUS.INTERRUPTED
         ) {
-            pending.resolve({ status: message.status })
+            const playbackStartedAt =
+                pending.playingAt ?? pending.acceptedAt ?? pending.sentAt
+            pending.resolve({
+                status: message.status,
+                timings: {
+                    audio_prepare_ms: Math.max(
+                        0,
+                        Math.round(pending.audioReadyAt - pending.startedAt)
+                    ),
+                    speech_transfer_ms: Math.max(
+                        0,
+                        Math.round(pending.sentAt - pending.audioReadyAt)
+                    ),
+                    avatar_startup_ms: Math.max(
+                        0,
+                        Math.round(playbackStartedAt - pending.sentAt)
+                    ),
+                    avatar_playback_ms: Math.max(
+                        0,
+                        Math.round(completedAt - playbackStartedAt)
+                    ),
+                    avatar_total_ms: Math.max(
+                        0,
+                        Math.round(completedAt - pending.startedAt)
+                    ),
+                },
+            })
             return
         }
 
@@ -109,7 +146,7 @@ export async function connectRunwayAvatar({
     await room.connect(session.livekit_url, session.token)
 
     return {
-        async sendSpeech(audioUrl) {
+        async sendSpeech(audioUrl, { onPlaybackStarted } = {}) {
             if (disconnected) {
                 throw new RunwayAvatarClientError(
                     "Tomo’s live animation is not connected.",
@@ -117,6 +154,7 @@ export async function connectRunwayAvatar({
                 )
             }
 
+            const startedAt = now()
             const response = await fetchImpl(audioUrl)
             if (!response.ok) {
                 throw new RunwayAvatarClientError(
@@ -126,6 +164,7 @@ export async function connectRunwayAvatar({
             }
 
             const bytes = new Uint8Array(await response.arrayBuffer())
+            const audioReadyAt = now()
             if (bytes.length === 0 || bytes.length > MAX_AVATAR_SPEECH_BYTES) {
                 throw statusError(
                     bytes.length === 0 ? "empty_audio" : "audio_too_large"
@@ -145,7 +184,17 @@ export async function connectRunwayAvatar({
                         )
                     )
                 }, speechTimeoutMs)
-                pendingSpeech.set(requestId, { resolve, reject, timer })
+                pendingSpeech.set(requestId, {
+                    resolve,
+                    reject,
+                    timer,
+                    startedAt,
+                    audioReadyAt,
+                    sentAt: audioReadyAt,
+                    acceptedAt: null,
+                    playingAt: null,
+                    onPlaybackStarted,
+                })
             })
 
             try {
@@ -156,6 +205,8 @@ export async function connectRunwayAvatar({
                     compress: false,
                     attributes: { requestId },
                 })
+                const pending = pendingSpeech.get(requestId)
+                if (pending) pending.sentAt = now()
             } catch (err) {
                 const pending = pendingSpeech.get(requestId)
                 clearTimeout(pending?.timer)

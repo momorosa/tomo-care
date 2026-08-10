@@ -7,6 +7,8 @@ import {
     useState,
 } from "react"
 import { createRunwayAvatarSession } from "./api.js"
+import TomoMotionMedia from "./TomoMotionMedia.jsx"
+import { TOMO_MOTION_TRANSITION_MS } from "./tomoMotionSequence.js"
 
 const LIVE_STATES = Object.freeze({
     FALLBACK: "fallback",
@@ -19,17 +21,23 @@ function prefersReducedMotion() {
 }
 
 const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
-    { fallbackSrc, fallbackAlt, muted = false },
+    { fallbackSrc, fallbackAlt, voiceState, muted = false },
     ref
 ) {
     const [liveState, setLiveState] = useState(LIVE_STATES.FALLBACK)
     const [error, setError] = useState("")
     const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion)
+    const [videoReady, setVideoReady] = useState(false)
+    const [liveSpeech, setLiveSpeech] = useState(false)
+    const [displayLive, setDisplayLive] = useState(false)
+    const [transitionCovered, setTransitionCovered] = useState(false)
     const clientRef = useRef(null)
     const stateRef = useRef(LIVE_STATES.FALLBACK)
+    const videoReadyRef = useRef(false)
     const videoRef = useRef(null)
     const audioRef = useRef(null)
     const durationTimerRef = useRef(null)
+    const transitionTimerRef = useRef(null)
 
     const updateState = useCallback(function updateState(nextState) {
         stateRef.current = nextState
@@ -41,6 +49,9 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
         durationTimerRef.current = null
         clientRef.current?.disconnect()
         clientRef.current = null
+        videoReadyRef.current = false
+        setVideoReady(false)
+        setLiveSpeech(false)
 
         if (updateUi) updateState(LIVE_STATES.FALLBACK)
     }, [updateState])
@@ -60,13 +71,35 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     useEffect(() => {
         return () => {
             clearTimeout(durationTimerRef.current)
+            clearTimeout(transitionTimerRef.current)
             clientRef.current?.disconnect()
         }
     }, [])
 
+    const live = liveState === LIVE_STATES.READY
+    const wantsLiveSpeech = live && videoReady && liveSpeech
+
+    useEffect(() => {
+        clearTimeout(transitionTimerRef.current)
+
+        if (wantsLiveSpeech === displayLive) {
+            setTransitionCovered(false)
+            return
+        }
+
+        setTransitionCovered(true)
+        transitionTimerRef.current = setTimeout(() => {
+            setDisplayLive(wantsLiveSpeech)
+        }, TOMO_MOTION_TRANSITION_MS.COVER)
+    }, [displayLive, wantsLiveSpeech])
+
     useImperativeHandle(ref, () => ({
         isReady() {
-            return stateRef.current === LIVE_STATES.READY && clientRef.current
+            return (
+                stateRef.current === LIVE_STATES.READY &&
+                videoReadyRef.current &&
+                clientRef.current
+            )
         },
         async speak(audioUrl) {
             if (
@@ -77,8 +110,15 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             }
 
             try {
-                return await clientRef.current.sendSpeech(audioUrl)
+                const result = await clientRef.current.sendSpeech(audioUrl, {
+                    onPlaybackStarted() {
+                        setLiveSpeech(true)
+                    },
+                })
+                setLiveSpeech(false)
+                return result
             } catch (err) {
+                setLiveSpeech(false)
                 setError(
                     err?.message ||
                         "Tomo’s live animation stopped. Audio will continue normally."
@@ -117,6 +157,9 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                 },
                 onDisconnected() {
                     clientRef.current = null
+                    videoReadyRef.current = false
+                    setVideoReady(false)
+                    setLiveSpeech(false)
                     updateState(LIVE_STATES.FALLBACK)
                 },
             })
@@ -135,17 +178,22 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
         }
     }
 
-    const live = liveState === LIVE_STATES.READY
-
     return (
         <div
-            className={`tomo-avatar-media tomo-avatar-media--${liveState}`}
-            data-avatar-media={live ? "runway-live" : "placeholder"}
+            className={`tomo-avatar-media tomo-avatar-media--${liveState} ${
+                displayLive ? "tomo-avatar-media--speaking" : ""
+            }`}
+            data-avatar-media={displayLive ? "runway-live" : "placeholder"}
         >
             <img
                 src={fallbackSrc}
                 alt={fallbackAlt}
                 className="tomo-voice-stage__avatar tomo-avatar-media__fallback"
+            />
+            <TomoMotionMedia
+                voiceState={voiceState}
+                hidden={displayLive}
+                disabled={reducedMotion}
             />
             <video
                 ref={videoRef}
@@ -153,9 +201,22 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                 autoPlay
                 playsInline
                 muted
-                aria-hidden={!live}
+                aria-hidden={!displayLive}
+                onLoadedData={() => {
+                    videoReadyRef.current = true
+                    setVideoReady(true)
+                }}
             />
             <audio ref={audioRef} autoPlay muted={muted} />
+
+            <div
+                className={`tomo-avatar-media__transition ${
+                    transitionCovered
+                        ? "tomo-avatar-media__transition--covered"
+                        : ""
+                }`}
+                aria-hidden="true"
+            />
 
             <div className="tomo-avatar-media__controls">
                 {liveState === LIVE_STATES.FALLBACK ? (

@@ -75,6 +75,35 @@ test("sends the visible transcript through the shared grounded assistant", async
     assert.doesNotMatch(JSON.stringify(result), /raw-audio/)
 })
 
+test("reports bounded stage timings without including voice or care content", async () => {
+    const timestamps = [100, 125, 180, 240]
+    const result = await answerVoiceQuestion({
+        petId: "pet-1",
+        audioBuffer: Buffer.from("raw-audio"),
+        contentType: "audio/webm",
+        dependencies: {
+            now: () => timestamps.shift(),
+            voiceProvider: createVoiceProvider(),
+            answerQuestion: async () => ({
+                answer_type: "grounded_answer",
+                answer: "A grounded answer that must not enter telemetry.",
+                citations: [],
+            }),
+        },
+    })
+
+    assert.deepEqual(result.voice.timings, {
+        transcription_ms: 25,
+        answer_generation_ms: 55,
+        speech_generation_ms: 60,
+        server_total_ms: 140,
+    })
+    assert.doesNotMatch(
+        JSON.stringify(result.voice.timings),
+        /grounded|Simparica|raw-audio/
+    )
+})
+
 test("uses a safe care-term interpretation while preserving what was heard", async () => {
     const answerCalls = []
     const result = await answerVoiceQuestion({

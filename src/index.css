@@ -367,7 +367,7 @@
     min-height: 0;
     overflow: hidden;
     isolation: isolate;
-    background: #132018;
+    background: #302e39;
   }
 
   .tomo-voice-stage__focus {
@@ -391,7 +391,7 @@
   .tomo-voice-stage__media {
     z-index: 0;
     overflow: hidden;
-    background: #1d7f3f;
+    background: #302e39;
   }
 
   .tomo-avatar-media {
@@ -400,33 +400,64 @@
   }
 
   .tomo-avatar-media__fallback,
+  .tomo-avatar-media__motion,
   .tomo-avatar-media__video {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    transition: opacity 220ms ease-out;
   }
 
+  .tomo-avatar-media__motion,
   .tomo-avatar-media__video {
-    z-index: 1;
     object-fit: cover;
     object-position: 50% 47%;
     opacity: 0;
-    background: #132018;
+    background: #302e39;
   }
 
-  .tomo-avatar-media--ready .tomo-avatar-media__video {
+  .tomo-avatar-media__motion {
+    z-index: 1;
+  }
+
+  .tomo-avatar-media__transition {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: #302e39;
+    transition: opacity 120ms ease-out;
+  }
+
+  .tomo-avatar-media__transition--covered {
+    opacity: 1;
+    transition-duration: 100ms;
+  }
+
+  .tomo-avatar-media__motion--visible {
     opacity: 1;
   }
 
-  .tomo-avatar-media--ready .tomo-avatar-media__fallback {
+  .tomo-avatar-media__video {
+    z-index: 3;
+  }
+
+  .tomo-avatar-media--speaking .tomo-avatar-media__video {
+    opacity: 1;
+  }
+
+  .tomo-avatar-media--speaking .tomo-avatar-media__motion,
+  .tomo-avatar-media--speaking .tomo-avatar-media__fallback {
     opacity: 0;
+  }
+
+  .tomo-avatar-media__transition {
+    z-index: 4;
   }
 
   .tomo-avatar-media__controls {
     position: absolute;
-    z-index: 3;
+    z-index: 5;
     top: 20px;
     right: 20px;
   }
@@ -448,7 +479,7 @@
   }
 
   .tomo-avatar-media__error {
-    @apply absolute right-5 top-[68px] z-[3] max-w-xs rounded-xl border border-white/15 px-3 py-2 text-xs text-white/80;
+    @apply absolute right-5 top-[68px] z-[5] max-w-xs rounded-xl border border-white/15 px-3 py-2 text-xs text-white/80;
     background: rgba(38, 25, 30, 0.78);
     backdrop-filter: blur(16px);
   }
@@ -902,7 +933,9 @@
     .tomo-voice-stage__focus,
     .tomo-voice-stage__avatar,
     .tomo-avatar-media__fallback,
+    .tomo-avatar-media__motion,
     .tomo-avatar-media__video,
+    .tomo-avatar-media__transition,
     .tomo-avatar-live-control,
     .tomo-voice-transcript-sheet,
     .tomo-inbox-check__dot {

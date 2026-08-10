@@ -15,15 +15,20 @@ export async function answerVoiceQuestion({
     const answerQuestion = dependencies.answerQuestion
     const composeSpeech =
         dependencies.composeSpeech || composeSpokenAnswer
+    const now =
+        dependencies.now ||
+        (() => globalThis.performance?.now?.() ?? Date.now())
 
     if (typeof answerQuestion !== "function") {
         throw new TypeError("answerQuestion dependency is required.")
     }
 
+    const startedAt = now()
     const transcript = await voiceProvider.transcribe({
         audioBuffer,
         contentType,
     })
+    const transcribedAt = now()
     const transcriptInterpretation = interpretCareTranscript(transcript)
     const assistantInput = {
         petId,
@@ -35,6 +40,7 @@ export async function answerVoiceQuestion({
     }
 
     const assistantResponse = await answerQuestion(assistantInput)
+    const answeredAt = now()
     const spokenAnswer = composeSpeech(assistantResponse)
     let audio = null
     let speechError = null
@@ -53,6 +59,10 @@ export async function answerVoiceQuestion({
             reason: err?.reason || "speech_generation_failed",
         }
     }
+    const speechFinishedAt = now()
+
+    const duration = (start, end) =>
+        Math.max(0, Math.round(end - start))
 
     return {
         ...assistantResponse,
@@ -65,6 +75,12 @@ export async function answerVoiceQuestion({
             content_type: "audio/mpeg",
             disclosure: TOMO_AI_VOICE_DISCLOSURE,
             speech_error: speechError,
+            timings: {
+                transcription_ms: duration(startedAt, transcribedAt),
+                answer_generation_ms: duration(transcribedAt, answeredAt),
+                speech_generation_ms: duration(answeredAt, speechFinishedAt),
+                server_total_ms: duration(startedAt, speechFinishedAt),
+            },
         },
     }
 }

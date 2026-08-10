@@ -4,6 +4,7 @@ export const AVATAR_CONTROL_TOPIC = "tomo.avatar.control.v1"
 
 export const AVATAR_STATUS = Object.freeze({
     ACCEPTED: "accepted",
+    PLAYING: "playing",
     COMPLETED: "completed",
     FAILED: "failed",
     INTERRUPTED: "interrupted",

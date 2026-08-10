@@ -21,6 +21,11 @@ import {
 } from "./voiceRecorder.js"
 import EvidenceCard from "./EvidenceCard.jsx"
 import RunwayAvatarMedia from "./RunwayAvatarMedia.jsx"
+import {
+    createVoiceLatencySummary,
+    mergeAvatarLatency,
+    reportVoiceLatency,
+} from "./voiceLatency.js"
 
 const MAX_RECORDING_MS = 30_000
 
@@ -138,6 +143,9 @@ export default function AssistantPanel({
         { requiresReview = false } = {}
     ) {
         if (!nextVoiceResponse?.audioUrl || voiceMutedRef.current) {
+            if (nextVoiceResponse?.latency) {
+                reportVoiceLatency(nextVoiceResponse.latency)
+            }
             setVoiceState(
                 getVoiceStateAfterAnswer({
                     willSpeak: false,
@@ -158,6 +166,12 @@ export default function AssistantPanel({
                 )
 
                 if (result) {
+                    reportVoiceLatency(
+                        mergeAvatarLatency(
+                            nextVoiceResponse.latency,
+                            result.timings
+                        )
+                    )
                     setVoiceState(
                         getVoiceStateAfterPlayback({ requiresReview })
                     )
@@ -172,8 +186,11 @@ export default function AssistantPanel({
         playbackRef.current = playback
 
         playback.addEventListener("play", () => {
+            if (nextVoiceResponse.latency) {
+                reportVoiceLatency(nextVoiceResponse.latency)
+            }
             setVoiceState(VOICE_STATES.SPEAKING)
-        })
+        }, { once: true })
         playback.addEventListener(
             "ended",
             () => {
@@ -187,6 +204,9 @@ export default function AssistantPanel({
             await playback.play()
         } catch {
             playbackRef.current = null
+            if (nextVoiceResponse.latency) {
+                reportVoiceLatency(nextVoiceResponse.latency)
+            }
             setVoiceState(getVoiceStateAfterPlayback({ requiresReview }))
         }
     }
@@ -256,11 +276,15 @@ export default function AssistantPanel({
         setVoiceState(VOICE_STATES.THINKING)
 
         try {
+            const requestStartedAt =
+                globalThis.performance?.now?.() ?? Date.now()
             const result = await askAssistantByVoice(
                 petId,
                 audioBlob,
                 conversationContextRef.current
             )
+            const responseReceivedAt =
+                globalThis.performance?.now?.() ?? Date.now()
             const transcript = result.transcript?.trim()
 
             if (!transcript) {
@@ -268,12 +292,18 @@ export default function AssistantPanel({
             }
 
             const requiresReview = showAssistantResult(result, transcript)
+            const latency = createVoiceLatencySummary({
+                serverTimings: result.voice.timings,
+                requestStartedAt,
+                responseReceivedAt,
+            })
             const nextVoiceResponse = {
                 audioUrl: result.voice.audio_base64
                     ? `data:${result.voice.content_type};base64,${result.voice.audio_base64}`
                     : null,
                 disclosure: result.voice.disclosure,
                 requiresReview,
+                latency,
             }
 
             setVoiceResponse(nextVoiceResponse)
@@ -607,6 +637,7 @@ function VoiceStage({
                         ref={avatarMediaRef}
                         fallbackSrc={tomoVoiceAvatar}
                         fallbackAlt="Tomo, Momo’s care companion"
+                        voiceState={voiceState}
                         muted={muted}
                     />
                 </div>
