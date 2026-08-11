@@ -4,9 +4,9 @@
 
 TomoCare is a personal AI build for one real user: my dog, Momo.
 
-It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, Librela reminders, and calendar sync. The larger goal is to explore how agentic systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
+It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and the governed Phase 3 assistant foundation are shipped. Phase 3D is building the conversation-centered product experience.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. The Phase 3C messaging foundation is complete in mock mode; live Twilio delivery remains pending provider approval. The next product focus is assistant coverage and governed skills.
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -53,30 +53,62 @@ Shipped a human-in-the-loop review workflow:
 * Save draft and save-and-verify flows
 * Approval-gated materialization into trusted records
 
-## In progress
+### Phase 2 — Care Desk
 
-### Phase 2 — TomoCare as a Product
+Shipped the usable product loop around the verified data foundation:
 
-Currently building the product layer:
+* Gmail intake through a dedicated TomoCare inbox
+* Dashboard views for care, documents, reminders, and review work
+* Automatic receipt and lab intake into the verification pipeline
+* Post-verification recommendations and persistent reminders
+* Approval-gated Google Calendar sync with duplicate and stale-state guards
 
-* Dashboard view for upcoming care, documents, and reminders
-* Gmail ingestion through a dedicated TomoCare inbox
-* Automatic receipt/lab intake into the existing verification pipeline
-* Notification card for documents needing review
-* First approval-gated agentic action: draft an appointment request, send only after approval, parse the response, and write the result back to the calendar
+### Phase 3A — Grounded Assistant
 
-## Planned
+Shipped a bounded assistant that answers from trusted records:
 
-### Phase 3 — Grounded Assistant
+* Grounded answers with citations and source evidence
+* Schedule, spend, weight, home-medication, and care-timeline coverage
+* Clear no-data, appointment-state, medical, and action boundaries
+* Regression evals for the assistant's core promises
 
-A bounded conversational layer that answers only from trusted records:
+### Phase 3B — Governed Actions
 
-* “When is Momo’s next Librela shot?”
-* “What was her last weight?”
-* “How much have I spent on Librela this year?”
-* “Which lab values were abnormal in the latest panel?”
+Shipped reusable approval-gated state changes:
 
-The assistant will cite source documents and route any action request back through the approval gate.
+* Durable proposed, approved, executing, succeeded, failed, and cancelled states
+* Medication and insurance actions from the dashboard or assistant
+* Atomic care updates, fresh-evidence checks, retry safety, and recovery
+* Google Calendar follow-through as a separate user-initiated action
+
+### Phase 3C — Approved Messaging Foundation
+
+Shipped the governed workflow and orchestration boundary for clinic messaging:
+
+* Exact-message review and approval contract
+* Persistent workflow state and recovery
+* Mock delivery for safe end-to-end testing
+* Server-side provider boundary ready for live Twilio delivery after A2P approval
+
+### Phase 3D — Conversational Tomo
+
+Shipped the voice-first, conversation-centered experience:
+
+* Natural-language routing inside the supported capability map
+* Bounded relationship context and personality around unchanged grounded answers
+* One session transcript across Voice and Chat
+* Microphone capture, transcription, concise speech, and recoverable local playback
+* Conversation-centered home with accessible care and evidence panels
+* Optional Runway + LiveKit lip-sync that remains a visual layer over TomoCare's existing assistant
+* Pose-matched local motion clips with one-shot playback and final-frame holds
+* Numeric-only latency instrumentation and static/local-audio fallback
+
+## Next product work
+
+* Expand assistant coverage, freshness rules, and citations across everything visible in Profile, Reminders, Inbox, Recently verified, and pending approvals.
+* Add governed skills that can guide the user into the relevant product or external tool, starting with opening the correct Google Calendar reminder or Calendar view.
+* Return to meaning-based character reactions for `happy`, `laughing`, and `oops` after the core coverage and skill contract is stable.
+* Complete live outbound Twilio delivery after A2P approval without adding inbound reply interpretation to the same slice.
 
 ## What TomoCare is not
 
@@ -89,14 +121,15 @@ Correctness, provenance, and governance come before polish.
 
 ## Stack
 
-* **Frontend:** React
+* **Frontend:** React, Vite
 * **Backend:** Node, Express
-* **Agent / tools:** Python, Google ADK, Gemini
+* **Ingestion utilities:** Python
 * **Database / storage:** Supabase Postgres, Supabase Storage
 * **AI review:** Anthropic API
-* **Calendar automation:** Google Calendar API
-* **In progress:** Gmail API ingestion
-* **Planned:** Twilio messaging, MCP-exposed tools
+* **Assistant and voice:** OpenAI API
+* **Connected tools:** Gmail API, Google Calendar API
+* **Approved messaging:** Twilio mock provider; live delivery pending A2P approval
+* **Live character:** Runway animated avatar through LiveKit
 
 ## Design principles
 
@@ -214,10 +247,14 @@ Chat layout. The stage stays visually quiet, while the full scrollable transcrip
 opens from the floating control dock with citations and reminder evidence intact.
 When that panel opens, Tomo and the dock recenter within the remaining stage so
 the avatar stays conversationally present instead of being covered. Listening,
-thinking, speaking, playback, and mute controls remain in the dock. The stage
-media is isolated behind one avatar-media seam so the current high-resolution
-placeholder can later be replaced by a Runway character stream without changing
-conversation, voice, transcript, or governance behavior.
+thinking, speaking, playback, and mute controls remain in the dock.
+
+Local one-shot motion clips cover idle, acknowledgment, listening, and thinking.
+Each completed clip holds its final frame instead of looping. If the user selects
+**Animate Tomo**, a Runway character stream replaces the local media only for
+lip-synced playback. Runway remains a visual layer over the existing answer and
+speech pipeline. The static image and local audio remain available for loading,
+provider failure, and reduced-motion behavior.
 
 Chat starts directly at the session boundary and uses a multiline composer.
 Enter sends; Shift+Enter adds a new line. Tomo's visible identity uses the
@@ -240,6 +277,9 @@ is calculated from `birth_date` at runtime and changes on her birthday; it is no
 stored as a fixed number in the interface.
 
 Assistant coverage is intentionally narrower than the visible product surface
-today. A follow-up slice will define question coverage, freshness, and privacy
-rules for Profile, Reminders, Inbox, Recently verified, and pending approvals
-before Tomo claims knowledge of every item shown in the app.
+today. The next coverage slice will define supported questions, freshness,
+citations, and privacy rules for Profile, Reminders, Inbox, Recently verified,
+and pending approvals before Tomo claims knowledge of every item shown in the
+app. A later governed-skill slice will let Tomo guide the user into the relevant
+product or external tool without treating navigation as authorization for a
+care-state change.
