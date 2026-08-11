@@ -35,16 +35,38 @@ function looksLikeReceipt(doc) {
 }
 
 export function getPostVerifyRecommendations(doc) {
-    const isLibrela = looksLikeLibrela(doc)
+    const serverLibrela = doc?.action_recommendations?.librelaReminder || null
+    const hasUnclassifiedLibrelaMention = !serverLibrela && looksLikeLibrela(doc)
     const isReceipt = looksLikeReceipt(doc)
 
     return {
-        librelaReminder: {
-            show: isLibrela,
-            disabled: !isLibrela,
-            recommended: isLibrela,
-            badge: isLibrela ? "Recommended" : null,
-        },
+        librelaReminder: serverLibrela
+            ? {
+                  show: Boolean(serverLibrela.show),
+                  disabled: Boolean(serverLibrela.disabled),
+                  recommended: Boolean(serverLibrela.recommended),
+                  badge: serverLibrela.badge || null,
+                  badgeTone: serverLibrela.badge_tone || null,
+                  buttonLabel: serverLibrela.button_label || null,
+                  body: serverLibrela.body || null,
+                  state: serverLibrela.state || null,
+              }
+            : {
+                  show: hasUnclassifiedLibrelaMention,
+                  disabled: true,
+                  recommended: false,
+                  badge: hasUnclassifiedLibrelaMention
+                      ? "Review required"
+                      : null,
+                  badgeTone: "warning",
+                  buttonLabel: "Review",
+                  body: hasUnclassifiedLibrelaMention
+                      ? "TomoCare needs to verify structured Librela administration evidence before creating a reminder."
+                      : null,
+                  state: hasUnclassifiedLibrelaMention
+                      ? "review_required"
+                      : "not_applicable",
+              },
 
         insuranceClaimReminder: {
             show: isReceipt,

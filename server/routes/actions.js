@@ -15,6 +15,7 @@ import {
     toSafeGoogleCalendarErrorLog,
 } from "../calendar/googleCalendarError.js"
 import { getCareDate } from "../lib/careDates.js"
+import { getLibrelaReminderReadiness } from "../lib/librelaEvidence.js"
 
 const router = express.Router()
 
@@ -48,7 +49,7 @@ const TIMING_STATE_BLOCK_MESSAGES = {
 }
 
 const DOCUMENT_COLUMNS =
-    "id, pet_id, title, doc_type, doc_date, source_org, status"
+    "id, pet_id, title, doc_type, doc_date, source_org, status, text_extracted"
 
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
@@ -152,27 +153,6 @@ function resolveReminderTimingState(event) {
     }
 
     return "unknown"
-}
-
-function looksLikeLibrelaEvent(event) {
-    const details = event?.details_json || {}
-
-    const haystack = [
-        event?.event_type,
-        details.subtype,
-        details.target_subtype,
-        details.description,
-        details.title,
-        details.medication,
-        details.drug,
-        details.name,
-        JSON.stringify(details),
-    ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-
-    return haystack.includes("librela")
 }
 
 // ---------------------------------------------------------------------------
@@ -385,7 +365,7 @@ async function upsertPlannedReminder({ existing, payload }) {
     }
 }
 
-async function findVerifiedLibrelaInjectionForDoc({ docId, petId }) {
+async function loadLibrelaEventsForDoc({ docId, petId }) {
     const { data, error } = await sbAdmin
         .from("events")
         .select(
@@ -393,14 +373,11 @@ async function findVerifiedLibrelaInjectionForDoc({ docId, petId }) {
         )
         .eq("doc_id", docId)
         .eq("pet_id", petId)
-        .eq("event_type", "injection")
-        .eq("status", "verified")
         .order("event_date", { ascending: false })
 
     if (error) throw error
 
-    const rows = data || []
-    return rows.find(looksLikeLibrelaEvent) || null
+    return data || []
 }
 
 async function findExistingPlannedLibrelaReminder({ petId }) {
@@ -453,18 +430,27 @@ router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
             return res.status(docError.status).json(docError.body)
         }
 
-        const injection = await findVerifiedLibrelaInjectionForDoc({
+        const materializedEvents = await loadLibrelaEventsForDoc({
             docId,
             petId: doc.pet_id,
         })
 
-        if (!injection) {
-            return res.status(400).json({
+        const readiness = getLibrelaReminderReadiness({
+            document: doc,
+            materializedEvents,
+        })
+
+        if (!readiness.actionable) {
+            const status = readiness.state === "not_applicable" ? 400 : 409
+
+            return res.status(status).json({
                 ok: false,
-                error:
-                    "No verified Librela injection event was found for this document.",
+                reason: readiness.reason || readiness.state,
+                error: readiness.message,
             })
         }
+
+        const injection = readiness.injection
 
         const anchorDate = injection.event_date
         const dueDate = addDays(anchorDate, DUE_INTERVAL_DAYS)

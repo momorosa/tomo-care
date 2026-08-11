@@ -16,6 +16,7 @@
         "gmail:download": "node server/scripts/download-gmail-attachments.js",
         "eval:assistant": "node server/scripts/runAssistantEvals.js",
         "test:care-dates": "node --test server/lib/careDates.test.js",
+        "test:phase3e0a": "node --test server/lib/librelaEvidence.test.js src/pages/VerifyDocs/recommendations.test.js",
         "test:actions": "node --test server/actions/*.test.js",
         "test:phase3b": "node --test server/actions/*.test.js server/lib/*.test.js server/assistant/*.test.js server/calendar/*.test.js server/dashboard/*.test.js server/gmail/*.test.js",
         "test:phase3c-backend": "node --test server/actions/*.test.js server/messaging/*.test.js",

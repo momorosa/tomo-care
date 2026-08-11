@@ -1,5 +1,9 @@
 import express from "express"
 import { sbAdmin } from "../supabase.js"
+import {
+    buildLibrelaReminderRecommendation,
+    canonicalizeVerifiedLibrelaEvents,
+} from "../lib/librelaEvidence.js"
 
 const router = express.Router()
 
@@ -58,15 +62,37 @@ router.get("/documents/:docId", async (req, res) => {
 
     // counts for "materialized outputs"
     const [events, labs, costItems] = await Promise.all([
-        sbAdmin.from("events").select("id", { count: "exact", head: true }).eq("doc_id", docId),
+        sbAdmin
+            .from("events")
+            .select(
+                "id, pet_id, doc_id, event_type, event_date, status, details_json"
+            )
+            .eq("doc_id", docId),
         sbAdmin.from("labs").select("id", { count: "exact", head: true }).eq("doc_id", docId),
         sbAdmin.from("cost_items").select("id", { count: "exact", head: true }).eq("doc_id", docId),
     ])
 
+    if (events.error) return res.status(500).json({ error: events.error.message })
+    if (labs.error) return res.status(500).json({ error: labs.error.message })
+    if (costItems.error) {
+        return res.status(500).json({ error: costItems.error.message })
+    }
+
+    const materializedEvents = events.data || []
+    const actionRecommendations = {
+        librelaReminder: buildLibrelaReminderRecommendation({
+            document: doc,
+            materializedEvents,
+        }),
+    }
+
     res.json({
-        doc,
+        doc: {
+            ...doc,
+            action_recommendations: actionRecommendations,
+        },
         counts: {
-            events: events.count ?? 0,
+            events: materializedEvents.length,
             labs: labs.count ?? 0,
             cost_items: costItems.count ?? 0,
         },
@@ -178,6 +204,14 @@ router.post("/documents/:docId/approve", async (req, res) => {
 
         if (error || !doc) return res.status(404).json({ error: error?.message || "Document not found" })
 
+        if (doc.status === "verified") {
+            return res.status(409).json({
+                error:
+                    "This document is already verified. Use the repair workflow instead of re-verifying it.",
+                reason: "already_verified",
+            })
+        }
+
         const extracted = doc.text_extracted
         if (!extracted || typeof extracted !== "object" || Object.keys(extracted).length === 0) {
             return res.status(400).json({ error: "No text_extracted found for this document." })
@@ -243,8 +277,18 @@ router.post("/documents/:docId/approve", async (req, res) => {
         }
 
         // 4) Build insert payloads
-        const eventsToInsert = Array.isArray(extracted.events)
-            ? extracted.events
+        const canonicalized = canonicalizeVerifiedLibrelaEvents({
+            document: {
+                ...doc,
+                status: "verified",
+                doc_date: approvedDocDate || doc.doc_date,
+                text_extracted: extracted,
+            },
+            events: Array.isArray(extracted.events) ? extracted.events : [],
+        })
+
+        const eventsToInsert = canonicalized.events.length
+            ? canonicalized.events
                 .filter((e) => e && typeof e === "object" && e.event_type && e.event_date)
                 .map((e) => ({
                     pet_id: petId,
