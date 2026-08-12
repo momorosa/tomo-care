@@ -6,8 +6,15 @@ import {
     getLibrelaActionIntent,
 } from "../librelaReconciliationFlow.js"
 import { buildSavedOnlyCalendarStatus } from "../postVerifyCalendarRecovery.js"
+import { buildWeightPreviewMessage } from "../weightMaterializationFlow.js"
 
 const INITIAL_ACTION_STATUS = {
+    weight: {
+        phase: "idle",
+        message: "",
+        previewToken: null,
+        buttonLabel: null,
+    },
     librela: {
         phase: "idle",
         message: "",
@@ -39,6 +46,7 @@ function isWorking(status) {
 }
 
 function getWorkingActionKey(statusMap) {
+    if (isWorking(statusMap.weight)) return "weight"
     if (isWorking(statusMap.librela)) return "librela"
     if (isWorking(statusMap.insurance)) return "insurance"
     return null
@@ -235,6 +243,105 @@ export function usePostVerifyActions({
         }
     }
 
+    async function previewWeightMaterialization() {
+        if (!selectedId || actionInFlight) return
+
+        setError("")
+        setActionStatus("weight", {
+            phase: "previewing",
+            message: "Checking the verified measurement…",
+            previewToken: null,
+            buttonLabel: null,
+        })
+
+        try {
+            const result = await api.previewWeightMaterialization(selectedId)
+
+            setActionStatus("weight", {
+                phase: "repair_ready",
+                message: buildWeightPreviewMessage(
+                    result.preview,
+                    formatDisplayDate
+                ),
+                previewToken: result.preview.preview_token,
+                buttonLabel: "Save verified weight",
+            })
+        } catch (e) {
+            setError(e.message)
+            setActionStatus("weight", {
+                phase: "error",
+                message: e.message,
+                previewToken: null,
+                buttonLabel: "Review again",
+            })
+            showToast("Could not review the weight")
+        }
+    }
+
+    async function applyWeightMaterialization() {
+        const previewToken = postVerifyActionStatus.weight.previewToken
+
+        if (!previewToken) {
+            await previewWeightMaterialization()
+            return
+        }
+
+        setError("")
+        setActionStatus("weight", {
+            phase: "repairing",
+            message: "Saving the verified weight…",
+            buttonLabel: null,
+        })
+
+        try {
+            const result = await api.applyWeightMaterialization(selectedId, {
+                previewToken,
+            })
+
+            setActionStatus("weight", {
+                phase: "synced",
+                message:
+                    result.disposition === "existing"
+                        ? "This verified weight was already saved."
+                        : "Verified weight added to Momo’s trusted history.",
+                previewToken: null,
+                buttonLabel: null,
+            })
+
+            showToast("Verified weight saved")
+
+            if (onReconciled) {
+                try {
+                    await onReconciled()
+                } catch {
+                    setError(
+                        "The weight was saved, but this page could not refresh. Refresh the browser to load the trusted record."
+                    )
+                }
+            }
+        } catch (e) {
+            setError(e.message)
+            setActionStatus("weight", {
+                phase: "error",
+                message: e.message,
+                previewToken: null,
+                buttonLabel: "Review again",
+            })
+            showToast("Could not save the verified weight")
+        }
+    }
+
+    async function handleWeightMaterialization() {
+        if (!selectedId || actionInFlight) return
+
+        if (postVerifyActionStatus.weight.phase === "repair_ready") {
+            await applyWeightMaterialization()
+            return
+        }
+
+        await previewWeightMaterialization()
+    }
+
     async function applyLibrelaRepair() {
         const previewToken = postVerifyActionStatus.librela.previewToken
 
@@ -367,6 +474,7 @@ export function usePostVerifyActions({
         actionInFlight,
 
         handleCreateLibrelaReminder,
+        handleWeightMaterialization,
         handleCreateInsuranceClaimReminder,
         handleRetryLibrelaCalendar: () => handleRetryCalendar("librela"),
         handleRetryInsuranceCalendar: () =>

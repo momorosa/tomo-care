@@ -144,3 +144,26 @@ test("preserves the existing insurance recommendation for invoices", () => {
     assert.equal(recommendation.disabled, false)
     assert.equal(recommendation.recommended, true)
 })
+
+test("uses the server-owned verified-weight recovery recommendation", () => {
+    const recommendation = getPostVerifyRecommendations(
+        buildInvoice({
+            action_recommendations: {
+                weightMaterialization: {
+                    state: "repair_available",
+                    show: true,
+                    disabled: false,
+                    badge: "Weight available",
+                    badge_tone: "warning",
+                    button_label: "Review weight",
+                    body: "Review this measurement before saving it.",
+                },
+            },
+        })
+    ).weightMaterialization
+
+    assert.equal(recommendation.state, "repair_available")
+    assert.equal(recommendation.show, true)
+    assert.equal(recommendation.disabled, false)
+    assert.equal(recommendation.buttonLabel, "Review weight")
+})

@@ -204,7 +204,7 @@ export default function VerifyDocs() {
             showToast(
                 `Verified · events ${j.materialized?.events ?? 0} · costs ${
                     j.materialized?.cost_items ?? 0
-                }`
+                } · facts ${j.materialized?.facts ?? 0}`
             )
 
             postVerify.openPostVerifyActions()
@@ -319,8 +319,12 @@ export default function VerifyDocs() {
                     isLibrela={looksLikeLibrela(detail)}
                     recommendations={postVerifyRecommendations}
                     actionStatus={postVerify.postVerifyActionStatus}
+                    weightLoading={postVerify.postVerifyActionLoading === "weight"}
                     librelaLoading={postVerify.postVerifyActionLoading === "librela"}
                     insuranceClaimLoading={postVerify.postVerifyActionLoading === "insurance"}
+                    onMaterializeWeight={
+                        postVerify.handleWeightMaterialization
+                    }
                     onCreateLibrelaReminder={() =>
                         postVerify.handleCreateLibrelaReminder(
                             postVerifyRecommendations.librelaReminder.state
@@ -372,6 +376,9 @@ export default function VerifyDocs() {
                         onSaveDraft={saveDraft}
                         onSaveAndVerify={saveAndVerify}
                         onUpdateInvoiceId={draft.onUpdateInvoiceId}
+                        onUpdateWeightMeasurement={
+                            draft.onUpdateWeightMeasurement
+                        }
                         onUpdateEvent={draft.onUpdateEvent}
                         onAddEvent={draft.onAddEvent}
                         onRemoveEvent={draft.onRemoveEvent}

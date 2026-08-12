@@ -151,6 +151,7 @@ For each field in the extraction, you must classify it:
 
 Rules:
 - Medication names, dosages, injection types, and dates are ALWAYS high-stakes. Even if confident, classify as "needs-confirmation" unless the match is unambiguous.
+- Weight value, unit, and measurement date are health-record fields and ALWAYS require human confirmation.
 - Financial totals: cross-check against line item sum if possible.
 - If a field's value is null/empty in the extraction AND you can find the value in raw_text, mark as "needs-confirmation" with reason explaining what was missed.
 - If a field's value is null/empty AND it genuinely doesn't appear in the raw text, mark as "auto-confirmed" with reason "Not present in source document."
@@ -217,6 +218,13 @@ function enumerateFields(extracted) {
     if ("paid" in extracted.totals) {
       fields.push({ path: "totals.paid", value: extracted.totals.paid })
     }
+  }
+
+  // Weight measurement (one visit-level measurement per document)
+  if (extracted.weight_measurement && typeof extracted.weight_measurement === "object") {
+    fields.push({ path: "weight_measurement.value", value: extracted.weight_measurement.value })
+    fields.push({ path: "weight_measurement.unit", value: extracted.weight_measurement.unit })
+    fields.push({ path: "weight_measurement.measured_date", value: extracted.weight_measurement.measured_date })
   }
 
   // Events

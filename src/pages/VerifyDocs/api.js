@@ -97,6 +97,30 @@ export async function applyLibrelaReconciliation(
     return jsonOrThrow(r, "Failed to repair the Librela care record")
 }
 
+export async function previewWeightMaterialization(id) {
+    const r = await fetch(
+        `/api/documents/${id}/actions/weight-materialization-preview`
+    )
+
+    return jsonOrThrow(r, "Failed to review the verified weight")
+}
+
+export async function applyWeightMaterialization(
+    id,
+    { previewToken, verifiedBy = "rosa" } = {}
+) {
+    const r = await fetch(
+        `/api/documents/${id}/actions/weight-materialization`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ previewToken, verifiedBy }),
+        }
+    )
+
+    return jsonOrThrow(r, "Failed to save the verified weight")
+}
+
 export async function createInsuranceClaimReminder(
     id,
     { requestedBy = "rosa", insuranceProvider = "Nationwide" } = {}

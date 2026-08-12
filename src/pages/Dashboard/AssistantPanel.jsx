@@ -20,6 +20,10 @@ import {
     startSilenceDetection,
 } from "./voiceRecorder.js"
 import EvidenceCard from "./EvidenceCard.jsx"
+import {
+    getRecentVerifiedSources,
+    getVerifiedSourcesLabel,
+} from "./citationPresentation.js"
 import RunwayAvatarMedia from "./RunwayAvatarMedia.jsx"
 import {
     createVoiceLatencySummary,
@@ -960,6 +964,11 @@ function AssistantTurn({ answer, reminderById }) {
                   : isActionRequest
                     ? "Approval required"
                     : "Grounded answer"
+    const visibleCitations = getRecentVerifiedSources(answer.citations)
+    const citationLabel = getVerifiedSourcesLabel({
+        visibleCount: visibleCitations.length,
+        totalCount: answer.citations?.length || 0,
+    })
 
     return (
         <article className="max-w-[92%]">
@@ -1007,14 +1016,13 @@ function AssistantTurn({ answer, reminderById }) {
                     </p>
                 )}
 
-            {answer.citations?.length > 0 && (
+            {visibleCitations.length > 0 && (
                 <details className="mt-4 rounded-xl border border-tomo-border bg-white/[0.02] px-3 py-2">
                     <summary className="cursor-pointer text-xs font-medium text-tomo-text-h">
-                        View {answer.citations.length} verified{" "}
-                        {answer.citations.length === 1 ? "source" : "sources"}
+                        {citationLabel}
                     </summary>
                     <div className="mt-3 space-y-2">
-                        {answer.citations.map((citation, index) => (
+                        {visibleCitations.map((citation, index) => (
                             <EvidenceCard
                                 key={`${citation.type}-${citation.id || index}`}
                                 citation={citation}

@@ -19,6 +19,7 @@
         "test:phase3e0a": "node --test server/lib/librelaEvidence.test.js src/pages/VerifyDocs/recommendations.test.js",
         "test:phase3e0b": "node --test server/lib/librelaEvidence.test.js server/lib/librelaReconciliation.test.js server/lib/librelaReconciliationMigration.test.js server/lib/librelaReconciliationRoute.test.js src/pages/VerifyDocs/recommendations.test.js src/pages/VerifyDocs/librelaReconciliationFlow.test.js",
         "test:phase3e0c": "node --test server/calendar/*.test.js src/pages/Dashboard/calendarRecovery.test.js src/pages/Dashboard/reminderPresentation.test.js src/pages/VerifyDocs/postVerifyCalendarRecovery.test.js",
+        "test:phase3e0d": "node --test server/lib/verifiedWeight.test.js server/lib/verifiedWeightExtraction.test.js server/lib/verifiedWeightMigration.test.js server/lib/verifiedWeightRoute.test.js src/pages/VerifyDocs/recommendations.test.js src/pages/VerifyDocs/weightMaterializationFlow.test.js",
         "test:actions": "node --test server/actions/*.test.js",
         "test:phase3b": "node --test server/actions/*.test.js server/lib/*.test.js server/assistant/*.test.js server/calendar/*.test.js server/dashboard/*.test.js server/gmail/*.test.js",
         "test:phase3c-backend": "node --test server/actions/*.test.js server/messaging/*.test.js",

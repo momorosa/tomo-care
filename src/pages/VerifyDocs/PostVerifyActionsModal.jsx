@@ -7,8 +7,10 @@ export default function PostVerifyActionsModal({
     isLibrela = false,
     recommendations = null,
     actionStatus = {},
+    weightLoading = false,
     librelaLoading = false,
     insuranceClaimLoading = false,
+    onMaterializeWeight,
     onCreateLibrelaReminder,
     onCreateInsuranceClaimReminder,
     onRetryLibrelaCalendar,
@@ -16,7 +18,14 @@ export default function PostVerifyActionsModal({
 }) {
     if (!open) return null
 
-    const actionInFlight = librelaLoading || insuranceClaimLoading
+    const actionInFlight =
+        weightLoading || librelaLoading || insuranceClaimLoading
+
+    const weightRecommendation = recommendations?.weightMaterialization || {
+        show: false,
+        disabled: true,
+        badge: null,
+    }
 
     const librelaRecommendation = recommendations?.librelaReminder || {
         show: isLibrela,
@@ -42,6 +51,8 @@ export default function PostVerifyActionsModal({
     }
 
     const hasCompletedAction =
+        weightRecommendation.state === "materialized" ||
+        actionStatus.weight?.phase === "synced" ||
         actionStatus.librela?.phase === "synced" ||
         actionStatus.librela?.phase === "saved_only" ||
         actionStatus.insurance?.phase === "synced" ||
@@ -76,6 +87,22 @@ export default function PostVerifyActionsModal({
                 </div>
 
                 <div className="space-y-3">
+                    <ActionButton
+                        title="Add verified weight"
+                        badge={weightRecommendation.badge}
+                        badgeTone={weightRecommendation.badgeTone}
+                        buttonLabel={weightRecommendation.buttonLabel}
+                        body={weightRecommendation.body}
+                        hidden={!weightRecommendation.show}
+                        disabled={weightRecommendation.disabled}
+                        actionInFlight={actionInFlight}
+                        loading={weightLoading}
+                        loadingLabel="Checking…"
+                        status={actionStatus.weight}
+                        completeBadge="Saved"
+                        onClick={onMaterializeWeight}
+                    />
+
                     <ActionButton
                         title="Create Librela reminder"
                         badge={librelaRecommendation.badge}
@@ -145,6 +172,7 @@ function ActionButton({
     status = null,
     onClick,
     onCalendarRetry,
+    completeBadge = "Synced",
 }) {
     if (hidden) return null
 
@@ -176,6 +204,7 @@ function ActionButton({
         disabled,
         loadingLabel,
         defaultLabel: defaultButtonLabel,
+        statusButtonLabel: status?.buttonLabel,
         calendarButton,
     })
 
@@ -198,7 +227,7 @@ function ActionButton({
 
                     {isSynced && (
                         <span className="tomo-badge tomo-badge--success">
-                            Synced
+                            {completeBadge}
                         </span>
                     )}
 
@@ -325,12 +354,13 @@ function getButtonLabel({
     disabled,
     loadingLabel,
     defaultLabel,
+    statusButtonLabel,
     calendarButton,
 }) {
     if (phase === "creating") return "Creating…"
     if (phase === "syncing") return "Syncing…"
     if (phase === "previewing") return "Checking…"
-    if (phase === "repair_ready") return "Apply repair"
+    if (phase === "repair_ready") return statusButtonLabel || "Apply repair"
     if (phase === "repairing") return "Repairing…"
     if (phase === "synced") return "Added"
     if (phase === "saved_only") return calendarButton?.label || "Saved"

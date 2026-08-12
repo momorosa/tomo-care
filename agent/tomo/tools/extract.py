@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from typing import Any, Dict, Optional, List, Tuple
 
 from google import genai
@@ -221,6 +222,128 @@ def _normalize_receipt_fields(extracted: Dict[str, Any], doc: Dict[str, Any]) ->
     return extracted
 
 
+def _normalize_unit(unit: Any) -> Optional[str]:
+    value = str(unit or "").strip().lower()
+    if value in {"lb", "lbs", "pound", "pounds"}:
+        return "lb"
+    if value in {"kg", "kgs", "kilogram", "kilograms"}:
+        return "kg"
+    return None
+
+
+def _plausible_weight(value: float, unit: str) -> bool:
+    if unit == "kg":
+        return 8 <= value <= 25
+    return 18 <= value <= 55
+
+
+def _weight_context(text: str, start: int, length: int) -> str:
+    context = text[max(start - 100, 0): min(start + length + 140, len(text))]
+    return " ".join(context.split())
+
+
+def _build_weight_measurement(
+    value: Any,
+    unit: Any,
+    measured_date: Any,
+    *,
+    source_label: str,
+    extraction_method: str,
+    source_context: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    normalized_unit = _normalize_unit(unit)
+    if not normalized_unit or not _plausible_weight(numeric_value, normalized_unit):
+        return None
+
+    date_value = str(measured_date or "")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value):
+        return None
+
+    value_kg = numeric_value if normalized_unit == "kg" else numeric_value / 2.2046226218
+    value_lb = numeric_value if normalized_unit == "lb" else numeric_value * 2.2046226218
+
+    return {
+        "value": round(numeric_value, 2),
+        "unit": normalized_unit,
+        "measured_date": date_value,
+        "value_kg": round(value_kg, 2),
+        "value_lb": round(value_lb, 2),
+        "source_field": "text_extracted.weight_measurement",
+        "source_label": source_label,
+        "extraction_method": extraction_method,
+        "source_context": source_context,
+        "schema_version": 1,
+    }
+
+
+def _normalize_weight_measurement(
+    extracted: Dict[str, Any], doc: Dict[str, Any]
+) -> Dict[str, Any]:
+    raw_text = str(doc.get("raw_text") or "")
+    measured_date = extracted.get("doc_date") or (
+        str(doc.get("doc_date")) if doc.get("doc_date") else None
+    )
+
+    structured = extracted.get("weight_measurement")
+    if isinstance(structured, dict):
+        normalized = _build_weight_measurement(
+            structured.get("value"),
+            structured.get("unit"),
+            structured.get("measured_date") or measured_date,
+            source_label=structured.get("source_label") or "Weight",
+            extraction_method=structured.get("extraction_method")
+            or "structured_weight_measurement",
+            source_context=structured.get("source_context"),
+        )
+        if normalized:
+            extracted["weight_measurement"] = normalized
+            return extracted
+
+    patterns = [
+        (
+            re.compile(
+                r"\b(?:weight|wt|patient weight)\s*[:\-]?\s*(\d{1,2}(?:\.\d{1,2})?)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)\b",
+                re.IGNORECASE,
+            ),
+            "Weight",
+            "labeled_weight",
+        ),
+        (
+            re.compile(
+                r"patients?\s*:\s*.{0,240}?(\d{1,2}(?:\.\d{1,2})?)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)\b",
+                re.IGNORECASE,
+            ),
+            "Patient metadata weight",
+            "patient_header_weight",
+        ),
+    ]
+
+    for pattern, source_label, extraction_method in patterns:
+        match = pattern.search(raw_text)
+        if not match:
+            continue
+
+        normalized = _build_weight_measurement(
+            match.group(1),
+            match.group(2),
+            measured_date,
+            source_label=source_label,
+            extraction_method=extraction_method,
+            source_context=_weight_context(raw_text, match.start(), len(match.group(0))),
+        )
+        if normalized:
+            extracted["weight_measurement"] = normalized
+            return extracted
+
+    extracted["weight_measurement"] = None
+    return extracted
+
+
 def _normalize_discount_labels(extracted: Dict[str, Any]) -> Dict[str, Any]:
     items = extracted.get("cost_items")
     if not isinstance(items, list) or not items:
@@ -382,6 +505,7 @@ def _apply_post_normalizations(extracted: Dict[str, Any], doc: Dict[str, Any]) -
     extracted = _normalize_discount_labels(extracted)
     extracted = _normalize_lab_analytes(extracted)
     extracted = _normalize_lab_value_text_title_case(extracted)
+    extracted = _normalize_weight_measurement(extracted, doc)
 
     # Fill summary if missing and labs exist (common in per-panel fallback)
     if extracted.get("summary") in (None, ""):
@@ -601,6 +725,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
             "title": doc.get("title"),
             "invoice_id": None,
             "summary": None,
+            "weight_measurement": None,
             "events": [],
             "cost_items": [],
             "totals": {"paid": None, "currency": "USD"},
@@ -618,6 +743,13 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
         "title": doc.get("title"),
         "invoice_id": None,
         "summary": None,
+        "weight_measurement": {
+            "value": None,
+            "unit": "kg|lb",
+            "measured_date": None,
+            "source_label": "Weight|Patient metadata weight",
+            "source_context": None,
+        },
         "events": [
             {
                 "event_type": "appointment|visit|injection|vaccine|procedure|lab|refill_request|other",
@@ -665,6 +797,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
         "- doc_id MUST equal the provided documents.id UUID exactly.\n"
         "- If you find an invoice number (e.g., i-###########), put it in invoice_id.\n"
         "- For receipts/invoices: populate cost_items[] and totals.paid if present.\n"
+        "- If the source explicitly shows this patient's weight, populate weight_measurement. Never infer weight.\n"
         "- For clinical docs: populate events[]; for lab reports: populate labs[].\n"
         "- Do not invent facts.\n"
         "- If this is a receipt/invoice and line items exist, cost_items must include them. Do not leave it empty.\n\n"
@@ -700,6 +833,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
                 "title": doc.get("title"),
                 "invoice_id": None,
                 "summary": None,
+                "weight_measurement": None,
                 "events": [],
                 "cost_items": [],
                 "totals": {"paid": None, "currency": "USD"},
@@ -740,6 +874,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
                     "title": doc.get("title"),
                     "invoice_id": None,
                     "summary": None,
+                    "weight_measurement": None,
                     "events": [],
                     "cost_items": [],
                     "totals": {"paid": None, "currency": "USD"},

@@ -20,6 +20,10 @@ import {
     buildLibrelaReconciliationPlan,
     toLibrelaReconciliationPreview,
 } from "../lib/librelaReconciliation.js"
+import {
+    buildVerifiedWeightPlan,
+    toVerifiedWeightPreview,
+} from "../lib/verifiedWeight.js"
 
 const router = express.Router()
 
@@ -51,7 +55,7 @@ const TIMING_STATE_BLOCK_MESSAGES = {
 }
 
 const DOCUMENT_COLUMNS =
-    "id, pet_id, title, doc_type, doc_date, source_org, status, text_extracted"
+    "id, pet_id, title, doc_type, doc_date, source_org, status, raw_text, text_extracted, updated_at"
 
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
@@ -437,6 +441,45 @@ async function reconcileLibrelaCycle({
     return data
 }
 
+async function loadVerifiedWeightPlan(doc) {
+    const [factsResult, petResult] = await Promise.all([
+        sbAdmin
+            .from("facts")
+            .select(
+                "id, pet_id, doc_id, fact_type, fact_date, value_json, status, confidence, verified_at, verified_by"
+            )
+            .eq("doc_id", doc.id),
+        sbAdmin
+            .from("pets")
+            .select("id, weight_value, weight_unit, updated_at")
+            .eq("id", doc.pet_id)
+            .single(),
+    ])
+
+    if (factsResult.error) throw factsResult.error
+    if (petResult.error) throw petResult.error
+
+    return buildVerifiedWeightPlan({
+        document: doc,
+        facts: factsResult.data || [],
+        pet: petResult.data,
+    })
+}
+
+async function materializeVerifiedWeight({ doc, plan, verifiedBy }) {
+    const { data, error } = await sbAdmin.rpc(
+        "materialize_verified_weight_measurement",
+        {
+            p_doc_id: doc.id,
+            p_measurement: plan.candidate,
+            p_verified_by: verifiedBy,
+        }
+    )
+
+    if (error) throw error
+    return data
+}
+
 function toLibrelaReminderResponse(result) {
     return {
         id: result.next_reminder_id,
@@ -470,6 +513,119 @@ async function findExistingPlannedInsuranceClaimReminder({ docId, petId }) {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// GET /api/documents/:docId/actions/weight-materialization-preview
+// Read-only. This is the recovery path for a verified historical invoice whose
+// weight was never written to facts. A current token is required before apply.
+router.get(
+    "/documents/:docId/actions/weight-materialization-preview",
+    async (req, res) => {
+        const { docId } = req.params
+
+        try {
+            const { doc, error: docError } = await loadVerifiedDocument(
+                docId,
+                "Document must be verified before TomoCare can review its weight."
+            )
+
+            if (docError) {
+                return res.status(docError.status).json(docError.body)
+            }
+
+            const plan = await loadVerifiedWeightPlan(doc)
+
+            if (!plan.actionable) {
+                return res.status(409).json({
+                    ok: false,
+                    reason: plan.reason,
+                    error: plan.message,
+                })
+            }
+
+            return res.json({
+                ok: true,
+                preview: toVerifiedWeightPreview(plan),
+            })
+        } catch (err) {
+            console.error("[weight-materialization-preview] error:", err)
+            return res.status(500).json({
+                ok: false,
+                error: "TomoCare could not review this weight safely.",
+            })
+        }
+    }
+)
+
+// POST /api/documents/:docId/actions/weight-materialization
+// Atomic and idempotent. It does not change events, reminders, costs, or Calendar.
+router.post(
+    "/documents/:docId/actions/weight-materialization",
+    async (req, res) => {
+        const { docId } = req.params
+        const { verifiedBy = "rosa", previewToken = "" } = req.body || {}
+
+        try {
+            if (!previewToken) {
+                return res.status(400).json({
+                    ok: false,
+                    reason: "preview_required",
+                    error: "Review the weight before saving it.",
+                })
+            }
+
+            const { doc, error: docError } = await loadVerifiedDocument(
+                docId,
+                "Document must remain verified before TomoCare can save its weight."
+            )
+
+            if (docError) {
+                return res.status(docError.status).json(docError.body)
+            }
+
+            const plan = await loadVerifiedWeightPlan(doc)
+
+            if (!plan.actionable) {
+                return res.status(409).json({
+                    ok: false,
+                    reason: plan.reason,
+                    error: plan.message,
+                })
+            }
+
+            if (plan.preview_token !== previewToken) {
+                return res.status(409).json({
+                    ok: false,
+                    reason: "weight_plan_changed",
+                    error:
+                        "The trusted record changed after the preview. Review the weight again before saving it.",
+                })
+            }
+
+            const result = await materializeVerifiedWeight({
+                doc,
+                plan,
+                verifiedBy,
+            })
+
+            return res.json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    result.disposition === "existing"
+                        ? "This weight was already saved."
+                        : "Verified weight added to Momo’s trusted history.",
+                weight: result,
+            })
+        } catch (err) {
+            console.error("[weight-materialization] error:", err)
+            return res.status(500).json({
+                ok: false,
+                error:
+                    "TomoCare could not save the weight. No partial weight update was saved.",
+            })
+        }
+    }
+)
 
 // GET /api/documents/:docId/actions/librela-reconciliation-preview
 // Read-only. Returns a structural plan and a token that must be presented back
