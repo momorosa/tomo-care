@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 import * as api from "../api.js"
+import { getTriageReviewState } from "../triageReviewState.js"
 
 // Owns the AI triage result, its loading state, and the set of field paths the
 // reviewer has accepted. Also derives the gating flags the page uses to decide
@@ -47,31 +48,15 @@ export function useTriage(isVerified) {
         setAcceptedPaths(new Set())
     }
 
-    const unreviewedCount = useMemo(() => {
-        if (isVerified) return 0
-        if (!triageResult?.fields) return 0
-
-        return triageResult.fields.filter(
-            (f) =>
-                (f.state === "needs-confirmation" ||
-                    f.state === "unreadable-source") &&
-                !acceptedPaths.has(f.path)
-        ).length
-    }, [triageResult, acceptedPaths, isVerified])
-
-    const hasTriage =
-        triageResult &&
-        Array.isArray(triageResult.fields) &&
-        triageResult.fields.length > 0
-
-    const isFailSafe =
-        triageResult?.fail_safe === true ||
-        (triageResult &&
-            triageResult.overall_confidence === "low" &&
-            triageResult.fields?.length === 0)
-
-    const triageBlocksApprove =
-        !isVerified && hasTriage && !isFailSafe && unreviewedCount > 0
+    const reviewState = useMemo(
+        () =>
+            getTriageReviewState({
+                triageResult,
+                acceptedPaths,
+                isVerified,
+            }),
+        [triageResult, acceptedPaths, isVerified]
+    )
 
     return {
         triageResult,
@@ -83,7 +68,7 @@ export function useTriage(isVerified) {
         acceptField,
         acceptAllConfirmed,
         reset,
-        unreviewedCount,
-        triageBlocksApprove,
+        unreviewedCount: reviewState.unreviewedCount,
+        triageBlocksApprove: reviewState.blocksApprove,
     }
 }

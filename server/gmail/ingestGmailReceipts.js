@@ -1,9 +1,6 @@
-import { sbAdmin } from "../supabase.js"
+import process from "node:process"
 import { fetchCanonicalReceiptEmails } from "./gmailInbox.js"
-import {
-    buildGmailStorageKey,
-    uploadPdfToTomoDocs,
-} from "./storage.js"
+import { buildGmailStorageKey } from "./storageKey.js"
 
 const DEFAULT_PET_ID =
     process.env.TOMO_PET_ID || "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
@@ -37,6 +34,7 @@ function isStorageAlreadyExistsError(error) {
 
 async function uploadOrReusePdf({ storageKey, buffer }) {
     try {
+        const { uploadPdfToTomoDocs } = await import("./storage.js")
         const uploaded = await uploadPdfToTomoDocs({
             storageKey,
         buffer,
@@ -64,6 +62,8 @@ async function uploadOrReusePdf({ storageKey, buffer }) {
 }
 
 async function findExistingDocument({ contentSha256, storageKey }) {
+    const { sbAdmin } = await import("../supabase.js")
+
     if (contentSha256) {
         const { data, error } = await sbAdmin
             .from("documents")
@@ -95,6 +95,7 @@ async function createDocumentRow({
     attachment,
     storageKey,
 }) {
+    const { sbAdmin } = await import("../supabase.js")
     const payload = {
         pet_id: petId,
         doc_type: inferDocType(attachment),
@@ -154,8 +155,18 @@ export async function ingestGmailReceipts({
     petId = DEFAULT_PET_ID,
     maxResults = 25,
     dryRun = false,
+    dependencies = {},
 } = {}) {
-    const emails = await fetchCanonicalReceiptEmails({
+    const fetchEmails =
+        dependencies.fetchCanonicalReceiptEmails ||
+        fetchCanonicalReceiptEmails
+    const findDocument =
+        dependencies.findExistingDocument || findExistingDocument
+    const uploadPdf = dependencies.uploadOrReusePdf || uploadOrReusePdf
+    const createDocument =
+        dependencies.createDocumentRow || createDocumentRow
+
+    const emails = await fetchEmails({
         maxResults,
     })
 
@@ -181,7 +192,7 @@ export async function ingestGmailReceipts({
                 contentSha256: attachment.contentSha256,
             })
 
-            const existingDoc = await findExistingDocument({
+            const existingDoc = await findDocument({
                 contentSha256: attachment.contentSha256,
                 storageKey,
             })
@@ -212,7 +223,7 @@ export async function ingestGmailReceipts({
                 continue
             }
 
-            const uploaded = await uploadOrReusePdf({
+            const uploaded = await uploadPdf({
                 storageKey,
                 buffer: attachment.data,
             })
@@ -225,7 +236,7 @@ export async function ingestGmailReceipts({
                 summary.reusedStorageObjects += 1
             }
 
-            const document = await createDocumentRow({
+            const document = await createDocument({
                 petId,
                 email,
                 attachment,

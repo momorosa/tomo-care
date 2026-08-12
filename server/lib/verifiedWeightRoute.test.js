@@ -4,6 +4,10 @@ import test from "node:test"
 
 const actionsUrl = new URL("../routes/actions.js", import.meta.url)
 const documentsUrl = new URL("../routes/documents.js", import.meta.url)
+const materializationUrl = new URL(
+    "../documents/verifiedDocumentMaterialization.js",
+    import.meta.url
+)
 
 test("historical recovery requires a current preview token", async () => {
     const source = await readFile(actionsUrl, "utf8")
@@ -20,13 +24,17 @@ test("historical recovery requires a current preview token", async () => {
 })
 
 test("normal verification only materializes a structured reviewed measurement", async () => {
-    const source = await readFile(documentsUrl, "utf8")
+    const [source, materialization] = await Promise.all([
+        readFile(documentsUrl, "utf8"),
+        readFile(materializationUrl, "utf8"),
+    ])
     const approveRoute = source.slice(
         source.indexOf('router.post("/documents/:docId/approve"'),
         source.indexOf("// Update candidate truth")
     )
 
-    assert.match(approveRoute, /allowRawText: false/)
+    assert.match(approveRoute, /buildVerifiedDocumentMaterialization/)
+    assert.match(materialization, /allowRawText: false/)
     assert.match(approveRoute, /materialize_verified_weight_measurement/)
     assert.match(approveRoute, /p_verified_by: verifiedBy/)
 })

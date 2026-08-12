@@ -2,12 +2,11 @@ import express from "express"
 import { sbAdmin } from "../supabase.js"
 import {
     buildLibrelaReminderRecommendation,
-    canonicalizeVerifiedLibrelaEvents,
 } from "../lib/librelaEvidence.js"
 import {
     buildWeightMaterializationRecommendation,
-    getVerifiedWeightCandidate,
 } from "../lib/verifiedWeight.js"
+import { buildVerifiedDocumentMaterialization } from "../documents/verifiedDocumentMaterialization.js"
 
 const router = express.Router()
 
@@ -238,27 +237,18 @@ router.post("/documents/:docId/approve", async (req, res) => {
             return res.status(400).json({ error: "No text_extracted found for this document." })
         }
 
-        const petId = doc.pet_id
         const nowIso = new Date().toISOString()
 
-        // Promote the extracted doc date back onto the document, falling back to the
-        // first event/cost-item date, then whatever doc_date was already stored.
-        const approvedDocDate = firstValidDate(
-            extracted.doc_date,
-            extracted.events?.[0]?.event_date,
-            extracted.cost_items?.[0]?.service_date,
-            doc.doc_date
-        )
+        const materialization = buildVerifiedDocumentMaterialization({
+            document: doc,
+            extracted,
+            verifiedBy,
+            verifiedAt: nowIso,
+            notes,
+        })
 
         // 2) Mark doc verified (doc-level gate)
-        const docUpdate = {
-            status: "verified",
-            remarks: notes,
-        }
-
-        if (approvedDocDate) {
-            docUpdate.doc_date = approvedDocDate
-        }
+        const { documentUpdate: docUpdate } = materialization
 
         const { error: upErr } = await sbAdmin
             .from("documents")
@@ -279,71 +269,11 @@ router.post("/documents/:docId/approve", async (req, res) => {
         if (delCi.error) return res.status(500).json({ error: delCi.error.message })
         if (delLabs.error) return res.status(500).json({ error: delLabs.error.message })
 
-        // Helper: normalize known subtype patterns from extractor
-        const normalizeEventDetails = (eventType, details = {}) => {
-            const out = (details && typeof details === "object") ? { ...details } : {}
-            const desc = String(out.description || "").toLowerCase()
-
-            // Align to your downstream reminder/calendar flows:
-            // set details_json.subtype = "Librela" for Librela injection events.
-            if (eventType === "injection" && desc.includes("librela")) {
-                out.subtype = "Librela"
-            }
-
-            // Store verification trace in details_json for events (since events table has no verified_at/by columns)
-            out.verified_at = nowIso
-            out.verified_by = verifiedBy
-
-            return out
-        }
-
-        // 4) Build insert payloads
-        const canonicalized = canonicalizeVerifiedLibrelaEvents({
-            document: {
-                ...doc,
-                status: "verified",
-                doc_date: approvedDocDate || doc.doc_date,
-                text_extracted: extracted,
-            },
-            events: Array.isArray(extracted.events) ? extracted.events : [],
-        })
-
-        const eventsToInsert = canonicalized.events.length
-            ? canonicalized.events
-                .filter((e) => e && typeof e === "object" && e.event_type && e.event_date)
-                .map((e) => ({
-                    pet_id: petId,
-                    doc_id: docId,
-                    event_type: e.event_type,
-                    event_date: e.event_date,
-                    status: "verified",
-                    details_json: normalizeEventDetails(e.event_type, e.details_json),
-                }))
-            : []
-
-        const costItemsToInsert = Array.isArray(extracted.cost_items)
-        ? extracted.cost_items
-            .filter((ci) => ci && typeof ci === "object" && (ci.label || ci.amount != null))
-            .map((ci) => ({
-                pet_id: petId,
-                doc_id: docId,
-                service_date: ci.service_date || extracted.doc_date ||  approvedDocDate || doc.doc_date,
-                category: ci.category || "other",
-                item_name: ci.label || "Unknown item",
-                quantity: null,
-                unit: null,
-                amount: ci.amount ?? 0,
-                currency: ci.currency || "USD",
-                tax_amount: 0,
-                status: "verified",
-                confidence: extracted.confidence ?? null,
-                verified_at: nowIso,
-                verified_by: verifiedBy,
-            }))
-        : []
-        // Labs scaffold: your current receipt example has labs: []
-        // When you start materializing labs, you'll flatten panels/results into rows in `labs`.
-        const labsToInsert = [] // keep PoC simple for now
+        // 4) Build insert payloads from the same deterministic contract used by
+        // lifecycle tests. Labs remain an empty Phase 1 scaffold.
+        const eventsToInsert = materialization.events
+        const costItemsToInsert = materialization.costItems
+        const labsToInsert = materialization.labs
 
         // 5) Insert rows
         if (eventsToInsert.length) {
@@ -361,15 +291,7 @@ router.post("/documents/:docId/approve", async (req, res) => {
             if (labErr) return res.status(500).json({ error: labErr.message })
         }
 
-        const verifiedWeight = getVerifiedWeightCandidate(
-            {
-                ...doc,
-                status: "verified",
-                doc_date: approvedDocDate || doc.doc_date,
-                text_extracted: extracted,
-            },
-            { allowRawText: false }
-        )
+        const verifiedWeight = materialization.weightMeasurement
 
         if (verifiedWeight) {
             const { error: weightErr } = await sbAdmin.rpc(
