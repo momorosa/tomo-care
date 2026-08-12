@@ -24,6 +24,10 @@ import {
     buildVerifiedWeightPlan,
     toVerifiedWeightPreview,
 } from "../lib/verifiedWeight.js"
+import {
+    buildInsuranceClaimReminderPlan,
+    INSURANCE_CLAIM_SUBTYPE,
+} from "../lib/insuranceClaimReminder.js"
 
 const router = express.Router()
 
@@ -33,11 +37,6 @@ const router = express.Router()
 
 const LIBRELA_SUBTYPE = "Librela"
 const RULE_VERSION = "librela_v1"
-
-const INSURANCE_CLAIM_SUBTYPE = "Insurance claim"
-const INSURANCE_TARGET_SUBMIT_DAYS = 30
-const INSURANCE_ELIGIBILITY_WINDOW_DAYS = 180
-const INSURANCE_RULE_VERSION = "insurance_claim_v1"
 
 const HOME_MEDICATION_REMINDER_TYPE = "home_medication"
 
@@ -59,29 +58,6 @@ const DOCUMENT_COLUMNS =
 
 const REMINDER_RETURN_COLUMNS =
     "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at, updated_at"
-
-// ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-
-function parseIsoDate(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) {
-        throw new Error(`Invalid date: ${value}`)
-    }
-
-    const [year, month, day] = value.split("-").map(Number)
-    return new Date(Date.UTC(year, month - 1, day))
-}
-
-function formatIsoDate(date) {
-    return date.toISOString().slice(0, 10)
-}
-
-function addDays(dateString, days) {
-    const date = parseIsoDate(dateString)
-    date.setUTCDate(date.getUTCDate() + days)
-    return formatIsoDate(date)
-}
 
 function addMinutes(date, minutes) {
     return new Date(date.getTime() + minutes * 60 * 1000)
@@ -843,80 +819,29 @@ router.post(
                 return res.status(docError.status).json(docError.body)
             }
 
-            const treatmentDate = doc.doc_date
-
-            if (!treatmentDate) {
-                return res.status(400).json({
-                    ok: false,
-                    error:
-                        "No treatment date was found for this verified document.",
-                })
-            }
-
-            const targetSubmitDate = addDays(
-                treatmentDate,
-                INSURANCE_TARGET_SUBMIT_DAYS
-            )
-            const claimDeadlineDate = addDays(
-                treatmentDate,
-                INSURANCE_ELIGIBILITY_WINDOW_DAYS
-            )
-            const today = getCareDate()
-
-            if (claimDeadlineDate < today) {
-                return res.status(409).json({
-                    ok: false,
-                    reason: "claim_window_expired",
-                    error:
-                        "This treatment date is outside the 180-day insurance claim eligibility window.",
-                    treatment_date: treatmentDate,
-                    claim_deadline_date: claimDeadlineDate,
-                })
-            }
-
-            const targetHasArrived = targetSubmitDate <= today
-            const reminderDate = targetHasArrived ? today : targetSubmitDate
-            const timingState = targetHasArrived ? "due_now" : "upcoming"
             const nowIso = new Date().toISOString()
+            const plan = buildInsuranceClaimReminderPlan({
+                document: doc,
+                careDate: getCareDate(),
+                requestedBy,
+                insuranceProvider,
+                requestedAt: nowIso,
+            })
 
-            const message = targetHasArrived
-                ? "It has been at least 30 days since the treatment date. Fill out your insurance claim now and get reimbursed."
-                : "Submit this insurance claim within 30 days of the treatment date if possible."
+            if (!plan.actionable) {
+                const status =
+                    plan.reason === "claim_window_expired" ? 409 : 400
 
-            const payload = {
-                pet_id: doc.pet_id,
-                doc_id: doc.id,
-                event_type: "reminder",
-                event_date: reminderDate,
-                status: "planned",
-                details_json: {
-                    subtype: INSURANCE_CLAIM_SUBTYPE,
-                    action_type: "create_insurance_claim_reminder",
-
-                    rule_version: INSURANCE_RULE_VERSION,
-                    insurance_provider: insuranceProvider,
-
-                    treatment_date: treatmentDate,
-                    target_submit_date: targetSubmitDate,
-                    claim_deadline_date: claimDeadlineDate,
-                    due_date: claimDeadlineDate,
-
-                    target_submit_days: INSURANCE_TARGET_SUBMIT_DAYS,
-                    eligibility_window_days: INSURANCE_ELIGIBILITY_WINDOW_DAYS,
-
-                    timing_state: timingState,
-                    message,
-
-                    source_document_id: doc.id,
-                    source_document_title: doc.title,
-                    source_org: doc.source_org,
-
-                    requested_by: requestedBy,
-                    requested_at: nowIso,
-                    created_from: "post_verify_action",
-                    calendar_sync_status: "not_synced",
-                },
+                return res.status(status).json({
+                    ok: false,
+                    reason: plan.reason,
+                    error: plan.message,
+                    treatment_date: plan.treatment_date,
+                    claim_deadline_date: plan.claim_deadline_date,
+                })
             }
+
+            const { payload } = plan
 
             const existing = await findExistingPlannedInsuranceClaimReminder({
                 docId: doc.id,

@@ -1,8 +1,12 @@
 import path from "node:path"
+import process from "node:process"
 import { fileURLToPath } from "node:url"
 import { spawn } from "node:child_process"
 import { sbAdmin } from "../supabase.js"
 import { ingestGmailReceipts } from "./ingestGmailReceipts.js"
+import { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
+
+export { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
 
 /**
  * Gmail ingest
@@ -179,11 +183,13 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
         return result
     }
 
-    if (document.status === "verified" && !force) {
+    const processingDecision = getDocumentProcessingDecision(document)
+
+    if (!processingDecision.allowed) {
         return {
             documentId: docId,
             status: "skipped",
-            reason: "Document is already verified. Use force=true to reprocess.",
+            reason: processingDecision.reason,
             steps: [],
         }
     }
