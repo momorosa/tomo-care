@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react"
 import * as api from "../api.js"
 import { formatDisplayDate } from "../utils.js"
+import {
+    buildLibrelaRepairPreviewMessage,
+    getLibrelaActionIntent,
+} from "../librelaReconciliationFlow.js"
 
 const INITIAL_ACTION_STATUS = {
     librela: {
@@ -8,6 +12,7 @@ const INITIAL_ACTION_STATUS = {
         message: "",
         calendarUrl: null,
         reminderId: null,
+        previewToken: null,
     },
     insurance: {
         phase: "idle",
@@ -18,7 +23,12 @@ const INITIAL_ACTION_STATUS = {
 }
 
 function isWorking(status) {
-    return status?.phase === "creating" || status?.phase === "syncing"
+    return (
+        status?.phase === "creating" ||
+        status?.phase === "syncing" ||
+        status?.phase === "previewing" ||
+        status?.phase === "repairing"
+    )
 }
 
 function getWorkingActionKey(statusMap) {
@@ -27,7 +37,12 @@ function getWorkingActionKey(statusMap) {
     return null
 }
 
-export function usePostVerifyActions({ selectedId, showToast, setError }) {
+export function usePostVerifyActions({
+    selectedId,
+    showToast,
+    setError,
+    onReconciled = null,
+}) {
     const [showPostVerifyActions, setShowPostVerifyActions] = useState(false)
     const [postVerifyActionStatus, setPostVerifyActionStatus] =
         useState(INITIAL_ACTION_STATUS)
@@ -127,7 +142,105 @@ export function usePostVerifyActions({ selectedId, showToast, setError }) {
         }
     }
 
-    async function handleCreateLibrelaReminder() {
+    async function previewLibrelaRepair() {
+        setError("")
+        setActionStatus("librela", {
+            phase: "previewing",
+            message: "Checking the repair plan…",
+            previewToken: null,
+        })
+
+        try {
+            const result = await api.previewLibrelaReconciliation(selectedId)
+
+            setActionStatus("librela", {
+                phase: "repair_ready",
+                message: buildLibrelaRepairPreviewMessage(
+                    result.preview,
+                    formatDisplayDate
+                ),
+                previewToken: result.preview.preview_token,
+            })
+        } catch (e) {
+            setError(e.message)
+            setActionStatus("librela", {
+                phase: "error",
+                message: e.message,
+                previewToken: null,
+            })
+            showToast("Could not review the Librela repair")
+        }
+    }
+
+    async function applyLibrelaRepair() {
+        const previewToken = postVerifyActionStatus.librela.previewToken
+
+        if (!previewToken) {
+            await previewLibrelaRepair()
+            return
+        }
+
+        setError("")
+        setActionStatus("librela", {
+            phase: "repairing",
+            message: "Repairing the care record…",
+        })
+
+        try {
+            const result = await api.applyLibrelaReconciliation(selectedId, {
+                previewToken,
+            })
+
+            setActionStatus("librela", {
+                phase: "saved_only",
+                message:
+                    "Care history repaired. The September 14 Librela reminder is saved in TomoCare; Calendar sync remains a separate step.",
+                reminderId: result.reminder?.id || null,
+                previewToken: null,
+            })
+
+            showToast("Librela care history repaired")
+
+            if (onReconciled) {
+                try {
+                    await onReconciled()
+                } catch {
+                    setError(
+                        "The repair was saved, but this page could not refresh. Refresh the browser to load the reconciled record."
+                    )
+                }
+            }
+        } catch (e) {
+            setError(e.message)
+            setActionStatus("librela", {
+                phase: "error",
+                message: e.message,
+                previewToken: null,
+            })
+            showToast("Could not apply the Librela repair")
+        }
+    }
+
+    async function handleCreateLibrelaReminder(
+        recommendationState = "eligible"
+    ) {
+        if (!selectedId || actionInFlight) return
+
+        const intent = getLibrelaActionIntent({
+            recommendationState,
+            phase: postVerifyActionStatus.librela.phase,
+        })
+
+        if (intent === "preview_repair") {
+            await previewLibrelaRepair()
+            return
+        }
+
+        if (intent === "apply_repair") {
+            await applyLibrelaRepair()
+            return
+        }
+
         await createAndSyncReminder({
             actionKey: "librela",
             createReminder: () => api.createLibrelaReminder(selectedId),

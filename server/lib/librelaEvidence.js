@@ -341,6 +341,31 @@ export function getLibrelaReminderReadiness({
         }
     }
 
+    const linkedReminder = materializedEvents.find((event) => {
+        const details = getEventDetails(event)
+
+        return (
+            event?.event_type === "reminder" &&
+            event?.status === "planned" &&
+            details.subtype === "Librela" &&
+            (details.anchor_event_id === injection.id ||
+                (details.source_document_id === document?.id &&
+                    details.anchor_event_date === injection.event_date))
+        )
+    })
+
+    if (linkedReminder) {
+        return {
+            state: "reconciled",
+            evidence_state: evidence.state,
+            actionable: false,
+            injection,
+            reminder: linkedReminder,
+            message:
+                "The verified Librela injection and its next reminder are already reconciled.",
+        }
+    }
+
     return {
         state: "eligible",
         evidence_state: evidence.state,
@@ -368,6 +393,32 @@ export function buildLibrelaReminderRecommendation({
             badge: null,
             badge_tone: null,
             button_label: "Unavailable",
+            body: readiness.message,
+        }
+    }
+
+    if (readiness.state === "reconciled") {
+        return {
+            state: readiness.state,
+            show: true,
+            disabled: true,
+            recommended: false,
+            badge: "Reconciled",
+            badge_tone: "success",
+            button_label: "Done",
+            body: readiness.message,
+        }
+    }
+
+    if (readiness.state === "repair_required") {
+        return {
+            state: readiness.state,
+            show: true,
+            disabled: false,
+            recommended: false,
+            badge: "Repair available",
+            badge_tone: "warning",
+            button_label: "Review repair",
             body: readiness.message,
         }
     }

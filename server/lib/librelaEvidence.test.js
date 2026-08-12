@@ -255,3 +255,34 @@ test("enables the action only when both verified evidence and the canonical even
     assert.equal(readiness.actionable, true)
     assert.equal(readiness.injection.id, "injection-1")
 })
+
+test("recognizes a reminder already linked to the canonical injection", () => {
+    const readiness = getLibrelaReminderReadiness({
+        document: { ...buildVerifiedInvoice(), id: "doc-1" },
+        materializedEvents: [
+            {
+                id: "injection-1",
+                event_type: "injection",
+                event_date: "2026-08-03",
+                status: "verified",
+                details_json: { subtype: "Librela" },
+            },
+            {
+                id: "reminder-1",
+                event_type: "reminder",
+                event_date: "2026-09-14",
+                status: "planned",
+                details_json: {
+                    subtype: "Librela",
+                    anchor_event_id: "injection-1",
+                    anchor_event_date: "2026-08-03",
+                    source_document_id: "doc-1",
+                },
+            },
+        ],
+    })
+
+    assert.equal(readiness.state, "reconciled")
+    assert.equal(readiness.actionable, false)
+    assert.equal(readiness.reminder.id, "reminder-1")
+})

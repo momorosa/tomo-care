@@ -16,6 +16,10 @@ import {
 } from "../calendar/googleCalendarError.js"
 import { getCareDate } from "../lib/careDates.js"
 import { getLibrelaReminderReadiness } from "../lib/librelaEvidence.js"
+import {
+    buildLibrelaReconciliationPlan,
+    toLibrelaReconciliationPreview,
+} from "../lib/librelaReconciliation.js"
 
 const router = express.Router()
 
@@ -24,8 +28,6 @@ const router = express.Router()
 // ---------------------------------------------------------------------------
 
 const LIBRELA_SUBTYPE = "Librela"
-const DUE_INTERVAL_DAYS = 49
-const REMIND_BEFORE_DAYS = 7
 const RULE_VERSION = "librela_v1"
 
 const INSURANCE_CLAIM_SUBTYPE = "Insurance claim"
@@ -380,19 +382,73 @@ async function loadLibrelaEventsForDoc({ docId, petId }) {
     return data || []
 }
 
-async function findExistingPlannedLibrelaReminder({ petId }) {
+async function loadPetLibrelaContextEvents({ petId }) {
     const { data, error } = await sbAdmin
         .from("events")
-        .select("id, pet_id, event_date, status, details_json")
+        .select(
+            "id, pet_id, doc_id, event_type, event_date, status, details_json, created_at"
+        )
         .eq("pet_id", petId)
-        .eq("event_type", "reminder")
-        .eq("status", "planned")
-        .eq("details_json->>subtype", LIBRELA_SUBTYPE)
-        .limit(1)
+        .in("event_type", ["injection", "reminder"])
 
     if (error) throw error
 
-    return data?.[0] || null
+    return data || []
+}
+
+async function loadLibrelaReconciliationPlan(doc) {
+    const [documentEvents, petEvents] = await Promise.all([
+        loadLibrelaEventsForDoc({
+            docId: doc.id,
+            petId: doc.pet_id,
+        }),
+        loadPetLibrelaContextEvents({ petId: doc.pet_id }),
+    ])
+
+    return buildLibrelaReconciliationPlan({
+        document: doc,
+        documentEvents,
+        petEvents,
+    })
+}
+
+async function reconcileLibrelaCycle({
+    doc,
+    plan,
+    requestedBy,
+    verifiedBy,
+}) {
+    const { data, error } = await sbAdmin.rpc(
+        "reconcile_verified_librela_cycle",
+        {
+            p_doc_id: doc.id,
+            p_event_date: plan.assessment.event_date,
+            p_verified_by: verifiedBy,
+            p_requested_by: requestedBy,
+            p_evidence_source: plan.assessment.evidence_source,
+            p_evidence_path: plan.assessment.evidence_path,
+            p_classifier_version: plan.assessment.classifier_version,
+            p_care_date: getCareDate(),
+        }
+    )
+
+    if (error) throw error
+
+    return data
+}
+
+function toLibrelaReminderResponse(result) {
+    return {
+        id: result.next_reminder_id,
+        event_date: result.next_reminder_date,
+        status: result.next_reminder_status,
+        due_date: result.next_due_date,
+        timing_state: result.timing_state,
+        anchor_event_date: result.anchor_event_date,
+        rule_version: RULE_VERSION,
+        calendar_sync_status:
+            result.calendar_sync_status || "not_synced",
+    }
 }
 
 async function findExistingPlannedInsuranceClaimReminder({ docId, petId }) {
@@ -414,6 +470,128 @@ async function findExistingPlannedInsuranceClaimReminder({ docId, petId }) {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// GET /api/documents/:docId/actions/librela-reconciliation-preview
+// Read-only. Returns a structural plan and a token that must be presented back
+// before the repair transaction can run.
+router.get(
+    "/documents/:docId/actions/librela-reconciliation-preview",
+    async (req, res) => {
+        const { docId } = req.params
+
+        try {
+            const { doc, error: docError } = await loadVerifiedDocument(
+                docId,
+                "Document must be verified before TomoCare can review a repair."
+            )
+
+            if (docError) {
+                return res.status(docError.status).json(docError.body)
+            }
+
+            const plan = await loadLibrelaReconciliationPlan(doc)
+
+            if (!plan.actionable) {
+                return res.status(409).json({
+                    ok: false,
+                    reason: plan.reason,
+                    error: plan.message,
+                })
+            }
+
+            return res.json({
+                ok: true,
+                preview: toLibrelaReconciliationPreview(plan),
+            })
+        } catch (err) {
+            console.error("[librela-reconciliation-preview] error:", err)
+
+            return res.status(500).json({
+                ok: false,
+                error: "TomoCare could not review this repair safely.",
+            })
+        }
+    }
+)
+
+// POST /api/documents/:docId/actions/librela-reconciliation
+// Requires the exact read-only plan token returned above. The database RPC is
+// atomic and idempotent; this route intentionally does not call Calendar.
+router.post(
+    "/documents/:docId/actions/librela-reconciliation",
+    async (req, res) => {
+        const { docId } = req.params
+        const {
+            requestedBy = "rosa",
+            verifiedBy = "rosa",
+            previewToken = "",
+        } = req.body || {}
+
+        try {
+            if (!previewToken) {
+                return res.status(400).json({
+                    ok: false,
+                    reason: "preview_required",
+                    error: "Review the repair plan before applying it.",
+                })
+            }
+
+            const { doc, error: docError } = await loadVerifiedDocument(
+                docId,
+                "Document must remain verified before TomoCare can repair it."
+            )
+
+            if (docError) {
+                return res.status(docError.status).json(docError.body)
+            }
+
+            const plan = await loadLibrelaReconciliationPlan(doc)
+
+            if (!plan.actionable) {
+                return res.status(409).json({
+                    ok: false,
+                    reason: plan.reason,
+                    error: plan.message,
+                })
+            }
+
+            if (plan.preview_token !== previewToken) {
+                return res.status(409).json({
+                    ok: false,
+                    reason: "repair_plan_changed",
+                    error:
+                        "The care record changed after the repair preview. Review the plan again before applying it.",
+                })
+            }
+
+            const result = await reconcileLibrelaCycle({
+                doc,
+                plan,
+                requestedBy,
+                verifiedBy,
+            })
+
+            return res.json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    result.disposition === "existing"
+                        ? "This Librela cycle was already reconciled."
+                        : "Librela care history repaired and the next reminder saved in TomoCare.",
+                reconciliation: result,
+                reminder: toLibrelaReminderResponse(result),
+            })
+        } catch (err) {
+            console.error("[librela-reconciliation] error:", err)
+
+            return res.status(500).json({
+                ok: false,
+                error:
+                    "TomoCare could not apply the repair. No partial repair was saved.",
+            })
+        }
+    }
+)
 
 // POST /api/documents/:docId/actions/librela-reminder
 router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
@@ -450,78 +628,35 @@ router.post("/documents/:docId/actions/librela-reminder", async (req, res) => {
             })
         }
 
-        const injection = readiness.injection
+        const plan = await loadLibrelaReconciliationPlan(doc)
 
-        const anchorDate = injection.event_date
-        const dueDate = addDays(anchorDate, DUE_INTERVAL_DAYS)
-        const reminderDate = addDays(dueDate, -REMIND_BEFORE_DAYS)
-        const timingState = getReminderTimingState({ reminderDate, dueDate })
-        const nowIso = new Date().toISOString()
-
-        const payload = {
-            pet_id: doc.pet_id,
-            doc_id: doc.id,
-            event_type: "reminder",
-            event_date: reminderDate,
-            status: "planned",
-            details_json: {
-                subtype: LIBRELA_SUBTYPE,
-                action_type: "create_librela_reminder",
-                target_event_type: "injection",
-                target_subtype: LIBRELA_SUBTYPE,
-
-                rule_version: RULE_VERSION,
-                due_interval_days: DUE_INTERVAL_DAYS,
-                remind_before_days: REMIND_BEFORE_DAYS,
-
-                anchor_event_id: injection.id,
-                anchor_event_date: anchorDate,
-                due_date: dueDate,
-                timing_state: timingState,
-
-                source_document_id: doc.id,
-                source_document_title: doc.title,
-                source_org: doc.source_org,
-
-                requested_by: requestedBy,
-                requested_at: nowIso,
-                created_from: "post_verify_action",
-                calendar_sync_status: "not_synced",
-            },
+        if (!plan.actionable) {
+            return res.status(409).json({
+                ok: false,
+                reason: plan.reason,
+                error: plan.message,
+            })
         }
 
-        const existing = await findExistingPlannedLibrelaReminder({
-            petId: doc.pet_id,
-        })
-
-        const { row: reminderRow, action } = await upsertPlannedReminder({
-            existing,
-            payload,
+        const result = await reconcileLibrelaCycle({
+            doc,
+            plan,
+            requestedBy,
+            verifiedBy: requestedBy,
         })
 
         res.json({
             ok: true,
-            action,
+            action: result.disposition,
             message:
-                action === "created"
-                    ? "Librela reminder prepared."
-                    : "Existing Librela reminder updated.",
-            reminder: {
-                id: reminderRow.id,
-                event_date: reminderRow.event_date,
-                status: reminderRow.status,
-                due_date: reminderRow.details_json?.due_date,
-                timing_state: reminderRow.details_json?.timing_state,
-                anchor_event_date: reminderRow.details_json?.anchor_event_date,
-                rule_version: reminderRow.details_json?.rule_version,
-                calendar_sync_status:
-                    reminderRow.details_json?.calendar_sync_status ||
-                    "not_synced",
-            },
+                result.disposition === "existing"
+                    ? "Existing Librela reminder preserved."
+                    : "Librela reminder prepared.",
+            reminder: toLibrelaReminderResponse(result),
             source: {
                 document_id: doc.id,
                 title: doc.title,
-                injection_event_id: injection.id,
+                injection_event_id: result.injection_event_id,
             },
         })
     } catch (err) {

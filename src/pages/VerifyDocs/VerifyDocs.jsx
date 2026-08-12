@@ -46,7 +46,12 @@ export default function VerifyDocs() {
     const { toast, showToast } = useToast()
     const triage = useTriage(isVerified)
     const draft = useDraftEditor(detail, isVerified)
-    const postVerify = usePostVerifyActions({ selectedId, showToast, setError })
+    const postVerify = usePostVerifyActions({
+        selectedId,
+        showToast,
+        setError,
+        onReconciled: refreshSelectedDoc,
+    })
 
     function resetSelectedDocumentState() {
         setSelectedId(null)
@@ -316,7 +321,11 @@ export default function VerifyDocs() {
                     actionStatus={postVerify.postVerifyActionStatus}
                     librelaLoading={postVerify.postVerifyActionLoading === "librela"}
                     insuranceClaimLoading={postVerify.postVerifyActionLoading === "insurance"}
-                    onCreateLibrelaReminder={postVerify.handleCreateLibrelaReminder}
+                    onCreateLibrelaReminder={() =>
+                        postVerify.handleCreateLibrelaReminder(
+                            postVerifyRecommendations.librelaReminder.state
+                        )
+                    }
                     onCreateInsuranceClaimReminder={
                         postVerify.handleCreateInsuranceClaimReminder
                     }

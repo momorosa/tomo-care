@@ -50,17 +50,17 @@ test("uses the server-owned eligible recommendation contract", () => {
     })
 })
 
-test("presents a server-owned repair requirement without an action", () => {
+test("presents the server-owned repair as an explicit review action", () => {
     const doc = buildInvoice({
         action_recommendations: {
             librelaReminder: {
                 state: "repair_required",
                 show: true,
-                disabled: true,
+                disabled: false,
                 recommended: false,
-                badge: "Review required",
+                badge: "Repair available",
                 badge_tone: "warning",
-                button_label: "Review",
+                button_label: "Review repair",
                 body: "Verified invoice evidence confirms a Librela injection, but this record needs repair before a reminder can be created.",
             },
         },
@@ -69,10 +69,34 @@ test("presents a server-owned repair requirement without an action", () => {
     const recommendation = getPostVerifyRecommendations(doc).librelaReminder
 
     assert.equal(recommendation.state, "repair_required")
-    assert.equal(recommendation.disabled, true)
+    assert.equal(recommendation.disabled, false)
     assert.equal(recommendation.recommended, false)
-    assert.equal(recommendation.badge, "Review required")
-    assert.equal(recommendation.buttonLabel, "Review")
+    assert.equal(recommendation.badge, "Repair available")
+    assert.equal(recommendation.buttonLabel, "Review repair")
+})
+
+test("shows an already-reconciled cycle as complete", () => {
+    const doc = buildInvoice({
+        action_recommendations: {
+            librelaReminder: {
+                state: "reconciled",
+                show: true,
+                disabled: true,
+                recommended: false,
+                badge: "Reconciled",
+                badge_tone: "success",
+                button_label: "Done",
+                body: "The verified injection and next reminder are already reconciled.",
+            },
+        },
+    })
+
+    const recommendation = getPostVerifyRecommendations(doc).librelaReminder
+
+    assert.equal(recommendation.state, "reconciled")
+    assert.equal(recommendation.disabled, true)
+    assert.equal(recommendation.badge, "Reconciled")
+    assert.equal(recommendation.buttonLabel, "Done")
 })
 
 test("a broad client-side Librela mention can only request review", () => {
