@@ -5,6 +5,10 @@ import { formatAge } from "../../lib/petAge.js"
 import { HOME_SECTIONS } from "./conversationalHomeState.js"
 import { getInboxErrorPresentation } from "./inboxErrorPresentation.js"
 import { getCompactReminderPresentation } from "./reminderPresentation.js"
+import {
+    getCalendarStatusMessage,
+    getReminderCalendarControl,
+} from "./calendarRecovery.js"
 
 const NAV_ITEMS = [
     { section: HOME_SECTIONS.PROFILE, label: "Momo", icon: "pets" },
@@ -314,6 +318,8 @@ function ReminderContext({
                             careSummary.last_librela?.event_date || null,
                     })
                     const calendarState = calendarSyncByReminder[reminder.id]
+                    const calendarMessage =
+                        getCalendarStatusMessage(calendarState)
 
                     return (
                         <details
@@ -350,9 +356,12 @@ function ReminderContext({
                                     </div>
                                 </div>
 
-                                <CalendarLink
+                                <CalendarControl
+                                    reminder={reminder}
                                     meta={meta}
+                                    transientState={calendarState}
                                     className="tomo-calendar-footer tomo-calendar-footer--collapsed"
+                                    onSync={onSyncCalendar}
                                     onClick={(event) => event.stopPropagation()}
                                 />
                             </summary>
@@ -399,29 +408,33 @@ function ReminderContext({
                                             Mark filed
                                         </button>
                                     )}
-                                    {isSyncableHomeMedication(reminder) && (
-                                        <button
-                                            type="button"
-                                            className="tomo-btn tomo-btn-secondary px-3 py-1 text-xs"
-                                            onClick={() => onSyncCalendar(reminder)}
-                                            disabled={calendarState?.status === "syncing"}
-                                        >
-                                            {calendarState?.status === "syncing"
-                                                ? "Adding…"
-                                                : "Add to calendar"}
-                                        </button>
-                                    )}
                                 </div>
-                                {calendarState?.status === "failed" && (
-                                    <p className="mt-2 text-xs text-tomo-danger">
-                                        Calendar sync failed. The TomoCare reminder is unchanged.
+                                {calendarMessage && (
+                                    <p
+                                        className={`mt-3 text-xs leading-5 ${
+                                            calendarMessage.tone === "success"
+                                                ? "text-tomo-success"
+                                                : calendarMessage.tone === "warning"
+                                                  ? "text-tomo-warning"
+                                                  : "text-tomo-danger"
+                                        }`}
+                                        role="status"
+                                    >
+                                        {calendarMessage.text}
                                     </p>
+                                )}
+                                {calendarState?.phase ===
+                                    "reauthorization_required" && (
+                                    <CalendarReconnectGuidance />
                                 )}
                             </div>
 
-                            <CalendarLink
+                            <CalendarControl
+                                reminder={reminder}
                                 meta={meta}
+                                transientState={calendarState}
                                 className="tomo-calendar-footer tomo-calendar-footer--expanded"
+                                onSync={onSyncCalendar}
                             />
                         </details>
                     )
@@ -431,29 +444,83 @@ function ReminderContext({
     )
 }
 
-function CalendarLink({ meta, className, onClick }) {
-    return (
-        <a
-            href={meta.calendarUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={className}
-            aria-label={`Open ${meta.title} in Google Calendar`}
-            title={
-                meta.calendarIsSpecificEvent
-                    ? "Open event in Google Calendar"
-                    : "Open Google Calendar"
-            }
-            onClick={onClick}
-        >
+function CalendarControl({
+    reminder,
+    meta,
+    transientState,
+    className,
+    onSync,
+    onClick,
+}) {
+    const control = getReminderCalendarControl(reminder, transientState)
+    const content = (
+        <>
             <span
                 className="material-symbols-outlined text-lg"
                 aria-hidden="true"
             >
                 calendar_month
             </span>
-            Calendar
+            {control.label}
+        </>
+    )
+
+    if (control.kind === "sync") {
+        return (
+            <button
+                type="button"
+                className={className}
+                disabled={control.disabled}
+                aria-label={`${control.label}: ${meta.title}`}
+                onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    onClick?.(event)
+                    onSync?.(reminder)
+                }}
+            >
+                {content}
+            </button>
+        )
+    }
+
+    return (
+        <a
+            href={control.href}
+            target="_blank"
+            rel="noreferrer"
+            className={className}
+            aria-label={`${control.label}: ${meta.title}`}
+            title={control.label}
+            onClick={onClick}
+        >
+            {content}
         </a>
+    )
+}
+
+function CalendarReconnectGuidance() {
+    return (
+        <div
+            className="mt-3 rounded-xl border border-tomo-warning/30 bg-tomo-warning/10 p-3 text-xs leading-5 text-tomo-text"
+            role="status"
+        >
+            <p className="font-semibold text-tomo-text-h">
+                Reconnect Google Calendar
+            </p>
+            <p className="mt-1">
+                Run the reconnect command from the TomoCare project folder,
+                update <code>GCAL_REFRESH_TOKEN</code> in <code>.env</code>, and
+                restart TomoCare.
+            </p>
+            <code className="mt-2 block overflow-x-auto rounded-lg bg-tomo-code px-2 py-1.5 text-tomo-text-h">
+                node server/scripts/get-gcal-refresh-token.js
+            </code>
+            <p className="mt-2">
+                Then choose <strong>Try Calendar again</strong>. The TomoCare
+                reminder is already safe.
+            </p>
+        </div>
     )
 }
 
@@ -612,18 +679,6 @@ function isRecordableHomeMedication(reminder) {
         details.reminder_type === "home_medication" &&
         details.requires_appointment === false &&
         ["due_now", "overdue"].includes(reminder.timing_state)
-    )
-}
-
-function isSyncableHomeMedication(reminder) {
-    const details = reminder.details_json || {}
-
-    return (
-        details.reminder_type === "home_medication" &&
-        details.requires_appointment === false &&
-        reminder.calendar_sync_status !== "synced" &&
-        !reminder.google_calendar_url &&
-        ["upcoming", "due_now"].includes(reminder.timing_state)
     )
 }
 

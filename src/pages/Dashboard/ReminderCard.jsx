@@ -2,6 +2,7 @@ import {
     formatDisplayDate,
     formatIsoDatesInText,
 } from "../../lib/displayDate.js"
+import { canSyncReminderToGoogleCalendar } from "./calendarRecovery.js"
 
 export default function ReminderCard({
     reminder,
@@ -14,7 +15,7 @@ export default function ReminderCard({
     const meta = getReminderMeta(reminder)
     const canRecordGiven = isRecordableHomeMedication(reminder)
     const canMarkFiled = isFileableInsuranceClaim(reminder)
-    const canSyncCalendar = isSyncableHomeMedication(reminder)
+    const canSyncCalendar = canSyncReminderToGoogleCalendar(reminder)
     const isSyncingCalendar = calendarSync?.phase === "syncing"
     const calendarSyncFailed = calendarSync?.phase === "error"
     const calendarReauthorizationRequired =
@@ -208,18 +209,6 @@ function isRecordableHomeMedication(reminder) {
         details.reminder_type === "home_medication" &&
         details.requires_appointment === false &&
         ["due_now", "overdue"].includes(reminder.timing_state)
-    )
-}
-
-function isSyncableHomeMedication(reminder) {
-    const details = reminder.details_json || {}
-
-    return (
-        details.reminder_type === "home_medication" &&
-        details.requires_appointment === false &&
-        reminder.calendar_sync_status !== "synced" &&
-        !reminder.google_calendar_url &&
-        ["upcoming", "due_now"].includes(reminder.timing_state)
     )
 }
 

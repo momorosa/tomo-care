@@ -135,7 +135,14 @@ export async function syncReminderToGoogleCalendar(eventId) {
     }
 
     if (!r.ok || j.error) {
-        throw new Error(j.error || "Failed to sync reminder to Google Calendar")
+        const error = new Error(
+            j.error || "Failed to sync reminder to Google Calendar"
+        )
+        error.status = r.status
+        error.reason = j.reason || null
+        error.recovery = j.recovery || null
+        error.retryable = Boolean(j.retryable)
+        throw error
     }
 
     return j

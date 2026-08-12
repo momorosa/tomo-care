@@ -5,6 +5,7 @@ import {
     buildLibrelaRepairPreviewMessage,
     getLibrelaActionIntent,
 } from "../librelaReconciliationFlow.js"
+import { buildSavedOnlyCalendarStatus } from "../postVerifyCalendarRecovery.js"
 
 const INITIAL_ACTION_STATUS = {
     librela: {
@@ -13,12 +14,18 @@ const INITIAL_ACTION_STATUS = {
         calendarUrl: null,
         reminderId: null,
         previewToken: null,
+        calendarRetryAllowed: false,
+        calendarSyncAttempted: false,
+        recovery: null,
     },
     insurance: {
         phase: "idle",
         message: "",
         calendarUrl: null,
         reminderId: null,
+        calendarRetryAllowed: false,
+        calendarSyncAttempted: false,
+        recovery: null,
     },
 }
 
@@ -74,6 +81,70 @@ export function usePostVerifyActions({
         setShowPostVerifyActions(false)
     }
 
+    async function syncSavedReminder({
+        actionKey,
+        reminderId,
+        successToast,
+    }) {
+        try {
+            setActionStatus(actionKey, {
+                phase: "syncing",
+                message: "Adding to Google Calendar…",
+                reminderId,
+                calendarRetryAllowed: false,
+                recovery: null,
+            })
+
+            const syncResult = await api.syncReminderToGoogleCalendar(
+                reminderId
+            )
+
+            if (syncResult.blocked) {
+                setActionStatus(
+                    actionKey,
+                    buildSavedOnlyCalendarStatus({
+                        reminderId,
+                        blockedMessage:
+                            syncResult.error ||
+                            "Reminder saved in TomoCare, but it was not eligible for Google Calendar sync.",
+                    })
+                )
+
+                showToast("Reminder saved in TomoCare, but not synced to Calendar")
+                return
+            }
+
+            const calendarUrl =
+                syncResult.google_calendar?.html_link || null
+
+            setActionStatus(actionKey, {
+                phase: "synced",
+                message: "Added to Google Calendar.",
+                calendarUrl,
+                reminderId,
+                calendarRetryAllowed: false,
+                calendarSyncAttempted: true,
+                recovery: null,
+            })
+
+            showToast(successToast(syncResult))
+        } catch (e) {
+            setActionStatus(
+                actionKey,
+                buildSavedOnlyCalendarStatus({
+                    reminderId,
+                    error: e,
+                })
+            )
+
+            showToast(
+                e.recovery === "reauthorize_google_calendar"
+                    ? "Reminder saved. Reconnect Google Calendar."
+                    : "Reminder saved, but Calendar was not updated"
+            )
+        }
+    }
+
     async function createAndSyncReminder({
         actionKey,
         createReminder,
@@ -88,58 +159,50 @@ export function usePostVerifyActions({
             message: "Creating reminder…",
             calendarUrl: null,
             reminderId: null,
+            calendarRetryAllowed: false,
+            calendarSyncAttempted: false,
+            recovery: null,
         })
 
+        let createResult
+
         try {
-            const createResult = await createReminder()
-            const reminder = createResult.reminder
-
-            setActionStatus(actionKey, {
-                phase: "syncing",
-                message: "Adding to Google Calendar…",
-                reminderId: reminder?.id || null,
-            })
-
-            const syncResult = await api.syncReminderToGoogleCalendar(
-                reminder.id
-            )
-
-            if (syncResult.blocked) {
-                setActionStatus(actionKey, {
-                    phase: "saved_only",
-                    message:
-                        syncResult.error ||
-                        "Reminder saved in TomoCare, but it was not eligible for Google Calendar sync.",
-                    calendarUrl: null,
-                    reminderId: reminder.id,
-                })
-
-                showToast("Reminder saved in TomoCare, but not synced to Calendar")
-                return
-            }
-
-            const calendarUrl =
-                syncResult.google_calendar?.html_link || null
-
-            setActionStatus(actionKey, {
-                phase: "synced",
-                message: "Added to Google Calendar.",
-                calendarUrl,
-                reminderId: reminder.id,
-            })
-
-            showToast(createdToast(syncResult, createResult))
+            createResult = await createReminder()
         } catch (e) {
             setError(e.message)
-
             setActionStatus(actionKey, {
                 phase: "error",
                 message: e.message,
                 calendarUrl: null,
+                reminderId: null,
+                calendarRetryAllowed: false,
             })
-
-            showToast("Could not complete reminder action")
+            showToast("Could not create reminder")
+            return
         }
+
+        const reminderId = createResult.reminder?.id
+
+        if (!reminderId) {
+            const error = new Error(
+                "Reminder saved, but TomoCare could not identify it for Calendar sync."
+            )
+            setError(error.message)
+            setActionStatus(actionKey, {
+                phase: "error",
+                message: error.message,
+                reminderId: null,
+                calendarRetryAllowed: false,
+            })
+            return
+        }
+
+        await syncSavedReminder({
+            actionKey,
+            reminderId,
+            successToast: (syncResult) =>
+                createdToast(syncResult, createResult),
+        })
     }
 
     async function previewLibrelaRepair() {
@@ -192,10 +255,12 @@ export function usePostVerifyActions({
             })
 
             setActionStatus("librela", {
-                phase: "saved_only",
+                ...buildSavedOnlyCalendarStatus({
+                    reminderId: result.reminder?.id || null,
+                    calendarSyncAttempted: false,
+                }),
                 message:
-                    "Care history repaired. The September 14 Librela reminder is saved in TomoCare; Calendar sync remains a separate step.",
-                reminderId: result.reminder?.id || null,
+                    "Care history repaired. The next Librela reminder is saved in TomoCare and ready for Google Calendar.",
                 previewToken: null,
             })
 
@@ -275,6 +340,21 @@ export function usePostVerifyActions({
         })
     }
 
+    async function handleRetryCalendar(actionKey) {
+        if (actionInFlight) return
+
+        const status = postVerifyActionStatus[actionKey]
+        if (!status?.calendarRetryAllowed || !status?.reminderId) return
+
+        setError("")
+
+        await syncSavedReminder({
+            actionKey,
+            reminderId: status.reminderId,
+            successToast: () => "Reminder added to Google Calendar",
+        })
+    }
+
     return {
         showPostVerifyActions,
         setShowPostVerifyActions,
@@ -288,5 +368,8 @@ export function usePostVerifyActions({
 
         handleCreateLibrelaReminder,
         handleCreateInsuranceClaimReminder,
+        handleRetryLibrelaCalendar: () => handleRetryCalendar("librela"),
+        handleRetryInsuranceCalendar: () =>
+            handleRetryCalendar("insurance"),
     }
 }

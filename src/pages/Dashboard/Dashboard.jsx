@@ -291,17 +291,23 @@ export default function Dashboard() {
         }))
 
         try {
-            await syncReminderToGoogleCalendar(reminder.id)
+            const result = await syncReminderToGoogleCalendar(reminder.id)
             await loadReminders({ silent: true })
 
             setCalendarSyncByReminder((current) => ({
                 ...current,
                 [reminder.id]: {
                     phase: "synced",
+                    message:
+                        result.message || "Added to Google Calendar.",
                 },
             }))
         } catch (error) {
             console.error("[dashboard] calendar sync failed:", error)
+
+            if (error.reason === "timing_state_not_eligible") {
+                await loadReminders({ silent: true })
+            }
 
             setCalendarSyncByReminder((current) => ({
                 ...current,
@@ -310,6 +316,8 @@ export default function Dashboard() {
                         error.recovery === "reauthorize_google_calendar"
                             ? "reauthorization_required"
                             : "error",
+                    message: error.message,
+                    reason: error.reason,
                 },
             }))
         }

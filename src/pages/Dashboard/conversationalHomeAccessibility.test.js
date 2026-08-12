@@ -69,20 +69,27 @@ test("uses one aligned subheader boundary and clean full-width navigation rows",
 })
 
 test("keeps compact reminder cards scannable and links to Google Calendar", async () => {
-    const [sidebarSource, presentationSource, css, indexHtml] = await Promise.all([
-        readFile(sidebarUrl, "utf8"),
-        readFile(new URL("./reminderPresentation.js", import.meta.url), "utf8"),
-        readFile(cssUrl, "utf8"),
-        readFile(indexHtmlUrl, "utf8"),
-    ])
+    const [sidebarSource, presentationSource, calendarSource, css, indexHtml] =
+        await Promise.all([
+            readFile(sidebarUrl, "utf8"),
+            readFile(
+                new URL("./reminderPresentation.js", import.meta.url),
+                "utf8"
+            ),
+            readFile(new URL("./calendarRecovery.js", import.meta.url), "utf8"),
+            readFile(cssUrl, "utf8"),
+            readFile(indexHtmlUrl, "utf8"),
+        ])
 
     assert.match(sidebarSource, /tomo-compact-reminder__icon/)
     assert.match(sidebarSource, /meta\.eyebrow/)
     assert.match(sidebarSource, /calendar_month/)
     assert.match(indexHtml, /(?:,|=)calendar_month(?:,|&)/)
     assert.match(indexHtml, /(?:,|=)receipt_long(?:,|&)/)
-    assert.match(sidebarSource, />\s*Calendar\s*</)
-    assert.match(sidebarSource, /Open \$\{meta\.title\} in Google Calendar/)
+    assert.match(sidebarSource, /\{control\.label\}/)
+    assert.match(calendarSource, /Add to Google Calendar/)
+    assert.match(calendarSource, /Open Google Calendar event/)
+    assert.match(calendarSource, /Open Google Calendar/)
     assert.match(sidebarSource, /tomo-calendar-footer--collapsed/)
     assert.match(sidebarSource, /tomo-calendar-footer--expanded/)
     assert.match(presentationSource, /At-home medication/)
