@@ -69,6 +69,34 @@ export async function createLibrelaReminder(id, { requestedBy = "rosa" } = {}) {
     return jsonOrThrow(r, "Failed to create Librela reminder")
 }
 
+export async function previewLibrelaReconciliation(id) {
+    const r = await fetch(
+        `/api/documents/${id}/actions/librela-reconciliation-preview`
+    )
+
+    return jsonOrThrow(r, "Failed to review the Librela repair")
+}
+
+export async function applyLibrelaReconciliation(
+    id,
+    { previewToken, requestedBy = "rosa", verifiedBy = "rosa" } = {}
+) {
+    const r = await fetch(
+        `/api/documents/${id}/actions/librela-reconciliation`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+                previewToken,
+                requestedBy,
+                verifiedBy,
+            }),
+        }
+    )
+
+    return jsonOrThrow(r, "Failed to repair the Librela care record")
+}
+
 export async function createInsuranceClaimReminder(
     id,
     { requestedBy = "rosa", insuranceProvider = "Nationwide" } = {}

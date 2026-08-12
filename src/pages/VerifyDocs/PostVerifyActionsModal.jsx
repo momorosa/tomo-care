@@ -144,7 +144,11 @@ function ActionButton({
     const phase = status?.phase || "idle"
     const calendarUrl = status?.calendarUrl || null
 
-    const isWorking = phase === "creating" || phase === "syncing"
+    const isWorking =
+        phase === "creating" ||
+        phase === "syncing" ||
+        phase === "previewing" ||
+        phase === "repairing"
     const isSynced = phase === "synced"
     const isSavedOnly = phase === "saved_only"
     const isError = phase === "error"
@@ -227,7 +231,7 @@ function ActionButton({
             <button
                 type="button"
                 className={
-                    phase === "idle" && !disabled
+                    (phase === "idle" || phase === "repair_ready") && !disabled
                         ? "tomo-btn tomo-btn-primary shrink-0 px-4 py-1 text-xs"
                         : "tomo-btn tomo-btn-secondary shrink-0 px-4 py-1 text-xs"
                 }
@@ -286,6 +290,9 @@ function getStatusMessage({ phase, fallbackMessage, loadingLabel }) {
     if (phase === "idle") return ""
     if (phase === "creating") return "Creating reminder in TomoCare…"
     if (phase === "syncing") return "Adding reminder to Google Calendar…"
+    if (phase === "previewing") return "Checking the repair plan…"
+    if (phase === "repair_ready") return fallbackMessage
+    if (phase === "repairing") return "Repairing the care record…"
     if (phase === "synced") return fallbackMessage || "Added to Google Calendar."
     if (phase === "saved_only") {
         return (
@@ -303,6 +310,9 @@ function getStatusMessage({ phase, fallbackMessage, loadingLabel }) {
 function getButtonLabel({ phase, disabled, loadingLabel, defaultLabel }) {
     if (phase === "creating") return "Creating…"
     if (phase === "syncing") return "Syncing…"
+    if (phase === "previewing") return "Checking…"
+    if (phase === "repair_ready") return "Apply repair"
+    if (phase === "repairing") return "Repairing…"
     if (phase === "synced") return "Added"
     if (phase === "saved_only") return "Saved"
     if (phase === "error") return "Retry"
