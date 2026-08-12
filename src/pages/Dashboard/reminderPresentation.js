@@ -2,9 +2,9 @@ import {
     formatDisplayDate,
     formatIsoDatesInText,
 } from "../../lib/displayDate.js"
+import { GOOGLE_CALENDAR_HOME_URL } from "./calendarRecovery.js"
 
-export const GOOGLE_CALENDAR_HOME_URL =
-    "https://calendar.google.com/calendar/u/0/r"
+export { GOOGLE_CALENDAR_HOME_URL } from "./calendarRecovery.js"
 
 export function getCompactReminderPresentation(
     reminder,

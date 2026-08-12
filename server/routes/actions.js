@@ -905,15 +905,6 @@ router.post(
             const existingGoogleCalendarEventId =
                 externalRefs.google_calendar_event_id || null
 
-            if (calendarSyncStatus === "synced" && !existingGoogleCalendarEventId) {
-                return res.status(409).json({
-                    ok: false,
-                    reason: "synced_missing_external_ref",
-                    error:
-                        "This reminder is marked as synced but does not have a Google Calendar event ID.",
-                })
-            }
-
             const calendar = getGoogleCalendarService()
             const { calendarId, timezone } = getGoogleCalendarConfig()
             const calendarPayload = buildGoogleCalendarPayload(event, timezone)

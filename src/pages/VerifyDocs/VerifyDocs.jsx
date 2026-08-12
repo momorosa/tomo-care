@@ -329,6 +329,12 @@ export default function VerifyDocs() {
                     onCreateInsuranceClaimReminder={
                         postVerify.handleCreateInsuranceClaimReminder
                     }
+                    onRetryLibrelaCalendar={
+                        postVerify.handleRetryLibrelaCalendar
+                    }
+                    onRetryInsuranceCalendar={
+                        postVerify.handleRetryInsuranceCalendar
+                    }
                 />
 
                 <div className="mt-4 grid grid-cols-12 gap-4 flex-1 min-h-0">

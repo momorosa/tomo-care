@@ -1,3 +1,5 @@
+import { getSavedOnlyCalendarButton } from "./postVerifyCalendarRecovery.js"
+
 export default function PostVerifyActionsModal({
     open,
     onClose,
@@ -9,6 +11,8 @@ export default function PostVerifyActionsModal({
     insuranceClaimLoading = false,
     onCreateLibrelaReminder,
     onCreateInsuranceClaimReminder,
+    onRetryLibrelaCalendar,
+    onRetryInsuranceCalendar,
 }) {
     if (!open) return null
 
@@ -85,6 +89,7 @@ export default function PostVerifyActionsModal({
                         loadingLabel="Creating…"
                         status={actionStatus.librela}
                         onClick={onCreateLibrelaReminder}
+                        onCalendarRetry={onRetryLibrelaCalendar}
                     />
 
                     <ActionButton
@@ -98,6 +103,7 @@ export default function PostVerifyActionsModal({
                         loadingLabel="Creating…"
                         status={actionStatus.insurance}
                         onClick={onCreateInsuranceClaimReminder}
+                        onCalendarRetry={onRetryInsuranceCalendar}
                     />
 
                     <ActionButton
@@ -138,6 +144,7 @@ function ActionButton({
     loadingLabel = "Working…",
     status = null,
     onClick,
+    onCalendarRetry,
 }) {
     if (hidden) return null
 
@@ -152,8 +159,9 @@ function ActionButton({
     const isSynced = phase === "synced"
     const isSavedOnly = phase === "saved_only"
     const isError = phase === "error"
+    const calendarButton = getSavedOnlyCalendarButton(status)
 
-    const isComplete = isSynced || isSavedOnly
+    const isComplete = isSynced || (isSavedOnly && !calendarButton)
     const isDisabled =
         disabled || loading || isWorking || isComplete || actionInFlight
 
@@ -168,6 +176,7 @@ function ActionButton({
         disabled,
         loadingLabel,
         defaultLabel: defaultButtonLabel,
+        calendarButton,
     })
 
     return (
@@ -216,6 +225,10 @@ function ActionButton({
                     </p>
                 )}
 
+                {status?.recovery === "reauthorize_google_calendar" && (
+                    <CalendarReconnectGuidance />
+                )}
+
                 {calendarUrl && (
                     <a
                         href={calendarUrl}
@@ -236,7 +249,7 @@ function ActionButton({
                         : "tomo-btn tomo-btn-secondary shrink-0 px-4 py-1 text-xs"
                 }
                 disabled={isDisabled}
-                onClick={onClick}
+                onClick={calendarButton ? onCalendarRetry : onClick}
             >
                 {buttonLabel}
             </button>
@@ -307,16 +320,39 @@ function getStatusMessage({ phase, fallbackMessage, loadingLabel }) {
     return loadingLabel || ""
 }
 
-function getButtonLabel({ phase, disabled, loadingLabel, defaultLabel }) {
+function getButtonLabel({
+    phase,
+    disabled,
+    loadingLabel,
+    defaultLabel,
+    calendarButton,
+}) {
     if (phase === "creating") return "Creating…"
     if (phase === "syncing") return "Syncing…"
     if (phase === "previewing") return "Checking…"
     if (phase === "repair_ready") return "Apply repair"
     if (phase === "repairing") return "Repairing…"
     if (phase === "synced") return "Added"
-    if (phase === "saved_only") return "Saved"
+    if (phase === "saved_only") return calendarButton?.label || "Saved"
     if (phase === "error") return "Retry"
     if (disabled) return defaultLabel || "Soon"
 
     return defaultLabel || (loadingLabel === "Creating…" ? "Create" : "Choose")
+}
+
+function CalendarReconnectGuidance() {
+    return (
+        <div className="mt-3 rounded-xl border border-tomo-warning/30 bg-tomo-warning/10 p-3 text-xs leading-5 text-tomo-text">
+            <p className="font-semibold text-tomo-text-h">
+                Reconnect Google Calendar
+            </p>
+            <p className="mt-1">
+                Run the reconnect command, update <code>GCAL_REFRESH_TOKEN</code>{" "}
+                in <code>.env</code>, and restart TomoCare.
+            </p>
+            <code className="mt-2 block overflow-x-auto rounded-lg bg-tomo-code px-2 py-1.5 text-tomo-text-h">
+                node server/scripts/get-gcal-refresh-token.js
+            </code>
+        </div>
+    )
 }
