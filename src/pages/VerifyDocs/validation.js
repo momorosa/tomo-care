@@ -21,6 +21,32 @@ export function validateExtracted(ex) {
         errs["doc_date"] = "Use YYYY-MM-DD."
     }
 
+    if (ex?.weight_measurement != null) {
+        const weight = ex.weight_measurement
+        const value = Number(weight.value)
+
+        if (!isNumberLike(weight.value)) {
+            errs["weight_measurement.value"] = "Must be a number."
+        }
+        if (!["kg", "lb"].includes(weight.unit)) {
+            errs["weight_measurement.unit"] = "Use kg or lb."
+        }
+        if (weight.measured_date && !isIsoDate(weight.measured_date)) {
+            errs["weight_measurement.measured_date"] = "YYYY-MM-DD."
+        }
+        if (!weight.measured_date) {
+            errs["weight_measurement.measured_date"] = "Required."
+        }
+        if (
+            Number.isFinite(value) &&
+            ((weight.unit === "kg" && (value < 8 || value > 25)) ||
+                (weight.unit === "lb" && (value < 18 || value > 55)))
+        ) {
+            errs["weight_measurement.value"] =
+                "Outside the supported range for Momo."
+        }
+    }
+
     if (Array.isArray(ex?.events)) {
         ex.events.forEach((e, i) => {
             if (!e?.event_type) errs[`events.${i}.event_type`] = "Required."

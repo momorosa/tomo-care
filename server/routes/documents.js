@@ -4,6 +4,10 @@ import {
     buildLibrelaReminderRecommendation,
     canonicalizeVerifiedLibrelaEvents,
 } from "../lib/librelaEvidence.js"
+import {
+    buildWeightMaterializationRecommendation,
+    getVerifiedWeightCandidate,
+} from "../lib/verifiedWeight.js"
 
 const router = express.Router()
 
@@ -54,14 +58,14 @@ router.get("/documents/:docId", async (req, res) => {
 
     const { data: doc, error } = await sbAdmin
         .from("documents")
-        .select("id, pet_id, doc_type, title, doc_date, source_org, status, file_url, raw_text, text_extracted, triage_result, remarks")
+        .select("id, pet_id, doc_type, title, doc_date, source_org, status, file_url, raw_text, text_extracted, triage_result, remarks, updated_at")
         .eq("id", docId)
         .single()
 
     if (error) return res.status(404).json({ error: error.message })
 
     // counts for "materialized outputs"
-    const [events, labs, costItems] = await Promise.all([
+    const [events, labs, costItems, facts, pet] = await Promise.all([
         sbAdmin
             .from("events")
             .select(
@@ -70,6 +74,15 @@ router.get("/documents/:docId", async (req, res) => {
             .eq("doc_id", docId),
         sbAdmin.from("labs").select("id", { count: "exact", head: true }).eq("doc_id", docId),
         sbAdmin.from("cost_items").select("id", { count: "exact", head: true }).eq("doc_id", docId),
+        sbAdmin
+            .from("facts")
+            .select("id, pet_id, doc_id, fact_type, fact_date, value_json, status, confidence, verified_at, verified_by")
+            .eq("doc_id", docId),
+        sbAdmin
+            .from("pets")
+            .select("id, weight_value, weight_unit, updated_at")
+            .eq("id", doc.pet_id)
+            .single(),
     ])
 
     if (events.error) return res.status(500).json({ error: events.error.message })
@@ -77,12 +90,19 @@ router.get("/documents/:docId", async (req, res) => {
     if (costItems.error) {
         return res.status(500).json({ error: costItems.error.message })
     }
+    if (facts.error) return res.status(500).json({ error: facts.error.message })
+    if (pet.error) return res.status(500).json({ error: pet.error.message })
 
     const materializedEvents = events.data || []
     const actionRecommendations = {
         librelaReminder: buildLibrelaReminderRecommendation({
             document: doc,
             materializedEvents,
+        }),
+        weightMaterialization: buildWeightMaterializationRecommendation({
+            document: doc,
+            facts: facts.data || [],
+            pet: pet.data,
         }),
     }
 
@@ -95,6 +115,7 @@ router.get("/documents/:docId", async (req, res) => {
             events: materializedEvents.length,
             labs: labs.count ?? 0,
             cost_items: costItems.count ?? 0,
+            facts: (facts.data || []).length,
         },
     })
 })
@@ -340,11 +361,40 @@ router.post("/documents/:docId/approve", async (req, res) => {
             if (labErr) return res.status(500).json({ error: labErr.message })
         }
 
+        const verifiedWeight = getVerifiedWeightCandidate(
+            {
+                ...doc,
+                status: "verified",
+                doc_date: approvedDocDate || doc.doc_date,
+                text_extracted: extracted,
+            },
+            { allowRawText: false }
+        )
+
+        if (verifiedWeight) {
+            const { error: weightErr } = await sbAdmin.rpc(
+                "materialize_verified_weight_measurement",
+                {
+                    p_doc_id: docId,
+                    p_measurement: verifiedWeight,
+                    p_verified_by: verifiedBy,
+                }
+            )
+
+            if (weightErr) {
+                return res.status(500).json({
+                    error:
+                        "The document was verified, but its weight could not be saved. Reopen the document to review the weight recovery action.",
+                })
+            }
+        }
+
         // 6) Return updated counts
-        const [eventsCount, costCount, labsCount] = await Promise.all([
+        const [eventsCount, costCount, labsCount, factsCount] = await Promise.all([
             sbAdmin.from("events").select("id", { count: "exact", head: true }).eq("doc_id", docId),
             sbAdmin.from("cost_items").select("id", { count: "exact", head: true }).eq("doc_id", docId),
             sbAdmin.from("labs").select("id", { count: "exact", head: true }).eq("doc_id", docId),
+            sbAdmin.from("facts").select("id", { count: "exact", head: true }).eq("doc_id", docId),
         ])
 
         res.json({
@@ -354,6 +404,7 @@ router.post("/documents/:docId/approve", async (req, res) => {
                 events: eventsCount.count ?? 0,
                 cost_items: costCount.count ?? 0,
                 labs: labsCount.count ?? 0,
+                facts: factsCount.count ?? 0,
             },
         })
     } catch (err) {

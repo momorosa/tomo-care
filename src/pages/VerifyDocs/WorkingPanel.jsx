@@ -92,6 +92,7 @@ export default function WorkingPanel({
     onSaveDraft = null,
     onSaveAndVerify = null,
     onUpdateInvoiceId = null,
+    onUpdateWeightMeasurement = null,
     onUpdateEvent = null,
     onAddEvent = null,
     onRemoveEvent = null,
@@ -153,8 +154,8 @@ export default function WorkingPanel({
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-tomo-text-h">Working panel</p>
                     <p className="text-[11px] text-tomo-text">
-                        events {counts.events} · costs {counts.cost_items} · labs{" "}
-                        {counts.labs}
+                        events {counts.events} · costs {counts.cost_items} · facts{" "}
+                        {counts.facts || 0}
                     </p>
                 </div>
 
@@ -309,6 +310,7 @@ export default function WorkingPanel({
                         onAcceptAllConfirmed={onAcceptAllConfirmed}
                         validationErrors={validationErrors}
                         onUpdateInvoiceId={onUpdateInvoiceId}
+                        onUpdateWeightMeasurement={onUpdateWeightMeasurement}
                         onUpdateEvent={onUpdateEvent}
                         onAddEvent={onAddEvent}
                         onRemoveEvent={onRemoveEvent}
@@ -350,6 +352,7 @@ function FieldsView({
     onAcceptAllConfirmed,
     validationErrors,
     onUpdateInvoiceId,
+    onUpdateWeightMeasurement,
     onUpdateEvent,
     onAddEvent,
     onRemoveEvent,
@@ -410,6 +413,16 @@ function FieldsView({
                 }
                 triage={triageMap["totals.paid"]}
                 isVerified={isVerified}
+            />
+
+            <WeightMeasurementBlock
+                measurement={data?.weight_measurement || null}
+                editMode={editMode}
+                isVerified={isVerified}
+                triageMap={triageMap}
+                errors={validationErrors}
+                fallbackDate={data?.doc_date || ""}
+                onUpdate={onUpdateWeightMeasurement}
             />
 
             <Field
@@ -676,6 +689,144 @@ function FieldEdit({ label, value, onChange, placeholder, error }) {
             />
 
             {error && <p className="text-xs text-red-200 mt-1">{error}</p>}
+        </div>
+    )
+}
+
+function WeightMeasurementBlock({
+    measurement,
+    editMode,
+    isVerified,
+    triageMap,
+    errors,
+    fallbackDate,
+    onUpdate,
+}) {
+    const valuePath = "weight_measurement.value"
+    const unitPath = "weight_measurement.unit"
+    const datePath = "weight_measurement.measured_date"
+    const triage =
+        triageMap[valuePath] || triageMap[unitPath] || triageMap[datePath]
+
+    if (!measurement && !editMode) return null
+
+    if (!measurement && editMode) {
+        return (
+            <div>
+                <p className="text-xs text-tomo-text">Weight measurement</p>
+                <button
+                    type="button"
+                    className="mt-2 text-xs px-2 py-1 rounded-md border border-tomo-border text-tomo-text hover:text-tomo-text-h"
+                    onClick={() =>
+                        onUpdate?.({
+                            value: "",
+                            unit: "kg",
+                            measured_date: fallbackDate,
+                            source_label: "Manually verified weight",
+                            extraction_method: "manual_verified_weight",
+                        })
+                    }
+                >
+                    + Add weight
+                </button>
+            </div>
+        )
+    }
+
+    if (!editMode) {
+        return (
+            <div className="p-2 rounded-lg border border-tomo-border">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-tomo-text-h">
+                        Weight · {measurement.value} {measurement.unit}
+                    </p>
+                    {triage && (
+                        <ReviewStatusBadge
+                            state={triage.state}
+                            accepted={isVerified}
+                            isVerified={isVerified}
+                        />
+                    )}
+                </div>
+                <p className="text-xs text-tomo-text">
+                    Measured {formatDisplayDate(measurement.measured_date)}
+                </p>
+                {measurement.source_context && (
+                    <p className="mt-1 text-[11px] leading-relaxed text-tomo-text">
+                        Source: {measurement.source_context}
+                    </p>
+                )}
+                {triage && <TriageReason reason={triage.reason} />}
+            </div>
+        )
+    }
+
+    return (
+        <div className="p-3 rounded-lg border border-tomo-border space-y-2">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-tomo-text">Weight measurement</p>
+                <button
+                    type="button"
+                    className="text-xs text-tomo-text hover:text-red-200"
+                    onClick={() => onUpdate?.(null)}
+                >
+                    Remove
+                </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                <div>
+                    <label className="text-xs text-tomo-text">Value</label>
+                    <input
+                        className="mt-1 w-full rounded-lg border border-tomo-border bg-transparent px-3 py-2 text-sm text-tomo-text-h outline-none focus:border-tomo-accent"
+                        value={measurement.value ?? ""}
+                        onChange={(event) =>
+                            onUpdate?.({ value: event.target.value })
+                        }
+                    />
+                    {errors[valuePath] && (
+                        <p className="text-xs text-red-200 mt-1">
+                            {errors[valuePath]}
+                        </p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="text-xs text-tomo-text">Unit</label>
+                    <select
+                        className="mt-1 w-full rounded-lg border border-tomo-border bg-transparent px-3 py-2 text-sm text-tomo-text-h outline-none focus:border-tomo-accent"
+                        value={measurement.unit || "kg"}
+                        onChange={(event) =>
+                            onUpdate?.({ unit: event.target.value })
+                        }
+                    >
+                        <option value="kg">kg</option>
+                        <option value="lb">lb</option>
+                    </select>
+                    {errors[unitPath] && (
+                        <p className="text-xs text-red-200 mt-1">
+                            {errors[unitPath]}
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            <div>
+                <label className="text-xs text-tomo-text">Measured date</label>
+                <input
+                    className="mt-1 w-full rounded-lg border border-tomo-border bg-transparent px-3 py-2 text-sm text-tomo-text-h outline-none focus:border-tomo-accent"
+                    value={measurement.measured_date || ""}
+                    placeholder="YYYY-MM-DD"
+                    onChange={(event) =>
+                        onUpdate?.({ measured_date: event.target.value })
+                    }
+                />
+                {errors[datePath] && (
+                    <p className="text-xs text-red-200 mt-1">
+                        {errors[datePath]}
+                    </p>
+                )}
+            </div>
         </div>
     )
 }

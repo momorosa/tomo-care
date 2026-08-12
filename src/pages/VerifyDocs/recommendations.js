@@ -36,10 +36,32 @@ function looksLikeReceipt(doc) {
 
 export function getPostVerifyRecommendations(doc) {
     const serverLibrela = doc?.action_recommendations?.librelaReminder || null
+    const serverWeight =
+        doc?.action_recommendations?.weightMaterialization || null
     const hasUnclassifiedLibrelaMention = !serverLibrela && looksLikeLibrela(doc)
     const isReceipt = looksLikeReceipt(doc)
 
     return {
+        weightMaterialization: serverWeight
+            ? {
+                  show: Boolean(serverWeight.show),
+                  disabled: Boolean(serverWeight.disabled),
+                  badge: serverWeight.badge || null,
+                  badgeTone: serverWeight.badge_tone || null,
+                  buttonLabel: serverWeight.button_label || null,
+                  body: serverWeight.body || null,
+                  state: serverWeight.state || null,
+              }
+            : {
+                  show: false,
+                  disabled: true,
+                  badge: null,
+                  badgeTone: null,
+                  buttonLabel: null,
+                  body: null,
+                  state: "not_applicable",
+              },
+
         librelaReminder: serverLibrela
             ? {
                   show: Boolean(serverLibrela.show),

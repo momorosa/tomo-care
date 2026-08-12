@@ -74,6 +74,24 @@ export function useDraftEditor(detail, isVerified) {
         markDirty()
     }
 
+    function onUpdateWeightMeasurement(patch) {
+        setDraftExtracted((prev) => {
+            const next = structuredClone(prev || {})
+
+            if (patch === null) {
+                next.weight_measurement = null
+            } else {
+                next.weight_measurement = {
+                    ...(next.weight_measurement || {}),
+                    ...patch,
+                }
+            }
+
+            return next
+        })
+        markDirty()
+    }
+
     const onUpdateEvent = (index, patch) => updateListItem("events", index, patch)
     const onRemoveEvent = (index) => removeListItem("events", index)
     const onAddEvent = () =>
@@ -108,6 +126,7 @@ export function useDraftEditor(detail, isVerified) {
         validate,
         setDirty,
         onUpdateInvoiceId,
+        onUpdateWeightMeasurement,
         onUpdateEvent,
         onAddEvent,
         onRemoveEvent,
