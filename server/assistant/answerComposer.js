@@ -1346,7 +1346,7 @@ function answerLibrelaAppointmentMessage(preparation) {
                 `I prepared a Librela appointment request for ${draft.recipient_name} ` +
                 `using Momo’s last verified injection on ${formatDate(draft.dates.last_verified_injection_date)} ` +
                 `and her current due date of ${formatDate(draft.dates.due_date)}. ` +
-                "Review or edit the exact message before approving the mock send.",
+                "Review or edit the exact message before approving it. After approval, you can open the draft in Messages and decide whether to send it.",
             answer_type: "message_draft_prepared",
             confidence: "high",
             citations: [
@@ -1360,7 +1360,7 @@ function answerLibrelaAppointmentMessage(preparation) {
                 ),
             ],
             limitations: [
-                "Nothing has been sent yet, and a mock send will not contact the clinic or create an appointment.",
+                "Nothing has been sent yet. The Messages handoff remains an editable draft until you choose Send in Messages.",
                 "TomoCare verifies the clinic’s active SMS recipient on the server before freezing the request for approval.",
             ],
             proposed_action: null,
@@ -1373,13 +1373,16 @@ function answerLibrelaAppointmentMessage(preparation) {
         action_proposed:
             "The Librela appointment request is already frozen and waiting for your approval. TomoCare did not prepare a duplicate.",
         action_approved:
-            "Your approval for the Librela appointment request is already saved. The approved action is waiting to be completed, and TomoCare did not prepare a duplicate.",
+            "Your Librela appointment request is still pending. Reopen it to return to the Messages handoff or record whether you sent the draft. TomoCare did not prepare a duplicate.",
         action_executing:
             "TomoCare is confirming the existing Librela request result. It did not prepare or retry another message.",
         action_succeeded:
             preparation?.workflow?.external_action_status ===
             "mock_completed"
                 ? "The governed Librela appointment-request test is already complete. The clinic was not contacted, and TomoCare did not prepare a duplicate."
+                : preparation?.workflow?.external_action_status ===
+                    "user_reported_sent"
+                  ? "You marked the Librela appointment request as sent. TomoCare has not verified delivery, a clinic response, or an appointment booking."
                 : "The governed Librela appointment request is already complete. TomoCare did not prepare a duplicate.",
         action_failed:
             "The Librela appointment request has a known delivery failure and is locked for review. TomoCare did not retry or prepare a duplicate.",
@@ -1416,6 +1419,10 @@ function answerLibrelaAppointmentMessage(preparation) {
             ],
             proposed_action: null,
             message_draft: null,
+            review_action_id:
+                preparation?.status === "action_approved"
+                    ? preparation?.workflow?.governed_action_id || null
+                    : null,
             workflow: preparation.workflow,
         }
     }

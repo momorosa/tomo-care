@@ -93,9 +93,77 @@ test("rebuilds the outbound dialog without exposing recipient contact data", () 
             status: "sent",
             send_available: false,
         },
+        native_handoff: null,
     })
     assert.equal(JSON.stringify(draft).includes("private-fingerprint"), false)
     assert.equal(JSON.stringify(draft).includes("provider_contact_id"), false)
+})
+
+test("recovers an approved native handoff without claiming a send", () => {
+    const action = outboundAction("approved", {
+        native_handoff: {
+            id: "handoff-1",
+            care_action_id: "action-1",
+            state: "messages_handoff_requested",
+            target_app: "apple_messages",
+            contract_version: 1,
+            requested_at: "2026-08-13T02:45:00.000Z",
+        },
+    })
+
+    assert.equal(
+        getRecoveredCareActionPhase(action),
+        "messages_handoff_requested"
+    )
+
+    const draft = buildRecoveredLibrelaDraft(action)
+    assert.equal(draft.delivery.status, "not_sent")
+    assert.deepEqual(draft.native_handoff, {
+        id: "handoff-1",
+        state: "messages_handoff_requested",
+        target_app: "apple_messages",
+        contract_version: 1,
+        requested_at: "2026-08-13T02:45:00.000Z",
+        resolved_at: null,
+    })
+    assert.equal(JSON.stringify(draft).includes("care_action_id"), false)
+})
+
+test("distinguishes human-reported sent from delivery and confirmed not-sent", () => {
+    const reportedSent = outboundAction("succeeded", {
+        native_handoff: {
+            id: "handoff-1",
+            state: "user_reported_sent",
+            target_app: "apple_messages",
+            contract_version: 1,
+            requested_at: "2026-08-13T02:45:00.000Z",
+            resolved_at: "2026-08-13T03:30:00.000Z",
+        },
+    })
+    const confirmedNotSent = outboundAction("cancelled", {
+        native_handoff: {
+            id: "handoff-2",
+            state: "user_confirmed_not_sent",
+            target_app: "apple_messages",
+            contract_version: 1,
+            requested_at: "2026-08-13T02:45:00.000Z",
+            resolved_at: "2026-08-13T03:31:00.000Z",
+        },
+    })
+
+    assert.equal(getRecoveredCareActionPhase(reportedSent), "user_reported_sent")
+    assert.equal(
+        buildRecoveredLibrelaDraft(reportedSent).delivery.status,
+        "user_reported_sent"
+    )
+    assert.equal(
+        getRecoveredCareActionPhase(confirmedNotSent),
+        "user_confirmed_not_sent"
+    )
+    assert.equal(
+        buildRecoveredLibrelaDraft(confirmedNotSent).delivery.status,
+        "not_sent"
+    )
 })
 
 test("preserves standard executing recovery behavior", () => {

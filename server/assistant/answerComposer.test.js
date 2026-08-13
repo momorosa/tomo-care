@@ -495,3 +495,57 @@ test("reports a completed governed request without reopening its draft", () => {
     assert.match(response.answer, /test is already complete/i)
     assert.match(response.answer, /did not prepare a duplicate/i)
 })
+
+test("returns the existing approved action as a reopenable review", () => {
+    const response = composeGroundedAnswer({
+        question: "Prepare Momo’s Librela appointment request.",
+        queryPlan: { intent: "librela_appointment_message" },
+        context: {
+            plannedReminders: [],
+            verifiedEvents: [],
+            scheduledAppointments: [],
+            documents: [],
+            directLibrelaCostItems: [],
+            librelaVisitCostItems: [],
+            verifiedWeightFacts: [],
+        },
+        messageDraftPreparation: {
+            status: "action_approved",
+            workflow: {
+                governed_action_id: "action-1",
+                external_action_status: "not_sent",
+            },
+        },
+    })
+
+    assert.equal(response.answer_type, "governed_action_status")
+    assert.equal(response.review_action_id, "action-1")
+    assert.match(response.answer, /still pending/i)
+    assert.match(response.answer, /reopen it/i)
+})
+
+test("labels a sent outcome only as the user’s report", () => {
+    const response = composeGroundedAnswer({
+        question: "What happened with the Librela request?",
+        queryPlan: { intent: "librela_appointment_message" },
+        context: {
+            plannedReminders: [],
+            verifiedEvents: [],
+            scheduledAppointments: [],
+            documents: [],
+            directLibrelaCostItems: [],
+            librelaVisitCostItems: [],
+            verifiedWeightFacts: [],
+        },
+        messageDraftPreparation: {
+            status: "action_succeeded",
+            workflow: {
+                external_action_status: "user_reported_sent",
+            },
+        },
+    })
+
+    assert.match(response.answer, /You marked.*as sent/i)
+    assert.match(response.answer, /not verified delivery/i)
+    assert.equal(response.review_action_id, null)
+})

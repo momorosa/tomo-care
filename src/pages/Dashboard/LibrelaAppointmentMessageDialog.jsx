@@ -6,6 +6,8 @@ const BUSY_PHASES = new Set([
     "cancelling",
     "approving",
     "executing",
+    "handoff_preparing",
+    "resolving_handoff",
     "recovering",
 ])
 
@@ -15,9 +17,11 @@ export default function LibrelaAppointmentMessageDialog({
     action = null,
     error = null,
     execution = null,
-    onApproveAndSend,
+    handoff = null,
+    onApproveMessage,
     onApprove,
-    onExecute,
+    onOpenInMessages,
+    onResolveHandoff,
     onEditMessage,
     onRetryRecovery,
     onDismiss,
@@ -25,12 +29,17 @@ export default function LibrelaAppointmentMessageDialog({
     const [messageBody, setMessageBody] = useState(draft.message_body)
     const [copyState, setCopyState] = useState("idle")
     const [copyError, setCopyError] = useState("")
+    const [resolutionChoice, setResolutionChoice] = useState(null)
 
     const busy = BUSY_PHASES.has(phase)
     const frozen = Boolean(action)
-    const terminal = ["succeeded", "failed", "outcome_unknown"].includes(
-        phase
-    )
+    const terminal = [
+        "succeeded",
+        "failed",
+        "outcome_unknown",
+        "user_reported_sent",
+        "user_confirmed_not_sent",
+    ].includes(phase)
 
     async function copyMessage() {
         setCopyState("copying")
@@ -49,7 +58,7 @@ export default function LibrelaAppointmentMessageDialog({
 
     function handlePrimaryAction() {
         if (phase === "drafting") {
-            onApproveAndSend?.(messageBody)
+            onApproveMessage?.(messageBody)
             return
         }
 
@@ -58,8 +67,11 @@ export default function LibrelaAppointmentMessageDialog({
             return
         }
 
-        if (phase === "approved") {
-            onExecute?.()
+        if (
+            phase === "approved" ||
+            phase === "messages_handoff_requested"
+        ) {
+            onOpenInMessages?.()
             return
         }
 
@@ -98,8 +110,7 @@ export default function LibrelaAppointmentMessageDialog({
                             </h2>
                         </div>
 
-                        {!busy &&
-                            !["approved", "recovery_error"].includes(phase) && (
+                        {!busy && phase !== "recovery_error" && (
                             <button
                                 type="button"
                                 onClick={onDismiss}
@@ -110,7 +121,7 @@ export default function LibrelaAppointmentMessageDialog({
                                     close
                                 </span>
                             </button>
-                            )}
+                        )}
                     </div>
                 </div>
 
@@ -120,6 +131,7 @@ export default function LibrelaAppointmentMessageDialog({
                         recipientName={draft.recipient_name}
                         error={error}
                         execution={execution}
+                        handoff={handoff}
                     />
 
                     <div className="mt-5 rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
@@ -144,7 +156,7 @@ export default function LibrelaAppointmentMessageDialog({
                         </div>
                         <p className="mt-2 text-xs leading-5 text-tomo-text">
                             {frozen
-                                ? "TomoCare verified the clinic’s active SMS contact before freezing this request. The private number stays server-side."
+                                ? `TomoCare verified the clinic’s active SMS contact before freezing this request.${handoff?.recipient_display ? ` ${handoff.recipient_display}.` : " The private number stays server-side until the native handoff is prepared."}`
                                 : "TomoCare will verify the clinic’s active SMS contact before approval. The private number will stay server-side."}
                         </p>
 
@@ -175,7 +187,9 @@ export default function LibrelaAppointmentMessageDialog({
                         Exact message
                         <span className="mt-1 block text-xs font-normal leading-5 text-tomo-text">
                             {frozen
-                                ? "This exact version is frozen for the current approval. Choose Edit message to cancel the proposal and create a new one."
+                                ? phase === "reviewing"
+                                    ? "This exact version is frozen for the current approval. Choose Edit message to cancel the proposal and create a new one."
+                                    : "This is the exact message you approved. It cannot be changed within this action."
                                 : "You can edit this message until you approve it."}
                         </span>
                         <textarea
@@ -200,12 +214,13 @@ export default function LibrelaAppointmentMessageDialog({
                         </span>
                         <div>
                             <p className="text-sm font-medium text-tomo-text-h">
-                                Test mode: no message will be sent
+                                You make the final sending decision
                             </p>
                             <p className="mt-1 text-xs leading-5 text-tomo-text">
-                                Approve &amp; send lets you try the full flow and
-                                saves the result. SoMa Animal Hospital will not
-                                receive a text, and no appointment will be booked.
+                                After approval, Open in Messages creates an
+                                editable draft to the verified clinic. TomoCare
+                                cannot tell whether you send or cancel it, and it
+                                does not book an appointment.
                             </p>
                         </div>
                     </div>
@@ -227,6 +242,22 @@ export default function LibrelaAppointmentMessageDialog({
                         </p>
                     )}
 
+                    {resolutionChoice &&
+                        phase === "messages_handoff_requested" && (
+                            <div className="mt-5 rounded-xl border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] px-4 py-4 text-tomo-warning">
+                                <p className="text-sm font-semibold">
+                                    {resolutionChoice === "sent"
+                                        ? "Confirm that you pressed Send"
+                                        : "Confirm that you did not send it"}
+                                </p>
+                                <p className="mt-1 text-sm leading-6 text-tomo-text-h">
+                                    {resolutionChoice === "sent"
+                                        ? "TomoCare will save this only as your report. It cannot verify delivery, a clinic response, or an appointment booking."
+                                        : "TomoCare will close this request as not sent. You can prepare a fresh request later."}
+                                </p>
+                            </div>
+                        )}
+
                     <DialogActions
                         phase={phase}
                         busy={busy}
@@ -237,6 +268,10 @@ export default function LibrelaAppointmentMessageDialog({
                         onCopy={copyMessage}
                         onEditMessage={onEditMessage}
                         onPrimary={handlePrimaryAction}
+                        onOpenInMessages={onOpenInMessages}
+                        onResolveHandoff={onResolveHandoff}
+                        resolutionChoice={resolutionChoice}
+                        onResolutionChoice={setResolutionChoice}
                     />
                 </div>
             </section>
@@ -244,8 +279,14 @@ export default function LibrelaAppointmentMessageDialog({
     )
 }
 
-function DeliveryState({ phase, recipientName, error, execution }) {
-    const state = getDeliveryState({ phase, recipientName, error, execution })
+function DeliveryState({ phase, recipientName, error, execution, handoff }) {
+    const state = getDeliveryState({
+        phase,
+        recipientName,
+        error,
+        execution,
+        handoff,
+    })
 
     if (!state) return null
 
@@ -257,6 +298,21 @@ function DeliveryState({ phase, recipientName, error, execution }) {
             <div className="flex items-start gap-3">
                 {state.showSpinner ? (
                     <span className="mt-0.5 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : state.icon === "native_handoff" ? (
+                    <svg
+                        className="mt-0.5 h-5 w-5 shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M14 5h5v5" />
+                        <path d="M10 14 19 5" />
+                        <path d="M19 13v6H5V5h6" />
+                    </svg>
                 ) : (
                     <span
                         className="material-symbols-outlined mt-0.5 shrink-0 text-xl"
@@ -276,7 +332,7 @@ function DeliveryState({ phase, recipientName, error, execution }) {
     )
 }
 
-function getDeliveryState({ phase, recipientName, error, execution }) {
+function getDeliveryState({ phase, recipientName, error, execution, handoff }) {
     if (phase === "preparing") {
         return progressState(
             "Preparing the exact request",
@@ -288,6 +344,20 @@ function getDeliveryState({ phase, recipientName, error, execution }) {
         return progressState(
             "Recording your approval",
             "The exact message and verified recipient are locked. Nothing has been sent yet."
+        )
+    }
+
+    if (phase === "handoff_preparing") {
+        return progressState(
+            "Checking the approved request",
+            "TomoCare is revalidating the trusted clinic and care information before preparing the native draft."
+        )
+    }
+
+    if (phase === "resolving_handoff") {
+        return progressState(
+            "Saving your Messages outcome",
+            "TomoCare is recording only the choice you confirmed."
         )
     }
 
@@ -325,7 +395,47 @@ function getDeliveryState({ phase, recipientName, error, execution }) {
             title: "Approved, but not sent",
             body:
                 error?.message ||
-                "Your approval is saved. Continue to complete the test. No real message will be sent.",
+                "Your approval is saved. Open the reviewed request in Messages when you are ready. Nothing has been sent.",
+        }
+    }
+
+    if (phase === "messages_handoff_requested") {
+        return {
+            className:
+                error
+                    ? "border-[color:var(--tomo-danger-border)] bg-[var(--tomo-danger-bg)] text-tomo-danger"
+                    : "border-[color:var(--tomo-success-border)] bg-[var(--tomo-success-bg)] text-tomo-success",
+            icon: "native_handoff",
+            title: error
+                ? "Messages outcome was not saved"
+                : "Messages handoff requested",
+            body:
+                error?.message ||
+                `TomoCare asked Chrome to open an editable draft for ${recipientName}${handoff?.recipient_display ? ` at the ${handoff.recipient_display.toLowerCase()}` : ""}. Send or cancel it in Messages. TomoCare has not recorded a send, delivery, or appointment booking.`,
+            role: error ? "alert" : "status",
+        }
+    }
+
+    if (phase === "user_reported_sent") {
+        return {
+            className:
+                "border-[color:var(--tomo-success-border)] bg-[var(--tomo-success-bg)] text-tomo-success",
+            icon: "check_circle",
+            title: "Recorded from your report",
+            body: `You reported that you pressed Send for the request to ${recipientName}. TomoCare has not verified delivery, a clinic response, or an appointment booking.`,
+            role: "status",
+        }
+    }
+
+    if (phase === "user_confirmed_not_sent") {
+        return {
+            className:
+                "border-[color:var(--tomo-success-border)] bg-[var(--tomo-success-bg)] text-tomo-success",
+            icon: "cancel",
+            title: "Closed as not sent",
+            body:
+                "You confirmed that you did not send the Messages draft. This request is no longer pending, and you can prepare a fresh one later.",
+            role: "status",
         }
     }
 
@@ -409,13 +519,84 @@ function DialogActions({
     onCopy,
     onEditMessage,
     onPrimary,
+    onOpenInMessages,
+    onResolveHandoff,
+    resolutionChoice,
+    onResolutionChoice,
 }) {
     const canCopy = !busy && !terminal
     const canEdit = frozen && phase === "reviewing"
     const showPrimary =
-        ["drafting", "reviewing", "approved", "recovery_error"].includes(
-            phase
-        ) || terminal
+        [
+            "drafting",
+            "reviewing",
+            "approved",
+            "messages_handoff_requested",
+            "recovery_error",
+        ].includes(phase) || terminal
+
+    if (phase === "messages_handoff_requested") {
+        if (resolutionChoice) {
+            return (
+                <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <button
+                        type="button"
+                        className="tomo-btn tomo-btn-secondary px-5 py-2"
+                        onClick={() => onResolutionChoice(null)}
+                    >
+                        Back
+                    </button>
+                    <button
+                        type="button"
+                        className="tomo-btn tomo-btn-primary px-5 py-2"
+                        onClick={() => onResolveHandoff?.(resolutionChoice)}
+                    >
+                        {resolutionChoice === "sent"
+                            ? "Yes, I sent it"
+                            : "Close as not sent"}
+                    </button>
+                </div>
+            )
+        }
+
+        return (
+            <div className="mt-7 flex flex-wrap justify-end gap-3">
+                <button
+                    type="button"
+                    className="tomo-btn tomo-btn-secondary px-5 py-2"
+                    onClick={onCopy}
+                    disabled={copyState === "copying" || !messageBody.trim()}
+                >
+                    {copyState === "copying"
+                        ? "Copying…"
+                        : copyState === "copied"
+                          ? "Copied"
+                          : "Copy message"}
+                </button>
+                <button
+                    type="button"
+                    className="tomo-btn tomo-btn-secondary px-5 py-2"
+                    onClick={() => onResolutionChoice("not_sent")}
+                >
+                    I didn’t send it
+                </button>
+                <button
+                    type="button"
+                    className="tomo-btn tomo-btn-secondary px-5 py-2"
+                    onClick={onOpenInMessages}
+                >
+                    Open in Messages again
+                </button>
+                <button
+                    type="button"
+                    className="tomo-btn tomo-btn-primary px-5 py-2"
+                    onClick={() => onResolutionChoice("sent")}
+                >
+                    I sent it
+                </button>
+            </div>
+        )
+    }
 
     return (
         <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -429,7 +610,7 @@ function DialogActions({
                 </button>
             )}
 
-            {canCopy && !canEdit && (
+            {canCopy && (
                 <button
                     type="button"
                     className="tomo-btn tomo-btn-secondary px-5 py-2"
@@ -459,6 +640,9 @@ function DialogActions({
 }
 
 function getDialogTitle(phase) {
+    if (phase === "messages_handoff_requested") return "Messages handoff ready"
+    if (phase === "user_reported_sent") return "Messages outcome recorded"
+    if (phase === "user_confirmed_not_sent") return "Request closed"
     if (phase === "succeeded") return "Librela request complete"
     if (phase === "failed") return "Librela request failed"
     if (phase === "outcome_unknown") return "Review delivery status"
@@ -469,11 +653,20 @@ function getDialogTitle(phase) {
 
 function getPrimaryLabel(phase) {
     if (phase === "drafting" || phase === "reviewing") {
-        return "Approve & send"
+        return "Approve message"
     }
-    if (phase === "approved") return "Complete test"
+    if (phase === "approved") return "Open in Messages"
+    if (phase === "messages_handoff_requested") {
+        return "Open in Messages again"
+    }
     if (phase === "recovery_error") return "Check status"
     if (phase === "succeeded") return "Done"
+    if (
+        phase === "user_reported_sent" ||
+        phase === "user_confirmed_not_sent"
+    ) {
+        return "Done"
+    }
     if (phase === "failed" || phase === "outcome_unknown") return "Close"
 
     return "Continue"

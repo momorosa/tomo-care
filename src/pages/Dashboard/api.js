@@ -195,6 +195,30 @@ export async function executeCareAction(actionId) {
     return jsonOrThrow(response, "Could not complete the care action")
 }
 
+export async function prepareAppleMessagesHandoff(actionId) {
+    const response = await fetch(
+        `/api/care-actions/${actionId}/apple-messages-handoff`,
+        {
+            method: "POST",
+        }
+    )
+
+    return jsonOrThrow(response, "Could not prepare the Messages handoff")
+}
+
+export async function resolveAppleMessagesHandoff(actionId, resolution) {
+    const response = await fetch(
+        `/api/care-actions/${actionId}/apple-messages-handoff/resolve`,
+        {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ resolution }),
+        }
+    )
+
+    return jsonOrThrow(response, "Could not record the Messages outcome")
+}
+
 export async function cancelCareAction(actionId) {
     const response = await fetch(`/api/care-actions/${actionId}/cancel`, {
         method: "POST",

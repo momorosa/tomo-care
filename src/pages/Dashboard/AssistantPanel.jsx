@@ -42,10 +42,12 @@ const SUGGESTED_QUESTIONS = [
 export default function AssistantPanel({
     petId,
     pendingActionCount = 0,
+    pendingActions = [],
     reminders = [],
     contextDrawerOpen,
     onToggleContext,
     onActionPrepared,
+    onReviewPendingAction,
     onMessageDraftPrepared,
 }) {
     const [mode, setMode] = useState(CONVERSATION_MODES.VOICE)
@@ -57,6 +59,8 @@ export default function AssistantPanel({
     const [voiceResponse, setVoiceResponse] = useState(null)
     const [voiceMuted, setVoiceMuted] = useState(false)
     const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(false)
+    const [pendingMenuOpen, setPendingMenuOpen] = useState(false)
+    const [pendingActionLoading, setPendingActionLoading] = useState(null)
     const recorderRef = useRef(null)
     const streamRef = useRef(null)
     const recordingTimerRef = useRef(null)
@@ -88,7 +92,8 @@ export default function AssistantPanel({
     function requiresVisualReview(result) {
         return (
             result.answer_type === "action_prepared" ||
-            result.answer_type === "message_draft_prepared"
+            result.answer_type === "message_draft_prepared" ||
+            Boolean(result.review_action_id)
         )
     }
 
@@ -109,6 +114,38 @@ export default function AssistantPanel({
                 workflow_run_id: result.workflow?.run_id || null,
             })
         }
+
+        if (result.review_action_id) {
+            void reviewPendingAction(result.review_action_id)
+        }
+    }
+
+    async function reviewPendingAction(actionId) {
+        if (!actionId || pendingActionLoading) return
+
+        setPendingActionLoading(actionId)
+        setPendingMenuOpen(false)
+        setError("")
+
+        try {
+            await onReviewPendingAction?.(actionId)
+        } catch (error) {
+            setError(
+                error?.message ||
+                    "TomoCare could not reopen the pending action. Try again."
+            )
+        } finally {
+            setPendingActionLoading(null)
+        }
+    }
+
+    function handlePendingButton() {
+        if (pendingActions.length === 1) {
+            void reviewPendingAction(pendingActions[0].id)
+            return
+        }
+
+        setPendingMenuOpen((open) => !open)
     }
 
     function showAssistantResult(result, askedQuestion) {
@@ -456,9 +493,64 @@ export default function AssistantPanel({
 
                 <div className="flex items-center gap-2">
                     {pendingActionCount > 0 && (
-                        <span className="tomo-badge tomo-badge--warning hidden md:inline-flex">
-                            {pendingActionCount} pending
-                        </span>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                className="tomo-badge tomo-badge--warning inline-flex cursor-pointer items-center gap-1.5"
+                                onClick={handlePendingButton}
+                                disabled={Boolean(pendingActionLoading)}
+                                aria-expanded={
+                                    pendingActions.length > 1
+                                        ? pendingMenuOpen
+                                        : undefined
+                                }
+                                aria-haspopup={
+                                    pendingActions.length > 1
+                                        ? "menu"
+                                        : undefined
+                                }
+                            >
+                                {pendingActionLoading
+                                    ? "Opening…"
+                                    : `Review ${pendingActionCount} pending`}
+                            </button>
+
+                            {pendingMenuOpen && pendingActions.length > 1 && (
+                                <div
+                                    className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-tomo-border bg-[#202129] p-2 shadow-2xl"
+                                    role="menu"
+                                    aria-label="Pending care actions"
+                                >
+                                    {pendingActions.map((action) => (
+                                        <button
+                                            key={action.id}
+                                            type="button"
+                                            role="menuitem"
+                                            className="flex w-full items-start justify-between gap-3 rounded-lg px-3 py-3 text-left hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-tomo-accent"
+                                            onClick={() =>
+                                                void reviewPendingAction(action.id)
+                                            }
+                                        >
+                                            <span>
+                                                <span className="block text-sm font-medium text-tomo-text-h">
+                                                    {action.preview_json?.title ||
+                                                        "Pending care action"}
+                                                </span>
+                                                <span className="mt-1 block text-xs capitalize text-tomo-text">
+                                                    {action.status}
+                                                </span>
+                                            </span>
+                                            <span
+                                                className="material-symbols-outlined text-lg text-tomo-text"
+                                                aria-hidden="true"
+                                            >
+                                                chevron_right
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
                     <button
                         type="button"
