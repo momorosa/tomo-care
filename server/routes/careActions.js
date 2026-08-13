@@ -26,6 +26,14 @@ import {
     LibrelaAppointmentPreparationError,
     prepareSendLibrelaAppointmentRequest,
 } from "../actions/prepareLibrelaAppointmentRequest.js"
+import {
+    AppleMessagesHandoffError,
+    prepareLibrelaAppleMessagesHandoff,
+} from "../actions/prepareLibrelaAppleMessagesHandoff.js"
+import {
+    AppleMessagesHandoffResolutionError,
+    resolveLibrelaAppleMessagesHandoff,
+} from "../actions/resolveLibrelaAppleMessagesHandoff.js"
 import { listPendingCareActions } from "../actions/listPendingCareActions.js"
 import { careActionRepository } from "../repositories/careActionRepository.js"
 
@@ -69,7 +77,10 @@ router.get("/care-actions/:actionId", async (req, res) => {
     const { actionId } = req.params
 
     try {
-        const action = await careActionRepository.findActionById(actionId)
+        const [action, nativeHandoff] = await Promise.all([
+            careActionRepository.findActionById(actionId),
+            careActionRepository.findAppleMessagesHandoffByActionId(actionId),
+        ])
 
         if (!action) {
             return res.status(404).json({
@@ -81,7 +92,10 @@ router.get("/care-actions/:actionId", async (req, res) => {
 
         return res.json({
             ok: true,
-            care_action: action,
+            care_action: {
+                ...action,
+                native_handoff: nativeHandoff,
+            },
         })
     } catch (error) {
         console.error("[care-action:get] error:", error)
@@ -93,6 +107,122 @@ router.get("/care-actions/:actionId", async (req, res) => {
         })
     }
 })
+
+// POST /api/care-actions/:actionId/apple-messages-handoff
+//
+// The browser supplies only the approved action identity. PostgreSQL reloads
+// the frozen server-owned recipient and message, atomically revalidates all
+// trusted evidence, and reuses one native-handoff row. This path never calls
+// the outbound message provider and never records a send or delivery outcome.
+router.post(
+    "/care-actions/:actionId/apple-messages-handoff",
+    async (req, res) => {
+        const { actionId } = req.params
+
+        if (Object.keys(req.body || {}).length > 0) {
+            return res.status(400).json({
+                ok: false,
+                reason: "client_handoff_fields_not_allowed",
+                error:
+                    "The Messages handoff accepts only the approved care action identity.",
+            })
+        }
+
+        try {
+            const result = await prepareLibrelaAppleMessagesHandoff({
+                repository: careActionRepository,
+                actionId,
+            })
+
+            res.set("Cache-Control", "no-store")
+            return res.status(result.disposition === "created" ? 201 : 200).json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    "Messages draft handoff prepared. TomoCare has not sent the message or booked an appointment.",
+                handoff: result.handoff,
+            })
+        } catch (error) {
+            if (error instanceof AppleMessagesHandoffError) {
+                return res.status(error.status).json({
+                    ok: false,
+                    reason: error.reason,
+                    error: error.message,
+                })
+            }
+
+            console.error("[apple-messages-handoff:prepare] error:", error)
+
+            return res.status(500).json({
+                ok: false,
+                reason: "handoff_preparation_failed",
+                error:
+                    "Failed to prepare the Messages handoff. Nothing was opened or sent.",
+            })
+        }
+    }
+)
+
+// POST /api/care-actions/:actionId/apple-messages-handoff/resolve
+//
+// Messages cannot report whether Rosa sent or cancelled its native draft. This
+// endpoint accepts only her explicit sent/not-sent choice and records it as a
+// human report. It never claims delivery, receipt, or an appointment booking.
+router.post(
+    "/care-actions/:actionId/apple-messages-handoff/resolve",
+    async (req, res) => {
+        const { actionId } = req.params
+        const bodyKeys = Object.keys(req.body || {})
+
+        if (
+            bodyKeys.length !== 1 ||
+            bodyKeys[0] !== "resolution"
+        ) {
+            return res.status(400).json({
+                ok: false,
+                reason: "client_resolution_fields_not_allowed",
+                error:
+                    "The handoff resolution accepts only a sent or not-sent choice.",
+            })
+        }
+
+        try {
+            const result = await resolveLibrelaAppleMessagesHandoff({
+                repository: careActionRepository,
+                actionId,
+                resolution: req.body.resolution,
+            })
+
+            return res.json({
+                ok: true,
+                disposition: result.disposition,
+                message:
+                    result.handoff.state === "user_reported_sent"
+                        ? "Recorded as sent based on your report. Delivery and appointment status are not verified."
+                        : "Closed as not sent. You can prepare a new request later.",
+                resolved_action: result.action,
+                handoff: result.handoff,
+            })
+        } catch (error) {
+            if (error instanceof AppleMessagesHandoffResolutionError) {
+                return res.status(error.status).json({
+                    ok: false,
+                    reason: error.reason,
+                    error: error.message,
+                })
+            }
+
+            console.error("[apple-messages-handoff:resolve] error:", error)
+
+            return res.status(500).json({
+                ok: false,
+                reason: "handoff_resolution_failed",
+                error:
+                    "Failed to record the Messages outcome. Review the pending request again.",
+            })
+        }
+    }
+)
 
 // POST /api/pets/:petId/actions/home-medication-given/prepare
 //

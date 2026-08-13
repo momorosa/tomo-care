@@ -20,15 +20,17 @@ import {
     fetchVerifiedDocuments,
     prepareHomeMedicationGiven,
     prepareInsuranceClaimFiled,
+    prepareAppleMessagesHandoff,
     prepareLibrelaAppointmentRequest,
+    resolveAppleMessagesHandoff,
     syncReminderToGoogleCalendar,
 } from "./api.js"
 import {
     buildRecoveredLibrelaDraft,
     getRecoveredCareActionPhase,
-    getOutboundExecutionErrorPhase,
     isLibrelaAppointmentRequest,
 } from "./careActionRecovery.js"
+import { requestAppleMessagesDraft } from "./appleMessagesHandoff.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 const CARE_ACTOR = "Rosa"
@@ -54,6 +56,7 @@ function emptyAppointmentMessageFlow() {
         draft: null,
         action: null,
         execution: null,
+        handoff: null,
         error: null,
     }
 }
@@ -78,6 +81,7 @@ export default function Dashboard() {
     const [verifiedDocuments, setVerifiedDocuments] = useState([])
     const [careSummary, setCareSummary] = useState({})
     const [pendingActionCount, setPendingActionCount] = useState(0)
+    const [pendingActions, setPendingActions] = useState([])
     const [actionFlow, setActionFlow] = useState(emptyActionFlow)
     const [appointmentMessageFlow, setAppointmentMessageFlow] = useState(
         emptyAppointmentMessageFlow
@@ -124,6 +128,7 @@ export default function Dashboard() {
         try {
             const result = await fetchPendingCareActions(PET_ID)
             setPendingActionCount(result.count)
+            setPendingActions(result.actions)
         } catch (err) {
             console.error("[dashboard] pending action load failed:", err)
         }
@@ -199,6 +204,7 @@ export default function Dashboard() {
                             action.status === "succeeded"
                                 ? { result: action.result_json }
                                 : null,
+                        handoff: action.native_handoff || null,
                         error: getRecoveredOutboundError(action),
                     })
                     return
@@ -362,6 +368,7 @@ export default function Dashboard() {
                     action.status === "succeeded"
                         ? { result: action.result_json }
                         : null,
+                handoff: action.native_handoff || null,
                 error: getRecoveredOutboundError(action),
             })
             return
@@ -381,6 +388,11 @@ export default function Dashboard() {
         })
     }
 
+    async function reviewPendingAction(actionId) {
+        const data = await fetchCareAction(actionId)
+        reviewAssistantAction(data.care_action)
+    }
+
     function reviewAppointmentMessageDraft(draft) {
         setAppointmentMessageFlow({
             ...emptyAppointmentMessageFlow(),
@@ -389,7 +401,7 @@ export default function Dashboard() {
         })
     }
 
-    async function prepareAndSendAppointmentRequest(messageBody) {
+    async function prepareAndApproveAppointmentRequest(messageBody) {
         const draft = appointmentMessageFlow.draft
         const orchestrationRunId = draft?.workflow_run_id
         const reminderId = draft?.evidence?.reminder_event_id
@@ -452,19 +464,14 @@ export default function Dashboard() {
             return
         }
 
-        await continueAppointmentRequest(action)
+        await continueAppointmentApproval(action)
     }
 
-    async function continueAppointmentRequest(action) {
+    async function continueAppointmentApproval(action) {
         const phase = getRecoveredCareActionPhase(action)
 
         if (phase === "reviewing") {
             await approveAppointmentRequest(action)
-            return
-        }
-
-        if (phase === "approved") {
-            await executeAppointmentRequest(action)
         }
     }
 
@@ -490,9 +497,10 @@ export default function Dashboard() {
 
             setAppointmentMessageFlow((current) => ({
                 ...current,
-                phase: "executing",
+                phase: "approved",
                 draft: buildRecoveredLibrelaDraft(approvedAction),
                 action: approvedAction,
+                handoff: null,
                 error: null,
             }))
         } catch (error) {
@@ -504,81 +512,92 @@ export default function Dashboard() {
             }))
             return
         }
-
-        await executeAppointmentRequest(approvedAction, {
-            phaseAlreadySet: true,
-        })
     }
 
-    async function executeAppointmentRequest(
-        approvedAction = appointmentMessageFlow.action,
-        { phaseAlreadySet = false } = {}
+    async function openAppointmentRequestInMessages(
+        approvedAction = appointmentMessageFlow.action
     ) {
         if (!approvedAction?.id) return
 
-        if (!phaseAlreadySet) {
-            setAppointmentMessageFlow((current) => ({
-                ...current,
-                phase: "executing",
-                error: null,
-            }))
-        }
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase: "handoff_preparing",
+            error: null,
+        }))
 
         try {
-            const result = await executeCareAction(approvedAction.id)
-            const succeededAction = {
+            const result = await prepareAppleMessagesHandoff(approvedAction.id)
+            requestAppleMessagesDraft({ handoff: result.handoff })
+
+            const nativeHandoff = {
+                id: result.handoff.id,
+                state: result.handoff.state,
+                target_app: result.handoff.target_app,
+                contract_version: result.handoff.contract_version,
+                recipient_display: result.handoff.recipient_display,
+                requested_at: result.handoff.issued_at,
+            }
+            const actionWithHandoff = {
                 ...approvedAction,
-                status: "succeeded",
-                result_json: result.execution.result,
+                native_handoff: nativeHandoff,
             }
 
             setAppointmentMessageFlow((current) => ({
                 ...current,
-                phase: "succeeded",
-                draft: buildRecoveredLibrelaDraft(succeededAction),
-                action: succeededAction,
-                execution: result.execution,
+                phase: "messages_handoff_requested",
+                draft: buildRecoveredLibrelaDraft(actionWithHandoff),
+                action: actionWithHandoff,
+                handoff: nativeHandoff,
+                error: null,
+            }))
+        } catch (error) {
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "approved",
+                action: approvedAction,
+                error,
+            }))
+        }
+    }
+
+    async function resolveAppointmentMessageHandoff(resolution) {
+        const action = appointmentMessageFlow.action
+
+        if (!action?.id) return
+
+        setAppointmentMessageFlow((current) => ({
+            ...current,
+            phase: "resolving_handoff",
+            error: null,
+        }))
+
+        try {
+            const result = await resolveAppleMessagesHandoff(
+                action.id,
+                resolution
+            )
+            const resolvedAction = {
+                ...action,
+                status: result.resolved_action.status,
+                native_handoff: result.handoff,
+            }
+
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: result.handoff.state,
+                draft: buildRecoveredLibrelaDraft(resolvedAction),
+                action: resolvedAction,
+                handoff: result.handoff,
                 error: null,
             }))
             await loadPendingCareActions()
         } catch (error) {
-            await recoverAppointmentExecution({
-                actionId: approvedAction.id,
-                fallbackAction: approvedAction,
-                executionError: error,
-            })
+            setAppointmentMessageFlow((current) => ({
+                ...current,
+                phase: "messages_handoff_requested",
+                error,
+            }))
         }
-    }
-
-    async function recoverAppointmentExecution({
-        actionId,
-        fallbackAction,
-        executionError,
-    }) {
-        let action = fallbackAction
-        let phase = getOutboundExecutionErrorPhase(executionError)
-
-        try {
-            const data = await fetchCareAction(actionId)
-            action = data.care_action
-            phase = getRecoveredCareActionPhase(action)
-        } catch {
-            // Preserve the execution error. An unknown provider outcome must
-            // remain locked even if the follow-up status check also fails.
-        }
-
-        setAppointmentMessageFlow((current) => ({
-            ...current,
-            phase,
-            draft: buildRecoveredLibrelaDraft(action) || current.draft,
-            action,
-            execution:
-                action?.status === "succeeded"
-                    ? { result: action.result_json }
-                    : null,
-            error: executionError,
-        }))
-        await loadPendingCareActions()
     }
 
     async function editAppointmentMessage() {
@@ -640,6 +659,7 @@ export default function Dashboard() {
                     action.status === "succeeded"
                         ? { result: action.result_json }
                         : null,
+                handoff: action.native_handoff || null,
                 error: getRecoveredOutboundError(action),
             }))
         } catch (error) {
@@ -980,6 +1000,7 @@ export default function Dashboard() {
                     petId={PET_ID}
                     reminders={reminders}
                     pendingActionCount={pendingActionCount}
+                    pendingActions={pendingActions}
                     contextDrawerOpen={homeLayout.drawerOpen}
                     onToggleContext={() =>
                         dispatchHomeLayout({
@@ -989,6 +1010,7 @@ export default function Dashboard() {
                         })
                     }
                     onActionPrepared={reviewAssistantAction}
+                    onReviewPendingAction={reviewPendingAction}
                     onMessageDraftPrepared={reviewAppointmentMessageDraft}
                 />
             </div>
@@ -1022,9 +1044,12 @@ export default function Dashboard() {
                 <LibrelaAppointmentMessageDialog
                     key={appointmentMessageFlow.action?.id || "librela-draft"}
                     {...appointmentMessageFlow}
-                    onApproveAndSend={prepareAndSendAppointmentRequest}
+                    onApproveMessage={prepareAndApproveAppointmentRequest}
                     onApprove={() => approveAppointmentRequest()}
-                    onExecute={() => executeAppointmentRequest()}
+                    onOpenInMessages={() =>
+                        openAppointmentRequestInMessages()
+                    }
+                    onResolveHandoff={resolveAppointmentMessageHandoff}
                     onEditMessage={editAppointmentMessage}
                     onRetryRecovery={recoverAppointmentRequest}
                     onDismiss={dismissAppointmentMessage}

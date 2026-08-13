@@ -21,6 +21,7 @@
         "test:phase3e0c": "node --test server/calendar/*.test.js src/pages/Dashboard/calendarRecovery.test.js src/pages/Dashboard/reminderPresentation.test.js src/pages/VerifyDocs/postVerifyCalendarRecovery.test.js",
         "test:phase3e0d": "node --test server/lib/verifiedWeight.test.js server/lib/verifiedWeightExtraction.test.js server/lib/verifiedWeightMigration.test.js server/lib/verifiedWeightRoute.test.js src/pages/VerifyDocs/recommendations.test.js src/pages/VerifyDocs/weightMaterializationFlow.test.js",
         "test:phase3e0e": "node --test server/lifecycle/librelaLifecycle.integration.test.js",
+        "test:phase3f": "node --test server/actions/prepareLibrelaAppleMessagesHandoff.test.js server/actions/resolveLibrelaAppleMessagesHandoff.test.js server/messaging/appleMessagesHandoff*.test.js src/pages/Dashboard/appleMessagesHandoff.test.js src/pages/Dashboard/careActionRecovery.test.js src/pages/Dashboard/librelaAppleMessagesHandoffUI.test.js",
         "test:actions": "node --test server/actions/*.test.js",
         "test:phase3b": "node --test server/actions/*.test.js server/lib/*.test.js server/assistant/*.test.js server/calendar/*.test.js server/dashboard/*.test.js server/gmail/*.test.js",
         "test:phase3c-backend": "node --test server/actions/*.test.js server/messaging/*.test.js",

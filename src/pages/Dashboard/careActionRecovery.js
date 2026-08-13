@@ -6,7 +6,20 @@ export function isLibrelaAppointmentRequest(action) {
 }
 
 export function getRecoveredCareActionPhase(action) {
+    if (action?.native_handoff?.state === "user_reported_sent") {
+        return "user_reported_sent"
+    }
+    if (action?.native_handoff?.state === "user_confirmed_not_sent") {
+        return "user_confirmed_not_sent"
+    }
     if (action?.status === "proposed") return "reviewing"
+    if (
+        action?.status === "approved" &&
+        action?.native_handoff?.state === "messages_handoff_requested" &&
+        action?.native_handoff?.target_app === "apple_messages"
+    ) {
+        return "messages_handoff_requested"
+    }
     if (action?.status === "approved") return "approved"
     if (action?.status === "succeeded") return "succeeded"
 
@@ -69,10 +82,39 @@ export function buildRecoveredLibrelaDraft(action) {
             status: getDeliveryStatus(action),
             send_available: action.status === "proposed",
         },
+        native_handoff: buildNativeHandoffSummary(action.native_handoff),
+    }
+}
+
+function buildNativeHandoffSummary(handoff) {
+    if (
+        ![
+            "messages_handoff_requested",
+            "user_reported_sent",
+            "user_confirmed_not_sent",
+        ].includes(handoff?.state) ||
+        handoff?.target_app !== "apple_messages"
+    ) {
+        return null
+    }
+
+    return {
+        id: handoff.id,
+        state: handoff.state,
+        target_app: handoff.target_app,
+        contract_version: handoff.contract_version,
+        requested_at: handoff.requested_at,
+        resolved_at: handoff.resolved_at || null,
     }
 }
 
 function getDeliveryStatus(action) {
+    if (action?.native_handoff?.state === "user_reported_sent") {
+        return "user_reported_sent"
+    }
+    if (action?.native_handoff?.state === "user_confirmed_not_sent") {
+        return "not_sent"
+    }
     if (action?.status === "succeeded") return "sent"
     if (action?.status === "failed") return "failed"
 

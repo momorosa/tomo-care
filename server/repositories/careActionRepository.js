@@ -72,12 +72,34 @@ const PENDING_CARE_ACTION_RETURN_COLUMNS = [
 
 const PENDING_CARE_ACTION_STATUSES = ["proposed", "approved", "executing"]
 
+const APPLE_MESSAGES_HANDOFF_RETURN_COLUMNS = [
+    "id",
+    "care_action_id",
+    "state",
+    "target_app",
+    "contract_version",
+    "requested_at",
+    "resolved_by",
+    "resolved_at",
+].join(", ")
+
 export const careActionRepository = {
     async findActionById(actionId) {
         const { data, error } = await sbAdmin
             .from("care_actions")
             .select(CARE_ACTION_RETURN_COLUMNS)
             .eq("id", actionId)
+            .maybeSingle()
+
+        if (error) throw error
+        return data || null
+    },
+
+    async findAppleMessagesHandoffByActionId(actionId) {
+        const { data, error } = await sbAdmin
+            .from("apple_messages_handoffs")
+            .select(APPLE_MESSAGES_HANDOFF_RETURN_COLUMNS)
+            .eq("care_action_id", actionId)
             .maybeSingle()
 
         if (error) throw error
@@ -312,6 +334,37 @@ export const careActionRepository = {
                 p_delivery_status: deliveryStatus,
                 p_result: result,
                 p_error: errorJson,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async prepareLibrelaAppleMessagesHandoff({ actionId, requestedBy }) {
+        const { data, error } = await sbAdmin.rpc(
+            "prepare_librela_apple_messages_handoff",
+            {
+                p_action_id: actionId,
+                p_requested_by: requestedBy,
+            }
+        )
+
+        if (error) throw error
+        return data
+    },
+
+    async resolveLibrelaAppleMessagesHandoff({
+        actionId,
+        resolution,
+        resolvedBy,
+    }) {
+        const { data, error } = await sbAdmin.rpc(
+            "resolve_librela_apple_messages_handoff",
+            {
+                p_action_id: actionId,
+                p_resolution: resolution,
+                p_resolved_by: resolvedBy,
             }
         )
 
