@@ -1,6 +1,14 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
+import { approveCareAction } from "../actions/approveCareAction.js"
+import {
+    prepareSendLibrelaAppointmentRequest,
+} from "../actions/prepareLibrelaAppointmentRequest.js"
+import {
+    prepareLibrelaAppleMessagesHandoff,
+} from "../actions/prepareLibrelaAppleMessagesHandoff.js"
+import { sha256 } from "../actions/librelaAppointmentRequest.js"
 import { answerAssistantQuestion } from "../assistant/assistantService.js"
 import { buildTrustedContextFromRows } from "../assistant/trustedContext.js"
 import { getStableGoogleCalendarEventId } from "../calendar/reminderCalendar.js"
@@ -93,6 +101,24 @@ function createState() {
         storageKeys: new Set(),
         calendarEvents: new Map(),
         calendarCalls: { inserts: 0, updates: 0 },
+        orchestrationRuns: [],
+        careActions: [],
+        messagesHandoffs: [],
+        providerContacts: [
+            {
+                id: "60000000-0000-4000-8000-000000000001",
+                organization_name: "SoMa Animal Hospital",
+                channel: "sms",
+                address: buildTestSmsAddress(),
+                verification_status: "verified",
+                verification_source: "owner_confirmed_clinic_contact",
+                verified_by: "Rosa",
+                verified_at: FIXED_NOW,
+                is_active: true,
+                created_at: FIXED_NOW,
+                updated_at: FIXED_NOW,
+            },
+        ],
     }
 }
 
@@ -325,7 +351,7 @@ function buildContext(state) {
     })
 }
 
-async function askTomo(state, question) {
+async function askTomo(state, question, dependencies = {}) {
     return answerAssistantQuestion({
         petId: IDS.pet,
         question,
@@ -334,8 +360,318 @@ async function askTomo(state, question) {
             currentCareDate: CARE_DATE,
             buildContext: async () => buildContext(state),
             personalizeAnswer: ({ response }) => response,
+            ...dependencies,
         },
     })
+}
+
+function createGovernedMessagesRepository(state) {
+    let runRevision = 0
+    let actionRevision = 0
+
+    function nextRunRevision() {
+        runRevision += 1
+        return `run-revision-${runRevision}`
+    }
+
+    function nextActionRevision() {
+        actionRevision += 1
+        return `action-revision-${actionRevision}`
+    }
+
+    function syncRunFromAction(action) {
+        const run = state.orchestrationRuns.find(
+            (candidate) => candidate.id === action.orchestration_run_id
+        )
+        assert.ok(run)
+
+        const approved = action.status === "approved"
+        run.status = "awaiting_human_review"
+        run.current_step = approved ? "governed_action" : "human_review"
+        run.pending_decision = approved
+            ? "complete_approved_action"
+            : "approve_or_edit_message"
+        run.external_action_taken = false
+        run.external_action_status = "not_sent"
+        run.result_json = {
+            ...run.result_json,
+            status: approved ? "action_approved" : "action_proposed",
+            governed_action: {
+                id: action.id,
+                status: action.status,
+            },
+            workflow: {
+                ...run.result_json.workflow,
+                state: approved
+                    ? "approved_awaiting_execution"
+                    : "awaiting_human_approval",
+                current_owner: approved ? "coordinator" : "human",
+                pending_decision: run.pending_decision,
+                governed_action_id: action.id,
+                governed_action_status: action.status,
+                external_action_status: "not_sent",
+                external_action_taken: false,
+            },
+            draft: {
+                ...run.result_json.draft,
+                delivery: {
+                    ...run.result_json.draft.delivery,
+                    status: "not_sent",
+                    send_available: !approved,
+                },
+            },
+        }
+    }
+
+    return {
+        async findActiveRun({ petId, workflowType }) {
+            return (
+                state.orchestrationRuns.find(
+                    (run) =>
+                        run.pet_id === petId &&
+                        run.workflow_type === workflowType &&
+                        [
+                            "in_progress",
+                            "awaiting_human_review",
+                            "action_succeeded",
+                            "action_failed",
+                            "action_outcome_unknown",
+                        ].includes(run.status)
+                ) || null
+            )
+        },
+
+        async findRunById(runId) {
+            return (
+                state.orchestrationRuns.find((run) => run.id === runId) ||
+                null
+            )
+        },
+
+        async insertRun(input) {
+            const run = {
+                id: "70000000-0000-4000-8000-000000000001",
+                recovery_count: 0,
+                last_resumed_at: null,
+                completed_at: null,
+                created_at: FIXED_NOW,
+                updated_at: nextRunRevision(),
+                external_action_status: "not_started",
+                ...clone(input),
+            }
+            state.orchestrationRuns.push(run)
+            return run
+        },
+
+        async updateRun({ runId, expectedUpdatedAt, patch }) {
+            const run = state.orchestrationRuns.find(
+                (candidate) => candidate.id === runId
+            )
+            if (!run || run.updated_at !== expectedUpdatedAt) return null
+
+            Object.assign(run, clone(patch), {
+                updated_at: nextRunRevision(),
+            })
+            return run
+        },
+
+        async findReminder({ petId, reminderId }) {
+            return (
+                state.events.find(
+                    (event) =>
+                        event.id === reminderId && event.pet_id === petId
+                ) || null
+            )
+        },
+
+        async findEvent({ petId, eventId }) {
+            return (
+                state.events.find(
+                    (event) => event.id === eventId && event.pet_id === petId
+                ) || null
+            )
+        },
+
+        async findOrchestrationRunById(runId) {
+            return (
+                state.orchestrationRuns.find((run) => run.id === runId) ||
+                null
+            )
+        },
+
+        async findVerifiedProviderContacts({ organizationName, channel }) {
+            return state.providerContacts.filter(
+                (contact) =>
+                    contact.organization_name === organizationName &&
+                    contact.channel === channel &&
+                    contact.verification_status === "verified" &&
+                    contact.is_active
+            )
+        },
+
+        async findVerifiedProviderContactById(providerContactId) {
+            return (
+                state.providerContacts.find(
+                    (contact) =>
+                        contact.id === providerContactId &&
+                        contact.verification_status === "verified" &&
+                        contact.is_active
+                ) || null
+            )
+        },
+
+        async findActiveActionByIdempotencyKey(idempotencyKey) {
+            return (
+                state.careActions.find(
+                    (action) =>
+                        action.idempotency_key === idempotencyKey &&
+                        action.status !== "cancelled"
+                ) || null
+            )
+        },
+
+        async insertProposedAction(proposal) {
+            const action = {
+                id: "80000000-0000-4000-8000-000000000001",
+                proposed_at: FIXED_NOW,
+                approved_at: null,
+                approved_by: null,
+                updated_at: nextActionRevision(),
+                ...clone(proposal),
+            }
+            state.careActions.push(action)
+            syncRunFromAction(action)
+            return action
+        },
+
+        async linkActionToOrchestrationRun({ actionId, orchestrationRunId }) {
+            const action = state.careActions.find(
+                (candidate) => candidate.id === actionId
+            )
+            if (!action || action.orchestration_run_id) return null
+
+            action.orchestration_run_id = orchestrationRunId
+            action.updated_at = nextActionRevision()
+            syncRunFromAction(action)
+            return action
+        },
+
+        async findActionById(actionId) {
+            return (
+                state.careActions.find(
+                    (action) => action.id === actionId
+                ) || null
+            )
+        },
+
+        async approveProposedAction({
+            actionId,
+            approvedBy,
+            approvedAt,
+            expectedUpdatedAt,
+        }) {
+            const action = state.careActions.find(
+                (candidate) => candidate.id === actionId
+            )
+            if (
+                !action ||
+                action.status !== "proposed" ||
+                action.updated_at !== expectedUpdatedAt
+            ) {
+                return null
+            }
+
+            Object.assign(action, {
+                status: "approved",
+                approved_by: approvedBy,
+                approved_at: approvedAt,
+                updated_at: nextActionRevision(),
+            })
+            syncRunFromAction(action)
+            return action
+        },
+
+        async prepareLibrelaAppleMessagesHandoff({
+            actionId,
+            requestedBy,
+        }) {
+            const action = state.careActions.find(
+                (candidate) => candidate.id === actionId
+            )
+            assert.equal(action?.status, "approved")
+
+            const payload = action.payload_json
+            const recipient = state.providerContacts.find(
+                (contact) => contact.id === payload.provider_contact_id
+            )
+            const run = state.orchestrationRuns.find(
+                (candidate) => candidate.id === action.orchestration_run_id
+            )
+
+            assert.ok(recipient)
+            assert.equal(recipient.verification_status, "verified")
+            assert.equal(recipient.is_active, true)
+            assert.equal(recipient.updated_at, payload.provider_contact_updated_at)
+            assert.equal(
+                sha256(`${recipient.channel}:${recipient.address}`),
+                payload.recipient_fingerprint_sha256
+            )
+            assert.equal(sha256(payload.message_body), payload.message_sha256)
+            assert.equal(run.status, "awaiting_human_review")
+            assert.equal(run.current_step, "governed_action")
+            assert.equal(run.external_action_taken, false)
+            assert.equal(run.external_action_status, "not_sent")
+            assert.equal(run.result_json.governed_action.id, action.id)
+            assert.equal(run.result_json.governed_action.status, "approved")
+
+            let handoff = state.messagesHandoffs.find(
+                (candidate) => candidate.care_action_id === action.id
+            )
+            const disposition = handoff ? "existing" : "created"
+
+            if (!handoff) {
+                handoff = {
+                    id: "90000000-0000-4000-8000-000000000001",
+                    care_action_id: action.id,
+                    provider_contact_id: recipient.id,
+                    state: "messages_handoff_requested",
+                    target_app: "apple_messages",
+                    contract_version: 1,
+                    requested_by: requestedBy,
+                    requested_at: FIXED_NOW,
+                }
+                state.messagesHandoffs.push(handoff)
+            }
+
+            return {
+                disposition,
+                handoff_id: handoff.id,
+                state: handoff.state,
+                target_app: handoff.target_app,
+                contract_version: handoff.contract_version,
+                recipient_name: recipient.organization_name,
+                recipient_address: recipient.address,
+                message_body: payload.message_body,
+            }
+        },
+    }
+}
+
+function buildTestSmsAddress() {
+    return String.fromCharCode(
+        43,
+        49,
+        52,
+        49,
+        53,
+        53,
+        53,
+        53,
+        48,
+        49,
+        57,
+        57
+    )
 }
 
 function snapshotTrustedOutputs(state) {
@@ -368,7 +704,7 @@ function snapshotTrustedOutputs(state) {
     })
 }
 
-test("runs the deterministic August 3 Librela lifecycle twice without duplicates", async () => {
+test("runs the August 3 lifecycle through governed Messages handoff without duplicates", async () => {
     const state = createState()
     const gmail = buildAugust3GmailFixture()
 
@@ -522,6 +858,93 @@ test("runs the deterministic August 3 Librela lifecycle twice without duplicates
         activeReminders.answer,
         /Insurance claim on September 2, 2026/
     )
+
+    const nextCare = await askTomo(
+        state,
+        "When is Momo’s next Librela injection due?"
+    )
+    assert.match(nextCare.answer, /September 21, 2026/)
+    assert.match(nextCare.answer, /planned Librela reminder/)
+    assert.match(nextCare.answer, /do not see a future scheduled or confirmed/)
+    assert.equal(nextCare.proposed_action?.type, "draft_appointment_request")
+
+    const governedRepository = createGovernedMessagesRepository(state)
+    const appointmentDraft = await askTomo(
+        state,
+        "Can you prepare Momo’s Librela appointment request?",
+        { orchestrationRepository: governedRepository }
+    )
+    assert.equal(appointmentDraft.answer_type, "message_draft_prepared")
+    assert.equal(
+        appointmentDraft.message_draft.recipient_name,
+        "SoMa Animal Hospital"
+    )
+    assert.equal(appointmentDraft.message_draft.recipient_contact, null)
+    assert.match(
+        appointmentDraft.message_draft.message_body,
+        /last Librela injection was on August 3, 2026/
+    )
+    assert.match(
+        appointmentDraft.message_draft.message_body,
+        /due around September 21, 2026/
+    )
+    assert.equal(
+        appointmentDraft.workflow.external_action_taken,
+        false
+    )
+
+    const preparedAction = await prepareSendLibrelaAppointmentRequest({
+        repository: governedRepository,
+        petId: IDS.pet,
+        orchestrationRunId: appointmentDraft.workflow.run_id,
+        reminderId: appointmentDraft.message_draft.evidence.reminder_event_id,
+        injectionId: appointmentDraft.message_draft.evidence.injection_event_id,
+        messageBody: appointmentDraft.message_draft.message_body,
+        requestSource: "assistant",
+        requestedBy: "Rosa",
+    })
+    assert.equal(preparedAction.disposition, "created")
+    assert.equal(preparedAction.action.status, "proposed")
+    assert.equal(preparedAction.action.preview_json.recipient_channel, "sms")
+    assert.equal(
+        "recipient_address" in preparedAction.action.preview_json,
+        false
+    )
+
+    const approvedAction = await approveCareAction({
+        repository: governedRepository,
+        actionId: preparedAction.action.id,
+        approvedBy: "Rosa",
+        approvedAt: FIXED_NOW,
+    })
+    assert.equal(approvedAction.disposition, "approved")
+    assert.equal(approvedAction.action.status, "approved")
+
+    const messagesHandoff = await prepareLibrelaAppleMessagesHandoff({
+        repository: governedRepository,
+        actionId: approvedAction.action.id,
+        now: () => new Date("2026-08-12T19:00:00.000Z"),
+    })
+    assert.equal(messagesHandoff.disposition, "created")
+    assert.equal(messagesHandoff.handoff.state, "messages_handoff_requested")
+    assert.equal(messagesHandoff.handoff.target_app, "apple_messages")
+    assert.equal(
+        messagesHandoff.handoff.recipient_display,
+        "Trusted number ending in 0199"
+    )
+    assert.equal(
+        decodeURIComponent(
+            messagesHandoff.handoff.launch_uri.split("?body=")[1]
+        ),
+        appointmentDraft.message_draft.message_body
+    )
+    assert.equal(state.messagesHandoffs.length, 1)
+    assert.equal(state.careActions[0].status, "approved")
+    assert.equal(state.orchestrationRuns[0].external_action_taken, false)
+    assert.equal(state.orchestrationRuns[0].external_action_status, "not_sent")
+    assert.equal("sent" in messagesHandoff.handoff, false)
+    assert.equal("delivered" in messagesHandoff.handoff, false)
+    assert.equal("appointment_booked" in messagesHandoff.handoff, false)
 
     const firstSnapshot = snapshotTrustedOutputs(state)
 
