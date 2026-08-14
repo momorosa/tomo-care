@@ -167,3 +167,41 @@ test("does not let an attention phrase absorb a consequential request", () => {
     assert.equal(plan.intent, "action_request")
     assert.equal(plan.requires_action, true)
 })
+
+test("guarantees the bounded governed Profile phrase family", () => {
+    const cases = [
+        ["What do you know about Momo?", "summary"],
+        ["Tell me about Momo", "summary"],
+        ["Who is Momo?", "summary"],
+        ["What’s in Momo’s profile?", "summary"],
+        ["How old is Momo?", "age"],
+        ["What is Momo’s breed?", "breed"],
+        ["What species is Momo?", "species"],
+        ["When is Momo’s birthday?", "birth_date"],
+        ["What is Momo’s sex?", "sex"],
+        ["Is Momo spayed?", "reproductive_status"],
+    ]
+
+    for (const [question, focus] of cases) {
+        const plan = buildQueryPlan(question)
+        assert.equal(plan.intent, "profile_summary", question)
+        assert.equal(plan.subject, "profile", question)
+        assert.equal(plan.scope, "governed_pet_profile", question)
+        assert.equal(plan.profile_focus, focus, question)
+        assert.equal(plan.requires_action, false, question)
+    }
+})
+
+test("does not mistake ambiguous health or Profile edits for Profile reads", () => {
+    const healthQuestions = ["How is Momo?", "How’s Momo?", "Hows Momo?"]
+    const edit = buildQueryPlan("Please update Momo’s breed")
+
+    for (const question of healthQuestions) {
+        const health = buildQueryPlan(question)
+        assert.equal(health.intent, "ambiguous_health_question", question)
+    }
+    assert.equal(edit.intent, "action_request")
+    assert.equal(edit.subject, "profile")
+    assert.equal(edit.scope, "profile_change_governance")
+    assert.equal(edit.requires_action, true)
+})

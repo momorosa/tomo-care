@@ -26,6 +26,7 @@ const SEMANTIC_SCHEMA = {
                 "medical_judgment_boundary",
                 "next_librela_due",
                 "next_librela_reminder",
+                "profile_summary",
                 "recent_verified_records",
                 "spend_summary",
                 "vaccine_record_lookup",
@@ -46,6 +47,7 @@ const SEMANTIC_SCHEMA = {
                 "health",
                 "librela",
                 "pain",
+                "profile",
                 "rabies_vaccine",
                 "reminders",
                 "simparica_trio",
@@ -62,6 +64,20 @@ const SEMANTIC_SCHEMA = {
             type: "integer",
             enum: [0, 1],
         },
+        profile_field: {
+            type: "string",
+            enum: [
+                "summary",
+                "name",
+                "species",
+                "breed",
+                "birth_date",
+                "age",
+                "sex",
+                "reproductive_status",
+                "none",
+            ],
+        },
         confidence: {
             type: "string",
             enum: ["high", "medium", "low"],
@@ -73,7 +89,6 @@ const SEMANTIC_SCHEMA = {
                 "capabilities",
                 "goodbye",
                 "greeting",
-                "momo_profile",
                 "negative_feedback",
                 "positive_feedback",
                 "thanks",
@@ -123,6 +138,7 @@ const SEMANTIC_SCHEMA = {
         "subject",
         "cost_scope",
         "event_offset",
+        "profile_field",
         "confidence",
         "social_intent",
         "tone",
@@ -158,6 +174,9 @@ Use direct_medication for Librela medication spend.
 Never infer an approval, execution, medication administration, booking, send,
 text, email, calendar change, or other external action. For an action request
 that is not already handled by TomoCare, return clarification.
+Treat a request to change, update, edit, correct, or set a Profile field as a
+consequential action request. Do not return profile_summary and do not imply
+that the pets row was changed.
 
 Treat "calendar" as the user's TomoCare care schedule or planned reminders when
 the utterance asks what is listed or whether a care item is listed. Use
@@ -181,9 +200,13 @@ verified records, or a specific part of Momo's care. Do not invent an update.
 Use social only for ordinary conversation that contains no care question.
 Classify questions about who Tomo is, what Tomo can do, or how Tomo can help as
 social with social_intent capabilities.
-Classify questions asking who Momo is, what is known about Momo, or for a simple
-description of Momo as social with social_intent momo_profile. Never confuse
-Momo, the pet, with Tomo, the assistant.
+Classify questions asking who Momo is, what is known about Momo, what is in her
+Profile, or asking for her name, species, breed, birth date, age, sex, or
+spay/neuter status as care_query with intent profile_summary and subject
+profile. Set profile_field to the requested field, or summary for a broad
+Profile question. These facts are retrieved only from the governed pets row.
+Never confuse Momo, the pet, with Tomo, the assistant. “How is Momo?” is
+ambiguous health language, not a Profile request; return clarification.
 Classify praise or delight such as "That's fantastic", "Great", or "Amazing"
 as positive_feedback, not acknowledgement. Use acknowledgement for neutral
 confirmations such as "okay" or "got it". Use unknown when the utterance is
@@ -208,8 +231,8 @@ it. Keep the language natural and concise rather than formulaic.
 
 For greeting, thanks, positive_feedback, negative_feedback, acknowledgement,
 or goodbye, write a fresh social_response of no more than two short sentences.
-For capabilities and momo_profile, leave social_response empty because those
-claims are assembled from deterministic configuration.
+For capabilities, leave social_response empty because those claims are
+assembled from deterministic configuration.
 
 For an ordinary care_query, you may write one brief personality_opening or one
 brief personality_closing, but never both. It must be fact-free framing only. It must not include

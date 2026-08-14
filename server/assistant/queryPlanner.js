@@ -58,6 +58,16 @@ export function buildQueryPlan(question, options = {}) {
         })
     }
 
+    if (isProfileEditRequest(q)) {
+        return basePlan({
+            intent: "action_request",
+            subject: "profile",
+            scope: "profile_change_governance",
+            requires_action: true,
+            dateRange,
+        })
+    }
+
     if (isActionRequest(q)) {
         return basePlan({
             intent: "action_request",
@@ -71,6 +81,18 @@ export function buildQueryPlan(question, options = {}) {
             intent: "ambiguous_health_question",
             subject: "health",
             scope: "clarification_needed",
+            dateRange,
+        })
+    }
+
+
+    const profileFocus = getProfileFocus(q)
+    if (profileFocus) {
+        return basePlan({
+            intent: "profile_summary",
+            subject: "profile",
+            scope: "governed_pet_profile",
+            profile_focus: profileFocus,
             dateRange,
         })
     }
@@ -258,6 +280,7 @@ function basePlan({
     dateRange,
     requires_action = false,
     action = null,
+    profile_focus = null,
 }) {
     return {
         intent,
@@ -267,7 +290,47 @@ function basePlan({
         trusted_only: true,
         requires_action,
         action,
+        ...(profile_focus ? { profile_focus } : {}),
     }
+}
+
+function isProfileEditRequest(q) {
+    const normalized = normalizeOverviewQuestion(q)
+    const mentionsProfile = /\b(profile|name|breed|species|birthday|birth date|sex|spayed|neutered)\b/.test(
+        normalized
+    )
+    const asksChange = /\b(change|update|edit|correct|set|fix)\b/.test(normalized)
+
+    return mentionsProfile && asksChange
+}
+
+function getProfileFocus(q) {
+    const normalized = normalizeOverviewQuestion(q)
+    const directFields = [
+        ["age", /\b(how old|what(?: is|'s) .* age|age)\b/],
+        ["birth_date", /\b(birthday|birth date|born)\b/],
+        ["breed", /\bbreed\b/],
+        ["species", /\bspecies\b|\bwhat kind of animal\b/],
+        ["reproductive_status", /\b(spayed|neutered|fixed)\b/],
+        ["sex", /\bsex\b|\bmale or female\b/],
+        ["name", /\bwhat(?: is|'s) (?:momo(?:'s| s)? )?name\b/],
+    ]
+
+    for (const [focus, pattern] of directFields) {
+        if (pattern.test(normalized) && /\b(momo|she|her|profile)\b/.test(normalized)) {
+            return focus
+        }
+    }
+
+    if (
+        /^(?:tomo )?(?:what do you know about momo|tell me about momo|who is momo|describe momo|what(?: is|'s) in (?:momo(?:'s| s) )?profile|show me (?:momo(?:'s| s) )?profile)$/.test(
+            normalized
+        )
+    ) {
+        return "summary"
+    }
+
+    return null
 }
 
 function isActionRequest(q) {
@@ -479,6 +542,7 @@ function isLastWeightQuestion(q) {
 
 function isAmbiguousHealthQuestion(q) {
     const normalized = q
+        .replace(/[’]/g, "'")
         .replace(/[?!.]/g, "")
         .replace(/\s+/g, " ")
         .trim()
@@ -492,6 +556,12 @@ function isAmbiguousHealthQuestion(q) {
         "is everything ok",
         "is momo alright",
         "is she alright",
+        "how is momo",
+        "how is she",
+        "how's momo",
+        "how's she",
+        "hows momo",
+        "hows she",
     ].includes(normalized)
 }
 

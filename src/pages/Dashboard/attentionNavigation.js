@@ -7,7 +7,7 @@ const RECORD_TARGETS = Object.freeze({
     open_review_document: "review_document",
 })
 
-export function getAttentionNavigationEffect(target) {
+export function getAttentionNavigationEffect(target, { petId } = {}) {
     if (!target || typeof target !== "object") return null
 
     const recordType = RECORD_TARGETS[target.kind]
@@ -16,6 +16,21 @@ export function getAttentionNavigationEffect(target) {
 
         return {
             type: recordType,
+            recordId: target.target_id,
+        }
+    }
+
+    if (target.kind === "open_profile") {
+        if (
+            !isRequiredString(target.target_id) ||
+            !isRequiredString(petId) ||
+            target.target_id !== petId
+        ) {
+            return null
+        }
+
+        return {
+            type: "profile",
             recordId: target.target_id,
         }
     }

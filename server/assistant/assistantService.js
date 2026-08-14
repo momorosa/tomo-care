@@ -80,8 +80,11 @@ export async function answerAssistantQuestion({
     }
 
     const isAttentionSummary = queryPlan.intent === "attention_summary"
+    const isProfileSummary = queryPlan.intent === "profile_summary"
     const needsTrustedContext =
-        queryPlan.intent !== "social_response" && !isAttentionSummary
+        queryPlan.intent !== "social_response" &&
+        !isAttentionSummary &&
+        !isProfileSummary
     const buildContext = needsTrustedContext
         ? dependencies.buildContext ||
           (await import("./contextBuilder.js")).buildTrustedContext
@@ -103,6 +106,21 @@ export async function answerAssistantQuestion({
               petId,
               currentCareDate,
               dateRange: queryPlan.date_range,
+          })
+        : null
+    const profileRepository = isProfileSummary
+        ? dependencies.profileRepository ||
+          (await import("../profile/profileRepository.js")).profileRepository
+        : null
+    const buildProfile = isProfileSummary
+        ? dependencies.buildProfile ||
+          (await import("../profile/governedProfile.js")).buildGovernedProfile
+        : null
+    const profileSummary = buildProfile
+        ? await buildProfile({
+              repository: profileRepository,
+              petId,
+              currentCareDate,
           })
         : null
     const actionRepository =
@@ -147,6 +165,7 @@ export async function answerAssistantQuestion({
         actionPreparation,
         messageDraftPreparation,
         attentionSummary,
+        profileSummary,
     })
     const personalizeAnswer =
         dependencies.personalizeAnswer || applyPersonalityFraming

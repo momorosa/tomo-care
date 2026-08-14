@@ -1,3 +1,5 @@
+import { normalizeProfileFields } from "../profile/governedProfile.js"
+
 export function summarizeVerifiedCareEvents(events = []) {
     const verifiedEvents = events
         .filter((event) => event?.status === "verified" && event?.event_date)
@@ -14,19 +16,10 @@ export function summarizeVerifiedCareEvents(events = []) {
     }
 }
 
-export function summarizePetProfile(pet) {
+export function summarizePetProfile(pet, currentCareDate) {
     if (!pet) return null
 
-    return {
-        name: pet.name || null,
-        breed: pet.breed || null,
-        sex: pet.sex || null,
-        spayed_neutered:
-            typeof pet.spayed_neutered === "boolean"
-                ? pet.spayed_neutered
-                : null,
-        birth_date: pet.birth_date || null,
-    }
+    return normalizeProfileFields(pet, currentCareDate)
 }
 
 function isLibrelaRelated(event) {

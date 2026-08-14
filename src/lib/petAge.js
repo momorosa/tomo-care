@@ -25,6 +25,11 @@ export function formatAge(birthDate, currentDate = new Date()) {
     return `${age} ${age === 1 ? "year" : "years"}`
 }
 
+export function formatAgeValue(age) {
+    if (!Number.isInteger(age) || age < 0) return "Age not set"
+    return `${age} ${age === 1 ? "year" : "years"}`
+}
+
 function normalizeCurrentDate(value) {
     if (typeof value === "string") {
         const parts = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)

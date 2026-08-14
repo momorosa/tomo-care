@@ -23,18 +23,16 @@ test("accepts a brief generated response for a harmless social turn", () => {
     )
 })
 
-test("does not replace deterministic profile or capability responses", () => {
-    for (const subject of ["momo_profile", "capabilities"]) {
-        assert.equal(
-            getGeneratedSocialResponse({
-                queryPlan: { intent: "social_response", subject },
-                semanticInterpretation: {
-                    social_response: "I can make up a charming answer.",
-                },
-            }),
-            null
-        )
-    }
+test("does not replace the deterministic capability response", () => {
+    assert.equal(
+        getGeneratedSocialResponse({
+            queryPlan: { intent: "social_response", subject: "capabilities" },
+            semanticInterpretation: {
+                social_response: "I can make up a charming answer.",
+            },
+        }),
+        null
+    )
 })
 
 test("rejects generated language containing facts or completed-action claims", () => {

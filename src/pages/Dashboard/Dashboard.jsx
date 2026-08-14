@@ -399,8 +399,16 @@ export default function Dashboard() {
     }
 
     async function navigateAttentionTarget(target) {
-        const effect = getAttentionNavigationEffect(target)
+        const effect = getAttentionNavigationEffect(target, { petId: PET_ID })
         if (!effect) return
+
+        if (effect.type === "profile") {
+            dispatchHomeLayout({
+                type: "select_section",
+                section: HOME_SECTIONS.PROFILE,
+            })
+            return
+        }
 
         if (effect.type === "reminder") {
             setFocusedReminderId(effect.recordId)

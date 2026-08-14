@@ -49,12 +49,38 @@ test("allows only governed Google Calendar navigation", () => {
     )
 })
 
+test("opens only the current pet Profile", () => {
+    assert.deepEqual(
+        getAttentionNavigationEffect(
+            { kind: "open_profile", target_id: "pet-1" },
+            { petId: "pet-1" }
+        ),
+        { type: "profile", recordId: "pet-1" }
+    )
+    assert.equal(
+        getAttentionNavigationEffect(
+            { kind: "open_profile", target_id: "other-pet" },
+            { petId: "pet-1" }
+        ),
+        null
+    )
+    assert.equal(
+        getAttentionNavigationEffect(
+            { kind: "open_profile", target_id: "pet-1" },
+            {}
+        ),
+        null
+    )
+})
+
 test("rejects unknown, mutation-like, incomplete, and untrusted targets", () => {
     const rejected = [
         null,
         { kind: "approve_care_action", target_id: "action-1" },
         { kind: "complete_reminder", target_id: "reminder-1" },
         { kind: "open_reminder", target_id: "" },
+        { kind: "edit_profile", target_id: "pet-1" },
+        { kind: "open_profile", target_id: "" },
         { kind: "open_calendar_event", url: "https://example.com/calendar" },
         { kind: "open_calendar_event", url: "javascript:alert(1)" },
         {

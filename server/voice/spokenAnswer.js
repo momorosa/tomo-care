@@ -102,6 +102,20 @@ export function composeSpokenAnswer(
         return fitAttentionSummary(assistantResponse, maxCharacters)
     }
 
+    if (assistantResponse.answer_type === "profile_summary") {
+        const governedAnswer =
+            assistantResponse.governed_answer?.trim() || writtenAnswer
+        const governedStart = writtenAnswer.indexOf(governedAnswer)
+        const profileAnswer =
+            governedStart >= 0
+                ? writtenAnswer.slice(governedStart)
+                : writtenAnswer
+
+        return profileAnswer.length <= maxCharacters
+            ? profileAnswer
+            : fitSentences(governedAnswer, maxCharacters)
+    }
+
     const reviewTransition = REVIEW_ANSWER_TYPES.has(
         assistantResponse.answer_type
     )

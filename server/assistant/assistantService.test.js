@@ -276,8 +276,9 @@ test("answers Tomo’s self-description without loading trusted care records", a
     assert.deepEqual(result.citations, [])
 })
 
-test("answers the observed Momo-profile question without loading trusted care records", async () => {
+test("answers the observed Momo-profile question from only the governed profile source", async () => {
     let contextCalls = 0
+    let profileCalls = 0
     const result = await answerAssistantQuestion({
         petId: "pet-1",
         question: "What do you know about Momo?",
@@ -288,13 +289,38 @@ test("answers the observed Momo-profile question without loading trusted care re
                 contextCalls += 1
                 return {}
             },
+            profileRepository: {},
+            buildProfile: async ({ petId, currentCareDate }) => {
+                profileCalls += 1
+                assert.equal(petId, "pet-1")
+                assert.equal(currentCareDate, "2026-07-31")
+                return {
+                    status: "available",
+                    fields: {
+                        id: "pet-1",
+                        name: "Momo",
+                        species: "canine",
+                        breed: "American Eskimo",
+                        birth_date: "2014-08-22",
+                        age: 11,
+                        sex: "female",
+                        reproductive_status: "spayed",
+                    },
+                    missing_fields: [],
+                    governing_reference: {
+                        table: "pets",
+                        record_id: "pet-1",
+                    },
+                    navigation_targets: [],
+                }
+            },
         },
     })
 
     assert.equal(contextCalls, 0)
-    assert.equal(result.answer_type, "social_response")
-    assert.match(result.answer, /Momo is Rosa’s beloved senior American Eskimo/)
-    assert.doesNotMatch(result.answer, /I’m Tomo/)
+    assert.equal(profileCalls, 1)
+    assert.equal(result.answer_type, "profile_summary")
+    assert.match(result.governed_answer, /American Eskimo/)
     assert.deepEqual(result.citations, [])
 })
 

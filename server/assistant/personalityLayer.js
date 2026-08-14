@@ -1,4 +1,4 @@
-import { TOMO_RELATIONSHIP_PROFILE_V1 } from "./relationshipProfile.js"
+import { TOMO_RELATIONSHIP_PROFILE_V2 } from "./relationshipProfile.js"
 import {
     getGeneratedFraming,
     getGeneratedSocialResponse,
@@ -236,7 +236,7 @@ export function applyPersonalityFraming({
         ...response,
         answer,
         personality: {
-            profile_version: TOMO_RELATIONSHIP_PROFILE_V1.version,
+            profile_version: TOMO_RELATIONSHIP_PROFILE_V2.version,
             tone,
             mode: restrained ? "restrained" : "relational",
             addressed_tomo: addressedTomo,

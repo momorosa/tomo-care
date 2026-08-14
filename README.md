@@ -8,7 +8,7 @@ It ingests vet receipts, lab reports, and visit notes; extracts the facts that m
 
 **Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.3, including lifecycle hardening for Librela, Simparica, and Adequan plus governed attention and navigation. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.4: governed Profile grounding.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md) and [Phase 3E.3 closeout and Phase 3E.4 handover](./docs/Phase3E3_Closeout_and_Phase3E4_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), and [Phase 3E.3 closeout and Phase 3E.4 handover](./docs/Phase3E3_Closeout_and_Phase3E4_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -131,13 +131,21 @@ Shipped a truthful single-user clinic-message handoff:
 
 ## Next product work
 
-* Ship Phase 3E.4: answer bounded Profile questions from the current `pets` record rather than relying on the static relationship profile for identity facts.
-* Compute age from `birth_date` using the current care date, preserve honest missing-field behavior, and guide Rosa to the Profile panel without treating navigation as permission to edit it.
-* Keep governed profile fields distinct from harmless relationship details and exclude clinic or insurance labels that are not yet backed by a governed profile source.
-* Continue assistant coverage as separate slices for stored Inbox state and deeper Recently verified follow-up.
-* Investigate silent Runway/LiveKit failures so Animate Tomo can explain when it has fallen back to local voice and offer a safe retry.
-* Return to meaning-based character reactions for `happy`, `laughing`, and `oops` after the core coverage and skill contract is stable.
-* Defer proactive notifications, inbound clinic reply interpretation, durable conversation history, broad relational memory, and multi-agent orchestration until a demonstrated product need justifies them.
+TomoCare now follows one product roadmap with two release tracks:
+
+* The **real-care track** continues toward a comprehensive long-term health sidekick for Momo.
+* The **portfolio track** creates a reliable, visually polished checkpoint of the same governed product using separate, resettable synthetic demo data.
+
+The agreed near-term sequence is:
+
+1. Ship Phase 3E.4: ground bounded Profile questions in the current `pets` row, calculate age from the care date, preserve honest missing-field behavior, and open the existing Profile panel through typed navigation.
+2. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
+3. Add a clearly labeled synthetic Librela invoice and improve verification so human attention follows uncertainty and consequence rather than treating every field equally.
+4. Capture the invoice's vaccine-status section as reviewed clinic-reported status without claiming a vaccine administration or automatically creating a reminder.
+5. Add a source-linked visualization of verified weight measurements.
+6. Improve Voice, Animate Tomo fallback, and end-to-end UI reliability before freezing the portfolio v1 checkpoint.
+
+Medication refill or renewal, the complete vaccine lifecycle, annual labs, urinalysis, imaging, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
 ## What TomoCare is not
 

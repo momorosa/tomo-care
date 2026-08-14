@@ -49,6 +49,19 @@ The project demonstrates product design at the architecture layer:
 
 ---
 
+## One product, two release tracks
+
+TomoCare remains one product and one codebase with two deliberate release tracks:
+
+- The **real-care track** is the long-term assistant Rosa genuinely uses to manage Momo's care. It may continue expanding into medication refills, vaccines, annual labs, urinalysis, imaging, health summaries, and vet-visit preparation when each capability has a trustworthy source and bounded contract.
+- The **portfolio track** is a stable, reliable, visually polished checkpoint of the same governed product. It uses resettable synthetic Momo data and separate demo configuration so interviews and recordings cannot alter or expose Momo's live care state.
+
+The portfolio release is not a fork or a separate simplified product. It is a controlled checkpoint inside the real product journey. The long-term north star should not delay the portfolio finish line, and portfolio polish should not weaken the governance model used for real care.
+
+The current sequence, demo-data decision, vaccine boundary, and portfolio definition of done are recorded in [TomoCare Product Roadmap and Portfolio Checkpoint](./TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md).
+
+---
+
 ## Core thesis
 
 > AI can prepare; human approves.
@@ -321,6 +334,8 @@ The next bounded slice is **3E.4 — Governed Profile Grounding**:
 - Keep hardcoded clinic and insurance labels out of grounded answers until they have a governed source
 - Preserve the same profile facts across Chat and Voice
 
+After Phase 3E.4 is validated, near-term work shifts to the portfolio-readiness sequence: a separate resettable demo environment, a synthetic invoice, risk-weighted verification, bounded vaccine-status capture, a verified weight-trend visualization, and Voice/UI recovery polish. Annual-health intelligence remains part of the real-care north star rather than portfolio v1 scope.
+
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
 Broader coverage for Inbox, Recently verified, appointments, and other visible care context remains Phase 3E work and should be added as bounded, tested slices rather than one broad knowledge claim.
@@ -451,6 +466,8 @@ The portfolio narrative should remain personal first and technical second. It sh
 
 Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded chat and voice, a native Apple Messages draft handoff, and optional live character animation. The handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Inbound reply interpretation and broader assistant coverage remain unfinished. Describe TomoCare as a governed AI assistant; multi-agent orchestration is a future design direction, not a current capability.
 
+Portfolio demonstrations should use the separate resettable synthetic environment by default. Real Momo records remain appropriate for private product use and validation, but screenshots, recordings, and interviews should not depend on live clinic, insurance, recipient, or medical data. The portfolio story should demonstrate the same governance rules as the real product rather than relaxing them for convenience.
+
 ---
 
 ## Phase decision framework
@@ -518,9 +535,10 @@ When TomoCare documents disagree, use this order:
 
 1. Current code, database behavior, and passing evals
 2. Latest Current State and Handover document
-3. This Operating Brief for durable principles and strategy
-4. Completed phase case studies for the historical story of each phase
-5. Older project briefs, roadmap language, and portfolio introduction copy
+3. TomoCare Product Roadmap and Portfolio Checkpoint for accepted sequencing and portfolio scope
+4. This Operating Brief for durable principles and strategy
+5. Completed phase case studies for the historical story of each phase
+6. Older project briefs, roadmap language, and portfolio introduction copy
 
 Historical case studies should preserve the decisions and learning of their phase. Global phase navigation, project status, and public overview language should be updated as the product evolves.
 

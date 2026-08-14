@@ -1,6 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { resolveAssistantPlan } from "./semanticUnderstanding.js"
+import { buildQueryPlan } from "./queryPlanner.js"
 
 function unknownPlan() {
     return {
@@ -21,6 +22,7 @@ function interpretation(overrides = {}) {
         subject: "librela",
         cost_scope: "direct_medication",
         event_offset: 0,
+        profile_field: "none",
         confidence: "high",
         social_intent: "none",
         tone: "neutral",
@@ -240,18 +242,42 @@ test("answers the observed self-description question without a provider", async 
     assert.equal(result.semanticInterpretation.mode, "local_social")
 })
 
-test("answers the observed Momo-profile question without confusing Momo with Tomo", async () => {
+test("routes the observed Momo-profile question to governed Profile facts", async () => {
     const result = await resolveAssistantPlan({
         question: "What do you know about Momo?",
         currentCareDate: "2026-07-31",
-        buildPlan: unknownPlan,
+        buildPlan: buildQueryPlan,
         semanticProvider: null,
     })
 
-    assert.equal(result.queryPlan.intent, "social_response")
-    assert.equal(result.queryPlan.subject, "momo_profile")
+    assert.equal(result.queryPlan.intent, "profile_summary")
+    assert.equal(result.queryPlan.subject, "profile")
+    assert.equal(result.queryPlan.profile_focus, "summary")
     assert.equal(result.queryPlan.requires_action, false)
-    assert.equal(result.semanticInterpretation.mode, "local_social")
+    assert.equal(result.semanticInterpretation, null)
+})
+
+test("maps a semantic Profile paraphrase to a bounded field focus", async () => {
+    const result = await resolveAssistantPlan({
+        question: "Remind me what kind of dog she is",
+        currentCareDate: "2026-07-31",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    kind: "care_query",
+                    intent: "profile_summary",
+                    subject: "profile",
+                    profile_field: "breed",
+                    cost_scope: "none",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "profile_summary")
+    assert.equal(result.queryPlan.subject, "profile")
+    assert.equal(result.queryPlan.profile_focus, "breed")
 })
 
 test("accepts model-classified capability questions as bounded social turns", async () => {

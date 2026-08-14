@@ -29,10 +29,26 @@ Use these sources in order:
 1. Current code and passing tests on `main`
 2. Current database and persisted action state
 3. This handover for settled product decisions and next-slice scope
-4. The TomoCare Operating Brief for durable principles
-5. Earlier handovers and phase notes for historical context
+4. The TomoCare Product Roadmap and Portfolio Checkpoint for accepted sequencing and portfolio scope
+5. The TomoCare Operating Brief for durable principles
+6. Earlier handovers and phase notes for historical context
 
 When an older document conflicts with current code, tests, or this handover, follow the current implementation and record the discrepancy before changing behavior.
+
+## Product-roadmap decision recorded after Phase 3E.3
+
+On August 14, 2026, Rosa accepted a two-track delivery strategy for TomoCare:
+
+- Keep **one product and one codebase**.
+- Continue the long-term **real-care track** toward a comprehensive health sidekick for Momo.
+- Create a bounded **portfolio track** as a stable, polished checkpoint of the same governed product.
+- Use separate, resettable synthetic demo data and demo-safe external destinations rather than preserving an intentionally unverified real invoice or demonstrating against Momo's live care state.
+- Finish Phase 3E.4 first, then prioritize the demo environment, risk-weighted verification, bounded vaccine-status capture, verified weight visualization, and Voice/UI recovery polish before freezing portfolio v1.
+- Defer complete vaccine and refill lifecycles, annual labs, urinalysis, imaging, and broad medical-document intelligence until after the portfolio checkpoint unless a later bounded contract promotes them.
+
+The full decision, rationale, roadmap order, demo-data policy, and portfolio definition of done are recorded in [TomoCare Product Roadmap and Portfolio Checkpoint](./TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md).
+
+This decision does not change the already bounded Phase 3E.4 contract below. It changes the accepted sequence after Phase 3E.4 and provides a deliberate portfolio finish line inside the real product journey.
 
 ## Shipped capability through Phase 3E.3
 

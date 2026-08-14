@@ -4,6 +4,8 @@ import {
     summarizePetProfile,
     summarizeVerifiedCareEvents,
 } from "../dashboard/careSummary.js"
+import { getCareDate } from "../lib/careDates.js"
+import { PROFILE_SELECT } from "../profile/profileRepository.js"
 
 const router = express.Router()
 
@@ -20,7 +22,7 @@ router.get("/pets/:petId/care-summary", async (req, res) => {
                 .order("event_date", { ascending: false }),
             sbAdmin
                 .from("pets")
-                .select("name, breed, sex, spayed_neutered, birth_date")
+                .select(PROFILE_SELECT)
                 .eq("id", petId)
                 .single(),
         ])
@@ -32,7 +34,10 @@ router.get("/pets/:petId/care-summary", async (req, res) => {
             ok: true,
             summary: {
                 ...summarizeVerifiedCareEvents(eventsResult.data || []),
-                pet_profile: summarizePetProfile(petResult.data),
+                pet_profile: summarizePetProfile(
+                    petResult.data,
+                    getCareDate()
+                ),
             },
         })
     } catch (error) {

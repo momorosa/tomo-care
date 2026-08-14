@@ -13,6 +13,7 @@ function semanticResult(overrides = {}) {
         subject: "librela",
         cost_scope: "direct_medication",
         event_offset: 0,
+        profile_field: "none",
         confidence: "high",
         social_intent: "none",
         tone: "neutral",
@@ -82,9 +83,19 @@ test("requests a stateless schema-constrained semantic interpretation", async ()
         )
     )
     assert.ok(
+        request.text.format.schema.properties.intent.enum.includes(
+            "profile_summary"
+        )
+    )
+    assert.ok(
+        request.text.format.schema.properties.subject.enum.includes("profile")
+    )
+    assert.ok(request.text.format.schema.required.includes("profile_field"))
+    assert.equal(
         request.text.format.schema.properties.social_intent.enum.includes(
             "momo_profile"
-        )
+        ),
+        false
     )
     assert.ok(
         request.text.format.schema.properties.social_intent.enum.includes(
