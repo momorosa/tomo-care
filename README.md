@@ -6,7 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. The Phase 3C messaging foundation is complete in mock mode; live Twilio delivery remains pending provider approval. The next product focus is assistant coverage and governed skills.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.2, including lifecycle hardening for Librela, Simparica, and Adequan. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.3: attention and governed navigation.
+
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md) and [Phase 3E.2 closeout and Phase 3E.3 handover](./docs/Phase3E2_Closeout_and_Phase3E3_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -88,7 +90,8 @@ Shipped the governed workflow and orchestration boundary for clinic messaging:
 * Exact-message review and approval contract
 * Persistent workflow state and recovery
 * Mock delivery for safe end-to-end testing
-* Server-side provider boundary ready for live Twilio delivery after A2P approval
+* Server-side provider boundary and Twilio self-test as architectural proof
+* Explicit separation between approval, handoff, delivery, and reply interpretation
 
 ### Phase 3D — Conversational Tomo
 
@@ -103,12 +106,34 @@ Shipped the voice-first, conversation-centered experience:
 * Pose-matched local motion clips with one-shot playback and final-frame holds
 * Numeric-only latency instrumentation and static/local-audio fallback
 
+### Phase 3E — Lifecycle Integrity and Governed Skills
+
+Shipped the first lifecycle and assistant-coverage slices:
+
+* Post-verification eligibility hardening plus production Gmail and Calendar authorization recovery
+* Librela reconciliation, Calendar recovery, verified weight materialization, and golden lifecycle idempotency
+* Golden Librela-to-Messages path from trusted records through grounded answer, approved draft, verified recipient, and native handoff intent
+* Shared Simparica and Adequan home-medication lifecycle with explicit confirmation, atomic trusted writes, reminder completion, exactly one cadence-based successor, Calendar sync, grounded answers, and retry safety
+
+### Phase 3F — Native Apple Messages Handoff
+
+Shipped a truthful single-user clinic-message handoff:
+
+* Tomo prepares the exact message from trusted state
+* The server verifies the recipient and exposes only masked recipient details
+* Rosa reviews and explicitly approves the message
+* Native Apple Messages opens an editable draft; Rosa makes the final send decision
+* Copy fallback and idempotent recovery remain available
+* TomoCare records handoff intent without claiming sent, delivered, received, or booked
+
 ## Next product work
 
-* Expand assistant coverage, freshness rules, and citations across everything visible in Profile, Reminders, Inbox, Recently verified, and pending approvals.
-* Add governed skills that can guide the user into the relevant product or external tool, starting with opening the correct Google Calendar reminder or Calendar view.
+* Ship Phase 3E.3: answer “What needs my attention?” from due or overdue reminders, pending or recoverable care actions, and documents awaiting verification.
+* Rank a bounded set of supported items deterministically, explain why, and reference the governing record without treating candidate document contents as trusted facts.
+* Add governed navigation to the relevant reminder, approval, or review surface. A qualifying reminder may also open its stored Google Calendar event, or Calendar generically when no event URL exists, without treating navigation as authorization to change state.
+* Continue broader assistant coverage, freshness, privacy, conflict, citation, and no-data rules as bounded slices across Profile, Reminders, Inbox, Recently verified, and pending approvals.
 * Return to meaning-based character reactions for `happy`, `laughing`, and `oops` after the core coverage and skill contract is stable.
-* Complete live outbound Twilio delivery after A2P approval without adding inbound reply interpretation to the same slice.
+* Defer proactive notifications, inbound clinic reply interpretation, durable conversation history, broad relational memory, and multi-agent orchestration until a demonstrated product need justifies them.
 
 ## What TomoCare is not
 
@@ -128,7 +153,7 @@ Correctness, provenance, and governance come before polish.
 * **AI review:** Anthropic API
 * **Assistant and voice:** OpenAI API
 * **Connected tools:** Gmail API, Google Calendar API
-* **Approved messaging:** Twilio mock provider; live delivery pending A2P approval
+* **Approved messaging:** Native Apple Messages draft handoff; Rosa remains the sender
 * **Live character:** Runway animated avatar through LiveKit
 
 ## Design principles
@@ -277,9 +302,14 @@ is calculated from `birth_date` at runtime and changes on her birthday; it is no
 stored as a fixed number in the interface.
 
 Assistant coverage is intentionally narrower than the visible product surface
-today. The next coverage slice will define supported questions, freshness,
-citations, and privacy rules for Profile, Reminders, Inbox, Recently verified,
-and pending approvals before Tomo claims knowledge of every item shown in the
-app. A later governed-skill slice will let Tomo guide the user into the relevant
-product or external tool without treating navigation as authorization for a
-care-state change.
+today. Phase 3E.3 will first answer “What needs my attention?” from governed
+reminder, care-action, and document-review state. It will rank no more than five
+supported items, explain why each item needs attention, reference the governing
+record, and disclose unavailable sources. A document awaiting verification is
+governed workflow state, but its extracted contents remain candidate truth.
+Governed navigation may open the relevant reminder, approval, or review surface.
+A qualifying reminder may also open its stored Google Calendar event, or
+Calendar generically when no event URL exists. Navigation is not authorization
+for a care-state change. Browser-session Calendar errors are not durable
+attention state; appointment aggregation and recently verified follow-up remain
+deferred until the first attention contract is proven.
