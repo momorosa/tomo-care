@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.2, including lifecycle hardening for Librela, Simparica, and Adequan. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.3: attention and governed navigation.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.3, including lifecycle hardening for Librela, Simparica, and Adequan plus governed attention and navigation. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.4: governed Profile grounding.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md) and [Phase 3E.2 closeout and Phase 3E.3 handover](./docs/Phase3E2_Closeout_and_Phase3E3_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md) and [Phase 3E.3 closeout and Phase 3E.4 handover](./docs/Phase3E3_Closeout_and_Phase3E4_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -114,6 +114,9 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Librela reconciliation, Calendar recovery, verified weight materialization, and golden lifecycle idempotency
 * Golden Librela-to-Messages path from trusted records through grounded answer, approved draft, verified recipient, and native handoff intent
 * Shared Simparica and Adequan home-medication lifecycle with explicit confirmation, atomic trusted writes, reminder completion, exactly one cadence-based successor, Calendar sync, grounded answers, and retry safety
+* Governed attention summaries across qualifying reminders, pending or recoverable actions, and documents awaiting review
+* Deterministic today, tomorrow, this-week, and this-month attention windows with natural Chat and Voice responses
+* Typed navigation to the governing reminder, action, review document, or allowlisted Google Calendar destination without granting write authority
 
 ### Phase 3F — Native Apple Messages Handoff
 
@@ -128,10 +131,11 @@ Shipped a truthful single-user clinic-message handoff:
 
 ## Next product work
 
-* Ship Phase 3E.3: answer “What needs my attention?” from due or overdue reminders, pending or recoverable care actions, and documents awaiting verification.
-* Rank a bounded set of supported items deterministically, explain why, and reference the governing record without treating candidate document contents as trusted facts.
-* Add governed navigation to the relevant reminder, approval, or review surface. A qualifying reminder may also open its stored Google Calendar event, or Calendar generically when no event URL exists, without treating navigation as authorization to change state.
-* Continue broader assistant coverage, freshness, privacy, conflict, citation, and no-data rules as bounded slices across Profile, Reminders, Inbox, Recently verified, and pending approvals.
+* Ship Phase 3E.4: answer bounded Profile questions from the current `pets` record rather than relying on the static relationship profile for identity facts.
+* Compute age from `birth_date` using the current care date, preserve honest missing-field behavior, and guide Rosa to the Profile panel without treating navigation as permission to edit it.
+* Keep governed profile fields distinct from harmless relationship details and exclude clinic or insurance labels that are not yet backed by a governed profile source.
+* Continue assistant coverage as separate slices for stored Inbox state and deeper Recently verified follow-up.
+* Investigate silent Runway/LiveKit failures so Animate Tomo can explain when it has fallen back to local voice and offer a safe retry.
 * Return to meaning-based character reactions for `happy`, `laughing`, and `oops` after the core coverage and skill contract is stable.
 * Defer proactive notifications, inbound clinic reply interpretation, durable conversation history, broad relational memory, and multi-agent orchestration until a demonstrated product need justifies them.
 
@@ -301,15 +305,18 @@ Momo's profile reads safe identity fields from the `pets` table. Displayed age
 is calculated from `birth_date` at runtime and changes on her birthday; it is not
 stored as a fixed number in the interface.
 
-Assistant coverage is intentionally narrower than the visible product surface
-today. Phase 3E.3 will first answer “What needs my attention?” from governed
-reminder, care-action, and document-review state. It will rank no more than five
-supported items, explain why each item needs attention, reference the governing
-record, and disclose unavailable sources. A document awaiting verification is
-governed workflow state, but its extracted contents remain candidate truth.
-Governed navigation may open the relevant reminder, approval, or review surface.
-A qualifying reminder may also open its stored Google Calendar event, or
-Calendar generically when no event URL exists. Navigation is not authorization
-for a care-state change. Browser-session Calendar errors are not durable
-attention state; appointment aggregation and recently verified follow-up remain
-deferred until the first attention contract is proven.
+Phase 3E.3 now answers “What needs my attention?” from governed reminder,
+care-action, and document-review state. It ranks no more than five supported
+items, explains each item in plain language, discloses unavailable sources, and
+uses typed navigation to the governing TomoCare or Google Calendar destination.
+The same contract supports natural paraphrases and bounded today, tomorrow,
+this-week, and this-month follow-ups across Chat and Voice. Candidate document
+contents remain untrusted, and navigation grants no authority to change care
+state.
+
+Assistant coverage is still narrower than the visible product surface. Phase
+3E.4 will ground Profile questions in the current `pets` row, calculate age from
+`birth_date`, disclose missing fields, and open the existing Profile panel. The
+versioned relationship profile may still add harmless personality context, but
+it cannot replace or override governed identity fields. Stored Inbox state and
+deeper Recently verified follow-up remain later bounded slices.

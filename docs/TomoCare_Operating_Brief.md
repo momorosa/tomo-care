@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** August 13, 2026
+**Last updated:** August 14, 2026
 
 ---
 
@@ -147,6 +147,7 @@ The durable state must describe only what TomoCare knows. `messages_handoff_requ
 TomoCare should not treat every user message as the same kind of request. The current interaction model distinguishes:
 
 - `grounded_answer`
+- `attention_summary`
 - `no_trusted_data`
 - `clarification_needed`
 - `safety_boundary`
@@ -309,20 +310,20 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.0a–3E.0e shipped:** post-verification eligibility and authorization recovery, Librela reconciliation, Calendar recovery, verified weight materialization, and a golden idempotent Librela lifecycle
 - **3E.1a shipped:** trusted Librela state through grounded answer, approved draft, verified recipient, and native Messages handoff intent
 - **3E.2 shipped:** shared Simparica and Adequan home-medication lifecycle with explicit confirmation, one atomic trusted write, reminder completion, exactly one cadence-based successor, Calendar sync, grounded answers, and idempotent retry behavior
+- **3E.3 shipped:** governed attention across qualifying reminders, pending or recoverable actions, and documents awaiting review; deterministic ranking and time windows; natural Chat and Voice summaries; and typed navigation to the governing TomoCare or Google Calendar destination
 
-The next bounded slice is **3E.3 — Attention and Governed Navigation**:
+The next bounded slice is **3E.4 — Governed Profile Grounding**:
 
-- Answer “What needs my attention?” from current server-owned state rather than screen text or loose memory
-- Start with due or overdue reminders, pending or recoverable care actions, and documents awaiting verification
-- Rank no more than five supported items deterministically and explain why each item needs attention
-- Reference the governing reminder, action, or review document without presenting candidate document contents as verified facts
-- State when a supported source is unavailable rather than silently treating it as empty
-- Open the relevant TomoCare reminder, approval, or review surface; a qualifying reminder may also open its stored Google Calendar event or Calendar generically when no event URL exists
-- Keep navigation distinct from creating, changing, completing, approving, or sending anything
+- Answer bounded questions about Momo's identity from the current `pets` row used by the Profile panel
+- Support name, species, breed, birth date, calculated age, sex, and spay/neuter status with honest missing-field behavior
+- Keep governed profile fields distinct from the versioned relationship profile, which may add harmless personal color but is not care evidence
+- Add a typed `open_profile` navigation target without creating an edit path or mutation authority
+- Keep hardcoded clinic and insurance labels out of grounded answers until they have a governed source
+- Preserve the same profile facts across Chat and Voice
 
-Calendar navigation is supported by persisted reminder metadata. A browser-session Calendar error is not durable attention state and should not be presented as recoverable after refresh unless a later slice persists that failure. Appointment-state aggregation and recently verified follow-up are also deferred until the first attention contract is proven.
+Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
-Broader coverage for Profile, Reminders, Inbox, Recently verified, appointments, and pending approvals remains Phase 3E work and should be added as bounded, tested slices rather than one broad knowledge claim.
+Broader coverage for Inbox, Recently verified, appointments, and other visible care context remains Phase 3E work and should be added as bounded, tested slices rather than one broad knowledge claim.
 
 Meaning-based `happy`, `laughing`, and `oops` reactions remain planned character work. They should map only to harmless conversational meaning and must not alter facts, medical restraint, action status, or tool authority.
 
