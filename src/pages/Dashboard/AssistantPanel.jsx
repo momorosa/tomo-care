@@ -35,7 +35,7 @@ const MAX_RECORDING_MS = 30_000
 
 const SUGGESTED_QUESTIONS = [
     "When was Momo last given Librela?",
-    "What reminders are active?",
+    "What needs my attention?",
     "Tell me about Momo’s weight trend.",
 ]
 
@@ -48,6 +48,7 @@ export default function AssistantPanel({
     onToggleContext,
     onActionPrepared,
     onReviewPendingAction,
+    onNavigateAttention,
     onMessageDraftPrepared,
 }) {
     const [mode, setMode] = useState(CONVERSATION_MODES.VOICE)
@@ -136,6 +137,19 @@ export default function AssistantPanel({
             )
         } finally {
             setPendingActionLoading(null)
+        }
+    }
+
+    async function navigateAttention(target) {
+        setError("")
+
+        try {
+            await onNavigateAttention?.(target)
+        } catch (error) {
+            setError(
+                error?.message ||
+                    "TomoCare could not open that attention item. Try again."
+            )
         }
     }
 
@@ -597,6 +611,7 @@ export default function AssistantPanel({
                     loading={loading}
                     transcriptOpen={voiceTranscriptOpen}
                     reminderById={reminderById}
+                    onNavigateAttention={navigateAttention}
                     error={error}
                     response={voiceResponse}
                     muted={voiceMuted}
@@ -626,6 +641,7 @@ export default function AssistantPanel({
                             sessionTurns={sessionTurns}
                             showSuggestions={showSuggestions}
                             reminderById={reminderById}
+                            onNavigateAttention={navigateAttention}
                             onAsk={handleAsk}
                             onClear={clearSession}
                             transcriptEndRef={transcriptEndRef}
@@ -708,6 +724,7 @@ function VoiceStage({
     loading,
     transcriptOpen,
     reminderById,
+    onNavigateAttention,
     error,
     response,
     muted,
@@ -763,6 +780,7 @@ function VoiceStage({
                 <VoiceTranscriptSheet
                     sessionTurns={sessionTurns}
                     reminderById={reminderById}
+                    onNavigateAttention={onNavigateAttention}
                     onClear={onClear}
                     onClose={onToggleTranscript}
                     transcriptEndRef={transcriptEndRef}
@@ -853,6 +871,7 @@ function VoiceControlDock({
 function VoiceTranscriptSheet({
     sessionTurns,
     reminderById,
+    onNavigateAttention,
     onClear,
     onClose,
     transcriptEndRef,
@@ -903,6 +922,7 @@ function VoiceTranscriptSheet({
                                     key={turn.id}
                                     answer={turn.answer}
                                     reminderById={reminderById}
+                                    onNavigateAttention={onNavigateAttention}
                                 />
                             )
                         )}
@@ -918,6 +938,7 @@ function SessionTranscript({
     sessionTurns,
     showSuggestions,
     reminderById,
+    onNavigateAttention,
     onAsk,
     onClear,
     transcriptEndRef,
@@ -949,6 +970,7 @@ function SessionTranscript({
                                 key={turn.id}
                                 answer={turn.answer}
                                 reminderById={reminderById}
+                                onNavigateAttention={onNavigateAttention}
                             />
                         )
                     )}
@@ -1039,14 +1061,17 @@ function UserTurn({ children }) {
     )
 }
 
-function AssistantTurn({ answer, reminderById }) {
+function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
     const isActionRequest = answer.answer_type === "action_request"
     const isPreparedAction = answer.answer_type === "action_prepared"
     const isPreparedMessage = answer.answer_type === "message_draft_prepared"
+    const isAttentionSummary = answer.answer_type === "attention_summary"
     const needsClarification = answer.answer_type === "clarification_needed"
     const badgeLabel =
         answer.answer_type === "social_response"
             ? "Tomo"
+            : isAttentionSummary
+              ? "Needs attention"
             : isPreparedMessage
               ? "Draft ready"
               : isPreparedAction
@@ -1086,6 +1111,14 @@ function AssistantTurn({ answer, reminderById }) {
             >
                 {answer.answer}
             </p>
+
+            {answer.answer_type === "attention_summary" &&
+                answer.attention_items?.length > 0 && (
+                    <AttentionSummary
+                        items={answer.attention_items}
+                        onNavigate={onNavigateAttention}
+                    />
+                )}
 
             {answer.transcript_corrections?.length > 0 && (
                 <div className="mt-2 space-y-1 text-xs text-tomo-text">
@@ -1150,6 +1183,66 @@ function AssistantTurn({ answer, reminderById }) {
             )}
         </article>
     )
+}
+
+function AttentionSummary({ items, onNavigate }) {
+    return (
+        <section className="mt-4 space-y-3" aria-label="Items needing attention">
+            {items.map((item) => (
+                <article
+                    key={item.id}
+                    className="rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3"
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="font-medium text-tomo-text-h">
+                                {item.title}
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-tomo-text">
+                                {item.reason}
+                            </p>
+                            <p className="mt-2 text-xs text-tomo-text">
+                                {formatAttentionSource(item.governing_reference)}
+                            </p>
+                        </div>
+                        <span className="tomo-badge tomo-badge--warning shrink-0">
+                            {formatAttentionState(item.state)}
+                        </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {(item.navigation_targets || []).map((target) => (
+                            <button
+                                key={`${item.id}-${target.kind}`}
+                                type="button"
+                                className="tomo-btn tomo-btn-secondary px-3 py-1 text-xs"
+                                onClick={() => onNavigate?.(target)}
+                            >
+                                {target.label}
+                            </button>
+                        ))}
+                    </div>
+                </article>
+            ))}
+        </section>
+    )
+}
+
+function formatAttentionState(state) {
+    return String(state || "needs attention")
+        .replaceAll("_", " ")
+        .replace(/^./, (character) => character.toUpperCase())
+}
+
+function formatAttentionSource(reference) {
+    const sourceLabel = {
+        events: "TomoCare reminder",
+        care_actions: "Governed care action",
+        documents: "Document review record",
+    }[reference?.table]
+    const recordId = reference?.record_id
+
+    if (!sourceLabel || !recordId) return "Governed TomoCare record"
+    return `Source: ${sourceLabel} · ${recordId}`
 }
 
 function VoicePlaybackControls({

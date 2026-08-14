@@ -549,3 +549,199 @@ test("labels a sent outcome only as the user’s report", () => {
     assert.match(response.answer, /not verified delivery/i)
     assert.equal(response.review_action_id, null)
 })
+
+test("composes structured attention separately from verified citations", () => {
+    const item = {
+        id: "document_review:doc-1",
+        kind: "document_review",
+        state: "needs_review",
+        title: "Lab report",
+        reason: "This document needs verification.",
+        governing_reference: {
+            table: "documents",
+            record_id: "doc-1",
+            trust_state: "candidate",
+        },
+        navigation_targets: [
+            {
+                kind: "open_review_document",
+                label: "Review document",
+                target_id: "doc-1",
+            },
+        ],
+    }
+    const response = composeGroundedAnswer({
+        question: "What needs my attention?",
+        queryPlan: { intent: "attention_summary" },
+        context: {},
+        attentionSummary: {
+            status: "available",
+            items: [item],
+            total_qualifying_count: 1,
+            sources: [
+                { source: "reminders", status: "available" },
+                { source: "care_actions", status: "available" },
+                { source: "document_reviews", status: "available" },
+            ],
+        },
+    })
+
+    assert.equal(response.answer_type, "attention_summary")
+    assert.deepEqual(response.attention_items, [item])
+    assert.deepEqual(response.citations, [])
+    assert.match(response.answer, /Lab report/)
+    assert.match(response.limitations.join(" "), /candidate truth/i)
+    assert.equal(response.proposed_action, null)
+})
+
+test("does not report a false clear state when attention sources are unavailable", () => {
+    const response = composeGroundedAnswer({
+        question: "What needs my attention?",
+        queryPlan: { intent: "attention_summary" },
+        context: {},
+        attentionSummary: {
+            status: "unavailable",
+            items: [],
+            total_qualifying_count: 0,
+            sources: [
+                { source: "reminders", status: "unavailable" },
+                { source: "care_actions", status: "unavailable" },
+                { source: "document_reviews", status: "unavailable" },
+            ],
+        },
+    })
+
+    assert.equal(response.attention_status, "unavailable")
+    assert.match(response.answer, /can’t safely say that nothing needs attention/)
+    assert.deepEqual(response.citations, [])
+})
+
+test("treats a missing attention summary as unavailable rather than empty", () => {
+    const response = composeGroundedAnswer({
+        question: "What needs my attention?",
+        queryPlan: { intent: "attention_summary" },
+        context: {},
+        attentionSummary: null,
+    })
+
+    assert.equal(response.attention_status, "unavailable")
+    assert.match(response.answer, /can’t safely say that nothing needs attention/)
+})
+
+test("explains a tomorrow-only attention result without implying current work is scheduled", () => {
+    const item = {
+        id: "reminder:tomorrow",
+        kind: "reminder",
+        state: "scheduled",
+        title: "Simparica Trio",
+        reason:
+            "Simparica Trio is due on August 15, 2026, so please confirm whether it was given.",
+        navigation_targets: [],
+    }
+    const response = composeGroundedAnswer({
+        question: "Do I need to do anything tomorrow?",
+        queryPlan: {
+            intent: "attention_summary",
+            date_range: {
+                type: "next_care_day",
+                label: "tomorrow",
+                start: "2026-08-15",
+                end: "2026-08-15",
+            },
+        },
+        context: {},
+        attentionSummary: {
+            status: "available",
+            items: [item],
+            total_qualifying_count: 1,
+            sources: [],
+            date_range: {
+                type: "next_care_day",
+                label: "tomorrow",
+                start: "2026-08-15",
+                end: "2026-08-15",
+            },
+            current_work_included: false,
+        },
+    })
+
+    assert.match(response.answer, /Tomorrow, one reminder will need your attention/)
+    assert.doesNotMatch(response.answer, /Simparica Trio: Simparica Trio/)
+    assert.match(response.limitations.join(" "), /tomorrow-only check/)
+    assert.deepEqual(response.attention_items, [item])
+})
+
+test("describes multiple scheduled medications naturally with exact dates", () => {
+    const response = composeGroundedAnswer({
+        question: "How about this month?",
+        queryPlan: {
+            intent: "attention_summary",
+            date_range: {
+                type: "current_month",
+                label: "this month",
+                start: "2026-08-14",
+                end: "2026-08-31",
+            },
+        },
+        context: {},
+        attentionSummary: {
+            status: "available",
+            items: [
+                {
+                    title: "Simparica Trio",
+                    reason:
+                        "Simparica Trio is due on August 20, 2026, so please confirm whether it was given.",
+                },
+                {
+                    title: "Adequan",
+                    reason:
+                        "Adequan is due on August 31, 2026, so please confirm whether it was given.",
+                },
+            ],
+            total_qualifying_count: 2,
+            sources: [],
+            date_range: {
+                type: "current_month",
+                label: "this month",
+                start: "2026-08-14",
+                end: "2026-08-31",
+            },
+            current_work_included: true,
+        },
+    })
+
+    assert.equal(
+        response.answer,
+        "This month, two things need your attention. Simparica Trio is due on August 20, 2026, so please confirm whether it was given; Adequan is due on August 31, 2026, so please confirm whether it was given."
+    )
+    assert.doesNotMatch(response.answer, /scheduled for confirmation during this period/)
+})
+
+test("asks a bounded follow-up for a broad care overview", () => {
+    const response = composeGroundedAnswer({
+        question: "What's new?",
+        queryPlan: {
+            intent: "semantic_clarification",
+            subject: "care_overview",
+        },
+        context: {},
+    })
+
+    assert.equal(response.answer_type, "clarification_needed")
+    assert.match(response.answer, /what needs your attention/)
+    assert.match(response.answer, /recently verified/)
+    assert.equal(response.proposed_action, null)
+})
+
+test("turns an unsupported question into a bounded next-choice prompt", () => {
+    const response = composeGroundedAnswer({
+        question: "Can you tell me something else?",
+        queryPlan: { intent: "unknown" },
+        context: {},
+    })
+
+    assert.equal(response.answer_type, "unsupported_question")
+    assert.match(response.answer, /Would you like me to check/)
+    assert.match(response.answer, /what needs your attention/)
+    assert.deepEqual(response.citations, [])
+})

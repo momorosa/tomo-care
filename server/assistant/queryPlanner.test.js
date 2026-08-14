@@ -104,3 +104,66 @@ test("does not mistake a calendar-write request for a reminder lookup", () => {
     assert.equal(plan.intent, "action_request")
     assert.equal(plan.requires_action, true)
 })
+
+test("routes the Phase 3E.3 attention question to governed attention", () => {
+    for (const question of [
+        "Tomo, what needs my attention?",
+        "Show me what needs attention.",
+        "Anything I need to review?",
+        "Do I need to do anything?",
+        "Is there anything I need to take care of?",
+        "What should I handle next?",
+        "Is there anything waiting for me?",
+        "Anything pending?",
+    ]) {
+        const plan = buildQueryPlan(question)
+
+        assert.equal(plan.intent, "attention_summary")
+        assert.equal(plan.subject, "attention")
+        assert.equal(plan.scope, "governed_attention")
+        assert.equal(plan.requires_action, false)
+    }
+})
+
+test("guarantees the four bounded attention windows", () => {
+    const cases = [
+        ["Do I need to do anything today?", "care_day", "2026-08-14", "2026-08-14"],
+        ["Anything I need to handle tomorrow?", "next_care_day", "2026-08-15", "2026-08-15"],
+        ["Hey Tomo, do I need to do anything this week?", "current_week", "2026-08-14", "2026-08-16"],
+        ["What needs my attention this month?", "current_month", "2026-08-14", "2026-08-31"],
+    ]
+
+    for (const [question, type, start, end] of cases) {
+        const plan = buildQueryPlan(question, {
+            currentCareDate: "2026-08-14",
+        })
+
+        assert.equal(plan.intent, "attention_summary")
+        assert.equal(plan.date_range.type, type)
+        assert.equal(plan.date_range.start, start)
+        assert.equal(plan.date_range.end, end)
+    }
+})
+
+test("asks a focused clarification for broad care-overview prompts", () => {
+    for (const question of [
+        "What's new?",
+        "What do I need to know?",
+        "Hey Tomo, anything I need to know?",
+    ]) {
+        const plan = buildQueryPlan(question)
+
+        assert.equal(plan.intent, "semantic_clarification")
+        assert.equal(plan.subject, "care_overview")
+        assert.equal(plan.requires_action, false)
+    }
+})
+
+test("does not let an attention phrase absorb a consequential request", () => {
+    const plan = buildQueryPlan(
+        "What needs my attention, and can you approve it for me?"
+    )
+
+    assert.equal(plan.intent, "action_request")
+    assert.equal(plan.requires_action, true)
+})

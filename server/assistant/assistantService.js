@@ -79,12 +79,32 @@ export async function answerAssistantQuestion({
         )
     }
 
-    const needsTrustedContext = queryPlan.intent !== "social_response"
+    const isAttentionSummary = queryPlan.intent === "attention_summary"
+    const needsTrustedContext =
+        queryPlan.intent !== "social_response" && !isAttentionSummary
     const buildContext = needsTrustedContext
         ? dependencies.buildContext ||
           (await import("./contextBuilder.js")).buildTrustedContext
         : null
     const context = buildContext ? await buildContext(petId) : {}
+    const attentionRepository = isAttentionSummary
+        ? dependencies.attentionRepository ||
+          (await import("../attention/attentionRepository.js"))
+              .attentionRepository
+        : null
+    const buildAttention = isAttentionSummary
+        ? dependencies.buildAttention ||
+          (await import("../attention/attentionService.js"))
+              .buildAttentionSummary
+        : null
+    const attentionSummary = buildAttention
+        ? await buildAttention({
+              repository: attentionRepository,
+              petId,
+              currentCareDate,
+              dateRange: queryPlan.date_range,
+          })
+        : null
     const actionRepository =
         queryPlan.intent === "home_medication_given_action"
             ? dependencies.actionRepository ||
@@ -126,6 +146,7 @@ export async function answerAssistantQuestion({
         context,
         actionPreparation,
         messageDraftPreparation,
+        attentionSummary,
     })
     const personalizeAnswer =
         dependencies.personalizeAnswer || applyPersonalityFraming

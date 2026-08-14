@@ -55,3 +55,17 @@ test("preserves the prior care context through a social turn", () => {
         }
     )
 })
+
+test("carries only the bounded attention intent for a time-window follow-up", () => {
+    assert.deepEqual(
+        sanitizeConversationContext({
+            intent: "attention_summary",
+            subject: "attention",
+            attention_items: [{ id: "must-not-be-carried" }],
+        }),
+        {
+            intent: "attention_summary",
+            subject: "attention",
+        }
+    )
+})

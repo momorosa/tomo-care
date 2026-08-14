@@ -439,3 +439,59 @@ test("adds relationship framing after composition without changing evidence", as
     assert.equal(result.citations, citations)
     assert.equal(result.proposed_action, null)
 })
+
+test("builds attention from governed sources without loading broad trusted context", async () => {
+    let contextCalls = 0
+    const repository = { name: "attention repository" }
+    const summary = {
+        status: "available",
+        items: [{ id: "care_action:action-1" }],
+        total_qualifying_count: 1,
+        sources: [],
+    }
+    let buildInput = null
+
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Tomo, what needs my attention?",
+        dependencies: {
+            currentCareDate: "2026-08-14",
+            semanticProvider: null,
+            attentionRepository: repository,
+            buildContext: async () => {
+                contextCalls += 1
+                return {}
+            },
+            async buildAttention(input) {
+                buildInput = input
+                return summary
+            },
+            composeAnswer(input) {
+                assert.equal(input.attentionSummary, summary)
+                assert.deepEqual(input.context, {})
+                return {
+                    answer_type: "attention_summary",
+                    answer: "One item needs attention.",
+                    attention_items: summary.items,
+                    citations: [],
+                    proposed_action: null,
+                }
+            },
+        },
+    })
+
+    assert.equal(contextCalls, 0)
+    assert.deepEqual(buildInput, {
+        repository,
+        petId: "pet-1",
+        currentCareDate: "2026-08-14",
+        dateRange: {
+            type: "all_time",
+            label: "current attention",
+            start: null,
+            end: null,
+        },
+    })
+    assert.equal(result.answer_type, "attention_summary")
+    assert.deepEqual(result.attention_items, summary.items)
+})

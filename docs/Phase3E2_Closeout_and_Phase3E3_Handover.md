@@ -200,6 +200,22 @@ Recompute reminder timing from the current care date on every question rather th
 - Insurance qualifies when filing is due now or the final claim window has expired.
 - Unknown or unsupported reminder shapes do not qualify and must not receive model-inferred urgency.
 
+An explicit attention window is a bounded exception for planned reminders. The
+deterministic planner may also include a supported reminder whose activation
+date falls within the requested future window:
+
+- **Today:** current overdue, due, pending, and review work
+- **Tomorrow:** scheduled reminders whose activation date is tomorrow; current
+  pending actions and review documents are not presented as tomorrow-dated work
+- **This week:** current work plus reminders becoming active from today through
+  Sunday
+- **This month:** current work plus reminders becoming active from today through
+  the final day of the current month
+
+Unbounded attention questions continue to return current governed work only;
+they do not pull every future reminder into the answer. The model may interpret
+the phrase, but deterministic date code calculates and applies the window.
+
 Rank qualifying items in this order:
 
 1. Care action with an unknown outcome
@@ -226,6 +242,29 @@ The first vertical slice should:
 8. Preserve the same grounded result across Chat and Voice; only presentation may differ.
 
 The written answer and structured payload may include up to five items. Voice may speak a shorter summary, but it must preserve the same leading facts, ordering, limitations, and navigation boundary.
+
+### Language and clarification behavior
+
+The user must not need to memorize one exact command. Deterministic routing
+should guarantee a bounded family of action-oriented paraphrases, including:
+
+- What needs my attention?
+- Do I need to do anything?
+- Anything I need to review or handle?
+- What should I take care of next?
+- Is anything waiting for me?
+
+Meaning-based interpretation may map additional semantically equivalent
+phrasing to the same governed intent. Broad overview prompts such as “What’s
+new?” or “What do I need to know?” are not automatically equivalent to
+actionable work because they may refer to recent verified information or a
+specific care topic. Tomo should ask whether Rosa wants attention items,
+recently verified records, or a specific part of Momo’s care rather than
+inventing an update or returning only a dead-end unsupported response.
+
+When a question remains unsupported, Tomo should preserve the limitation and
+offer bounded next choices. Clarification must not infer a diagnosis, medical
+recommendation, urgency, care fact, or authorization to act.
 
 ### Governed navigation behavior
 
@@ -264,6 +303,10 @@ Navigation commands may change only client view state or open an allowlisted des
 - Navigation produces no care-record, approval, reminder, document, appointment, message, or Calendar mutation.
 - Repeated questions and repeated navigation requests remain idempotent.
 - Chat and Voice preserve the same facts, ordering, governing references, limitations, and action boundaries.
+- Action-oriented paraphrases route to the same governed attention intent without requiring one exact sentence.
+- “What’s new?” and “What do I need to know?” receive a bounded clarification question rather than an invented summary.
+- Today, tomorrow, this-week, and this-month windows use deterministic care dates and do not change spending or other historical range semantics.
+- A tomorrow-only answer includes scheduled reminders only and says why current pending actions and review documents are not treated as tomorrow-dated work.
 - Existing Librela, Simparica, Adequan, Apple Messages, Phase 3B, and Phase 3D voice tests remain green.
 
 ### Explicitly out of scope
@@ -282,6 +325,10 @@ Navigation commands may change only client view state or open an allowlisted des
 - Multi-agent orchestration
 
 Meaning-based reactions remain harmless presentation work for a later slice. Phase 4 should not begin until a real role, permission, context, or coordination boundary makes a separate agent clearer than the current modular architecture.
+
+### Enhancement backlog captured during Phase 3E.3 user testing
+
+- **Animate Tomo reliability and recovery:** Investigate cases where the Runway/LiveKit lip-sync path silently fails and Tomo falls back to local voice. Preserve uninterrupted audio fallback, but surface a clear non-blocking status, retain a typed failure reason for diagnosis, and offer a safe retry without restarting the conversation. This is deferred from Phase 3E.3 because the governed attention result remains available and the fallback works.
 
 ## Suggested branch and startup checks
 

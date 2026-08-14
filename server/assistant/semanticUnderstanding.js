@@ -1,10 +1,17 @@
-import { resolveDateRange } from "./dateRanges.js"
+import {
+    resolveAttentionDateRange,
+    resolveDateRange,
+} from "./dateRanges.js"
 import { buildQueryPlan } from "./queryPlanner.js"
 
 const PLAN_CONFIG = {
     active_reminders: {
         subjects: ["reminders"],
         scope: "planned_reminders",
+    },
+    attention_summary: {
+        subjects: ["attention"],
+        scope: "governed_attention",
     },
     ambiguous_health_question: {
         subjects: ["health"],
@@ -78,6 +85,7 @@ const PLAN_CONFIG = {
 
 const INTERPRETATION_LABELS = {
     active_reminders: "Active care reminders",
+    attention_summary: "What needs attention",
     ambiguous_health_question: "A request for more specific care details",
     appointment_status: "Appointment status",
     care_recommendation_boundary: "A care recommendation question",
@@ -218,7 +226,7 @@ function clarificationPlan(dateRange) {
     }
 }
 
-function semanticPlan(interpretation, question) {
+function semanticPlan(interpretation, question, currentCareDate) {
     const config = PLAN_CONFIG[interpretation.intent]
 
     if (!config || !config.subjects.includes(interpretation.subject)) {
@@ -235,7 +243,10 @@ function semanticPlan(interpretation, question) {
         intent: interpretation.intent,
         subject: interpretation.subject,
         scope,
-        date_range: resolveDateRange(question),
+        date_range:
+            interpretation.intent === "attention_summary"
+                ? resolveAttentionDateRange(question, currentCareDate)
+                : resolveDateRange(question, currentCareDate),
         trusted_only: true,
         requires_action: false,
         action: null,
@@ -478,7 +489,11 @@ export async function resolveAssistantPlan({
     }
 
     if (interpretation?.kind === "care_query") {
-        const plan = semanticPlan(interpretation, question)
+        const plan = semanticPlan(
+            interpretation,
+            question,
+            currentCareDate
+        )
 
         if (plan) {
             return {

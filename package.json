@@ -23,6 +23,7 @@
         "test:phase3e0e": "node --test server/lifecycle/librelaLifecycle.integration.test.js",
         "test:phase3e1a": "node --test server/lifecycle/librelaLifecycle.integration.test.js",
         "test:phase3e2": "node --test server/lifecycle/homeMedicationLifecycle.integration.test.js server/lifecycle/homeMedicationTransaction.contract.test.js",
+        "test:phase3e3": "node --test server/reminders/reminderTiming.test.js server/attention/attentionService.test.js server/assistant/dateRanges.test.js server/assistant/queryPlanner.test.js server/assistant/conversationContext.test.js server/assistant/semanticUnderstanding.test.js server/assistant/openAiSemanticProvider.test.js server/assistant/assistantService.test.js server/assistant/answerComposer.test.js server/actions/listPendingCareActions.test.js src/pages/Dashboard/attentionNavigation.test.js src/pages/Dashboard/attentionNavigationUI.test.js",
         "test:phase3f": "node --test server/actions/prepareLibrelaAppleMessagesHandoff.test.js server/actions/resolveLibrelaAppleMessagesHandoff.test.js server/messaging/appleMessagesHandoff*.test.js src/pages/Dashboard/appleMessagesHandoff.test.js src/pages/Dashboard/careActionRecovery.test.js src/pages/Dashboard/librelaAppleMessagesHandoffUI.test.js",
         "test:actions": "node --test server/actions/*.test.js",
         "test:phase3b": "node --test server/actions/*.test.js server/lib/*.test.js server/assistant/*.test.js server/calendar/*.test.js server/dashboard/*.test.js server/gmail/*.test.js",

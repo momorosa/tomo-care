@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import AssistantPanel from "./AssistantPanel.jsx"
 import { CareContextDrawer, CareNavigation } from "./CareSidebar.jsx"
 import CareActionDialog from "./CareActionDialog.jsx"
 import LibrelaAppointmentMessageDialog from "./LibrelaAppointmentMessageDialog.jsx"
 import {
     createConversationalHomeState,
+    HOME_SECTIONS,
     reduceConversationalHome,
 } from "./conversationalHomeState.js"
 import {
@@ -31,6 +33,7 @@ import {
     isLibrelaAppointmentRequest,
 } from "./careActionRecovery.js"
 import { requestAppleMessagesDraft } from "./appleMessagesHandoff.js"
+import { getAttentionNavigationEffect } from "./attentionNavigation.js"
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 const CARE_ACTOR = "Rosa"
@@ -70,6 +73,7 @@ function normalizeReviewDocuments(result) {
 }
 
 export default function Dashboard() {
+    const navigate = useNavigate()
     const [homeLayout, dispatchHomeLayout] = useReducer(
         reduceConversationalHome,
         undefined,
@@ -96,6 +100,7 @@ export default function Dashboard() {
     const [loadingReminders, setLoadingReminders] = useState(false)
     const [refreshingReminders, setRefreshingReminders] = useState(false)
     const [calendarSyncByReminder, setCalendarSyncByReminder] = useState({})
+    const [focusedReminderId, setFocusedReminderId] = useState(null)
 
     const loadPendingReviewDocs = useCallback(async () => {
         try {
@@ -391,6 +396,32 @@ export default function Dashboard() {
     async function reviewPendingAction(actionId) {
         const data = await fetchCareAction(actionId)
         reviewAssistantAction(data.care_action)
+    }
+
+    async function navigateAttentionTarget(target) {
+        const effect = getAttentionNavigationEffect(target)
+        if (!effect) return
+
+        if (effect.type === "reminder") {
+            setFocusedReminderId(effect.recordId)
+            dispatchHomeLayout({
+                type: "select_section",
+                section: HOME_SECTIONS.REMINDERS,
+            })
+            return
+        }
+
+        if (effect.type === "care_action") {
+            await reviewPendingAction(effect.recordId)
+            return
+        }
+
+        if (effect.type === "review_document") {
+            navigate(`/review/${effect.recordId}`)
+            return
+        }
+
+        window.open(effect.url, "_blank", "noopener,noreferrer")
     }
 
     function reviewAppointmentMessageDraft(draft) {
@@ -973,6 +1004,7 @@ export default function Dashboard() {
                         inboxError={error}
                         checkingInbox={checkingInbox}
                         calendarSyncByReminder={calendarSyncByReminder}
+                        focusedReminderId={focusedReminderId}
                         onClose={() =>
                             dispatchHomeLayout({ type: "close_drawer" })
                         }
@@ -1011,6 +1043,7 @@ export default function Dashboard() {
                     }
                     onActionPrepared={reviewAssistantAction}
                     onReviewPendingAction={reviewPendingAction}
+                    onNavigateAttention={navigateAttentionTarget}
                     onMessageDraftPrepared={reviewAppointmentMessageDraft}
                 />
             </div>

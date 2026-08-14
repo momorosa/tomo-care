@@ -73,3 +73,26 @@ test("never exceeds the configured speech limit", () => {
     assert.ok(spoken.length <= 24)
     assert.match(spoken, /…$/)
 })
+
+test("ends long attention speech cleanly instead of cutting off after two items", () => {
+    const items = ["Simparica Trio", "Adequan", "Librela", "Insurance claim"].map(
+        (title, index) => ({
+            title,
+            reason: `${title} needs review for its governed care status on August ${20 + index}, 2026.`,
+        })
+    )
+    const spoken = composeSpokenAnswer(
+        {
+            answer_type: "attention_summary",
+            answer:
+                "This month, four things need your attention. Simparica Trio needs review for its governed care status on August 20, 2026, Adequan needs review for its governed care status on August 21, 2026, Librela needs review for its governed care status on August 22, 2026, and Insurance claim needs review for its governed care status on August 23, 2026.",
+            attention_items: items,
+        },
+        { maxCharacters: 210 }
+    )
+
+    assert.ok(spoken.length <= 210)
+    assert.match(spoken, /Simparica Trio/)
+    assert.match(spoken, /more items are listed on screen\.$/)
+    assert.doesNotMatch(spoken, /…$/)
+})

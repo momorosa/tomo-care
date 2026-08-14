@@ -1,6 +1,12 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { listPendingCareActions } from "./listPendingCareActions.js"
+
+const repositoryUrl = new URL(
+    "../repositories/careActionRepository.js",
+    import.meta.url
+)
 
 const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 
@@ -69,5 +75,14 @@ test("requires the pending-action repository method", async () => {
                 petId: PET_ID,
             }),
         /repository\.findPendingActionsByPetId is required/
+    )
+})
+
+test("keeps outcome-unknown actions visible for governed recovery", async () => {
+    const source = await readFile(repositoryUrl, "utf8")
+
+    assert.match(
+        source,
+        /PENDING_CARE_ACTION_STATUSES\s*=\s*\[[\s\S]*"outcome_unknown"/
     )
 })

@@ -12,6 +12,7 @@ export function composeGroundedAnswer({
     context,
     actionPreparation = null,
     messageDraftPreparation = null,
+    attentionSummary = null,
 }) {
     let response
 
@@ -20,8 +21,12 @@ export function composeGroundedAnswer({
             response = answerSocialResponse(queryPlan.subject, question)
             break
 
+        case "attention_summary":
+            response = answerAttentionSummary(attentionSummary, queryPlan)
+            break
+
         case "semantic_clarification":
-            response = answerSemanticClarification()
+            response = answerSemanticClarification(queryPlan)
             break
 
         case "ambiguous_health_question":
@@ -116,7 +121,7 @@ export function composeGroundedAnswer({
         default:
             response = {
                 answer:
-                    "I don’t have enough trusted information to answer that yet. I can only answer from verified TomoCare records, and this question is not supported in the first read-only assistant slice.",
+                    "I don’t have a supported, verified answer for that yet. Would you like me to check what needs your attention, a medication or reminder, recently verified records, spending, or another specific part of Momo’s care?",
                 answer_type: "unsupported_question",
                 confidence: "low",
                 citations: [],
@@ -134,6 +139,181 @@ export function composeGroundedAnswer({
         citations: enrichCitations(response.citations || [], context),
         query_plan: queryPlan,
     }
+}
+
+function answerAttentionSummary(summary, queryPlan) {
+    if (!summary) {
+        return {
+            answer:
+                "I couldn’t build the governed attention summary right now, so I can’t safely say that nothing needs attention.",
+            answer_type: "attention_summary",
+            attention_status: "unavailable",
+            attention_items: [],
+            attention_sources: [],
+            confidence: "low",
+            citations: [],
+            limitations: ["The governed attention summary was unavailable."],
+            proposed_action: null,
+        }
+    }
+
+    const items = summary?.items || []
+    const sources = summary?.sources || []
+    const dateRange = summary.date_range || queryPlan?.date_range || null
+    const rangePhrase = getAttentionRangePhrase(dateRange)
+    const unavailableSources = sources
+        .filter((source) => source.status === "unavailable")
+        .map((source) => getAttentionSourceLabel(source.source))
+    const limitations = []
+
+    if (unavailableSources.length > 0) {
+        limitations.push(
+            `I could not check ${formatNaturalList(unavailableSources)}.`
+        )
+    }
+
+    if (summary?.total_qualifying_count > items.length) {
+        limitations.push(
+            `Only the ${items.length} highest-priority items are shown.`
+        )
+    }
+
+    if (items.some((item) => item.kind === "document_review")) {
+        limitations.push(
+            "Review-document contents remain candidate truth until you verify them."
+        )
+    }
+
+    if (summary.current_work_included === false) {
+        limitations.push(
+            "A tomorrow-only check covers scheduled reminders; pending actions and review documents are current work rather than tomorrow-dated items."
+        )
+    }
+
+    if (summary?.status === "unavailable") {
+        return {
+            answer:
+                "I couldn’t check TomoCare’s supported attention sources right now, so I can’t safely say that nothing needs attention.",
+            answer_type: "attention_summary",
+            attention_status: "unavailable",
+            attention_items: [],
+            attention_sources: sources,
+            confidence: "low",
+            citations: [],
+            limitations,
+            proposed_action: null,
+        }
+    }
+
+    if (!items.length) {
+        const answer =
+            summary?.status === "partial"
+                ? `I didn’t find an attention item${rangePhrase}, but one or more supported sources were unavailable.`
+                : summary.current_work_included === false
+                  ? `No supported reminder is scheduled to need attention${rangePhrase}.`
+                  : `Nothing in the supported attention sources needs action${rangePhrase || " right now"}.`
+
+        return {
+            answer,
+            answer_type: "attention_summary",
+            attention_status:
+                summary?.status === "partial" ? "partial" : "clear",
+            attention_items: [],
+            attention_sources: sources,
+            confidence: summary?.status === "partial" ? "medium" : "high",
+            citations: [],
+            limitations,
+            proposed_action: null,
+        }
+    }
+
+    const itemText = items
+        .map((item) => getAttentionItemSentence(item))
+        .join("; ")
+    const countText = getAttentionCountText({
+        totalCount: summary.total_qualifying_count,
+        visibleCount: items.length,
+        dateRange,
+    })
+
+    return {
+        answer: `${countText}. ${itemText}.`,
+        answer_type: "attention_summary",
+        attention_status:
+            summary?.status === "partial" ? "partial" : "available",
+        attention_items: items,
+        attention_sources: sources,
+        confidence: summary?.status === "partial" ? "medium" : "high",
+        citations: [],
+        limitations,
+        proposed_action: null,
+    }
+}
+
+function getAttentionRangePhrase(dateRange) {
+    if (!dateRange || dateRange.type === "all_time") return ""
+    return dateRange.label ? ` ${dateRange.label}` : ""
+}
+
+function getAttentionCountText({ totalCount, visibleCount, dateRange }) {
+    const countWord = getSmallCountWord(totalCount)
+    const plural = totalCount === 1 ? "thing" : "things"
+    let opening
+
+    if (dateRange?.type === "care_day") {
+        opening = `Today, ${countWord} ${plural} need${totalCount === 1 ? "s" : ""} your attention`
+    } else if (dateRange?.type === "next_care_day") {
+        const reminderPlural = totalCount === 1 ? "reminder" : "reminders"
+        opening = `Tomorrow, ${countWord} ${reminderPlural} will need your attention`
+    } else if (
+        ["current_week", "current_month"].includes(dateRange?.type)
+    ) {
+        const label =
+            dateRange.label.charAt(0).toUpperCase() + dateRange.label.slice(1)
+        opening = `${label}, ${countWord} ${plural} need${totalCount === 1 ? "s" : ""} your attention`
+    } else {
+        opening = `${capitalize(countWord)} ${plural} need${totalCount === 1 ? "s" : ""} your attention`
+    }
+
+    return totalCount > visibleCount
+        ? `${opening}; here are the ${getSmallCountWord(visibleCount)} highest-priority ones`
+        : opening
+}
+
+function getAttentionItemSentence(item) {
+    const reason = String(item?.reason || "").trim()
+    const title = item?.title || "This item"
+
+    if (reason) {
+        const withoutTerminalPunctuation = reason.replace(/[.!?]+$/, "")
+        const demonstrativeMatch = withoutTerminalPunctuation.match(
+            /^This (?:document|action|reminder|item)\s+(.+)$/i
+        )
+
+        if (demonstrativeMatch) {
+            return `${title} ${demonstrativeMatch[1]}`
+        }
+
+        return withoutTerminalPunctuation
+    }
+
+    return `${title} needs attention`
+}
+
+function getSmallCountWord(value) {
+    return ["zero", "one", "two", "three", "four", "five"][value] || String(value)
+}
+
+function capitalize(value) {
+    return value ? value.charAt(0).toUpperCase() + value.slice(1) : value
+}
+
+function getAttentionSourceLabel(source) {
+    return {
+        reminders: "reminders",
+        care_actions: "pending or recoverable actions",
+        document_reviews: "documents awaiting review",
+    }[source] || "a supported source"
 }
 
 function answerLastLibrela(context, queryPlan) {
@@ -290,10 +470,13 @@ function answerSocialResponse(subject, question) {
     }
 }
 
-function answerSemanticClarification() {
+function answerSemanticClarification(queryPlan) {
+    const isCareOverview = queryPlan?.subject === "care_overview"
+
     return {
-        answer:
-            "I’m not quite sure what you mean yet. Could you name the medication, record, or care detail you want me to check?",
+        answer: isCareOverview
+            ? "Do you want me to check what needs your attention, what was recently verified, or a specific part of Momo’s care?"
+            : "I can narrow that down. Do you want me to check a medication, reminder, verified record, spending, or another part of Momo’s care?",
         answer_type: "clarification_needed",
         confidence: "low",
         citations: [],
