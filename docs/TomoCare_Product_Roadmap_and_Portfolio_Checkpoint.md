@@ -1,0 +1,206 @@
+# TomoCare Product Roadmap and Portfolio Checkpoint
+
+**Decision date:** August 14, 2026
+
+**Owner:** Rosa Choi
+
+**Status:** Accepted product direction
+
+## Decision
+
+TomoCare will remain **one product and one codebase with two release tracks**:
+
+1. **Real-care track:** the long-term, continuously evolving assistant Rosa genuinely uses to manage Momo's care.
+2. **Portfolio track:** a bounded, reliable, visually polished release of the same governed product for interviews and portfolio demonstration.
+
+The portfolio release is not a separate product, fork, or simplified mock application. It is a controlled checkpoint inside the real TomoCare journey, using the same architecture and governance model with a separate, resettable demo environment.
+
+## Why this decision
+
+The two purposes have different definitions of success.
+
+| | Real-care track | Portfolio track |
+| --- | --- | --- |
+| **Primary outcome** | Keep Rosa on top of Momo's care over time | Make TomoCare's value, judgment, architecture, and experience legible in a 10–15 minute review |
+| **Time horizon** | Long-term and continuously evolving | Short-term and deliberately finishable |
+| **Data** | Momo's real private records | Synthetic, resettable Momo demo data |
+| **Priority** | Care usefulness, correctness, and completeness | Narrative clarity, reliability, and demo quality |
+| **Release model** | Ongoing product development | Tagged and documented portfolio checkpoint |
+
+Trying to complete the entire long-term health-assistant vision before preparing the portfolio would delay the job-search goal and blur the strongest story. Splitting the products or codebases would create unnecessary drift. The chosen approach preserves one governed foundation while allowing a stable portfolio finish line.
+
+## Shared product foundation
+
+Both tracks retain the same TomoCare principles and architecture:
+
+- Source truth, candidate truth, and trusted truth remain distinct.
+- AI can prepare; the human approves.
+- LLM interprets; the database calculates; citations prove.
+- Planned, proposed, approved, handed off, and completed states are not interchangeable.
+- Medical interpretation and consequential action remain bounded.
+- Evals express the product's promises and protect them as coverage grows.
+- Voice and animation remain presentation layers over the same grounded assistant.
+
+## Long-term real-care north star
+
+The real-care track is a comprehensive health sidekick for Momo. It should eventually help Rosa manage and understand:
+
+- Longitudinal weight trends
+- The full Librela lifecycle: source invoice, verification, trusted administration, cost, reminder, appointment request, Calendar follow-through, insurance filing, and completion state
+- Home-care lifecycles for Adequan and Simparica Trio, including administration, successor reminders, and later refill or renewal planning
+- Vaccine records, clinic-reported status, due dates, reminders, and verified administrations
+- Annual laboratory panels, urine tests, imaging, and related medical documents
+- Longitudinal results across analytes, units, reference ranges, abnormal flags, specimen types, and comparable test history
+- Momo's current health summary and care timeline
+- Preparation of questions, concerns, and evidence for annual checkups and other vet visits
+- Governed preparation of appointment, medication-renewal, and care follow-up requests
+
+This remains a north star, not the scope required before the portfolio checkpoint. Labs, urinalysis, imaging, and broad clinical-document intelligence require their own carefully governed product phases.
+
+## Portfolio v1 objective
+
+Portfolio v1 should demonstrate three connected product stories rather than maximize feature count.
+
+### 1. Messy source to trusted memory
+
+A synthetic invoice arrives through the demo Gmail workflow. TomoCare extracts candidate information, directs Rosa's attention to meaningful uncertainty, preserves the source, and materializes only human-verified facts.
+
+### 2. Trusted memory to useful intelligence
+
+Tomo answers through Chat and Voice, explains the verified weight trend, identifies what needs attention, distinguishes missing or incomplete state, and shows the governing record or source evidence.
+
+### 3. Intelligence to governed follow-through
+
+Tomo prepares a Librela appointment request from trusted state, Rosa reviews it, and the native Messages handoff preserves Rosa as the sender without claiming delivery or booking.
+
+## Portfolio-readiness sequence
+
+The agreed sequence after the shipped Phase 3E.3 checkpoint is:
+
+1. **Phase 3E.4 — Governed Profile Grounding**
+   - Answer bounded Profile questions from the current `pets` row.
+   - Calculate age from the TomoCare care date.
+   - Keep governed identity separate from harmless relationship context.
+   - Open the existing Profile panel through typed, read-only navigation.
+
+2. **Demo environment and resettable synthetic dataset**
+   - Keep one application codebase.
+   - Use separate demo configuration and data from Momo's live care records.
+   - Prefer a separate hosted Supabase demo project for interview reliability.
+   - Seed deterministic records and provide one safe reset path.
+   - Use a dedicated demo inbox if Gmail ingestion will be shown live.
+   - Keep Google Calendar and Apple Messages destinations demo-safe.
+   - Display a clear Demo indicator so synthetic and real state cannot be confused.
+
+3. **Synthetic invoice and risk-weighted verification**
+   - Create a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
+   - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
+   - Improve review around consequence and uncertainty rather than asking Rosa to confirm every field equally.
+   - Explain why a reviewed field matters when it affects scheduling, costs, or trusted care state.
+   - Detect missing, contradictory, or ignored content and check internally consistent administrative values where possible.
+
+4. **Bounded vaccine-status capture**
+   - Detect the vaccine section instead of silently ignoring prominent source content.
+   - Preserve vaccine name, clinic-reported status, due date, and record-as-of date as candidate information.
+   - Require review before materialization.
+   - Treat the result as a verified clinic-reported status snapshot, not proof that a vaccine was administered.
+   - Defer the complete vaccine reminder and administration lifecycle unless a later bounded slice is justified.
+
+5. **Verified weight-trend visualization**
+   - Plot verified measurements only.
+   - Preserve source access and trust state for each point.
+   - Keep Tomo's explanation consistent with the chart's deterministic data.
+   - Avoid medical conclusions about the trend.
+
+6. **Voice, animation-recovery, and UI polish**
+   - Make Runway/LiveKit fallback visible and non-blocking.
+   - Offer a safe retry while preserving uninterrupted local voice.
+   - Refine listening, thinking, speaking, playback, and idle transitions.
+   - Resolve visual inconsistencies, dead ends, and unclear state changes across the end-to-end demo.
+
+7. **Demo evidence and portfolio freeze**
+   - Rehearse one deterministic end-to-end path.
+   - Capture screenshots and video evidence.
+   - Prepare a recorded fallback for provider-dependent moments.
+   - Update the case study so shipped behavior and future direction remain distinct.
+   - Tag the accepted checkpoint as the portfolio v1 release before returning to broader real-care work.
+
+## Demo data and environment policy
+
+Real Momo records remain appropriate for private product use and validation. Portfolio and interview demonstrations should use synthetic data by default because screenshots and recordings can preserve clinic details, invoice identifiers, insurance information, recipient data, and medical history beyond the live presentation.
+
+The demo environment should therefore be:
+
+- Separate from Momo's live data and provider destinations
+- Reproducible from migrations and seed data
+- Resettable without affecting real care history
+- Safe to demonstrate repeatedly
+- Explicitly labeled as demo data
+- Governed by the same trust, approval, and abstention rules as the real product
+
+Supabase's documented environment and seed workflows support this direction:
+
+- [Managing environments](https://supabase.com/docs/guides/deployment/managing-environments)
+- [Seeding a database](https://supabase.com/docs/guides/local-development/seeding-your-database)
+
+## Verification-intelligence decision
+
+Human verification remains central, but the interface should become more selective and useful. TomoCare should not equate governance with asking the user to manually confirm every extracted value.
+
+Future verification improvements should:
+
+- Allocate human attention according to uncertainty and consequence
+- Group internally consistent, low-risk administrative fields
+- Require deliberate review for fields that affect care state or downstream workflows
+- Explain why a field is important
+- Surface contradictions, omissions, and unsupported source sections
+- Preserve corrections as structured feedback for extraction and normalization improvement
+
+This work is part of the core governed-AI thesis and has higher portfolio priority than decorative polish.
+
+## Vaccine boundary for portfolio v1
+
+Portfolio v1 should capture and explain the vaccine-status section of the invoice, but it does not need a complete vaccine lifecycle.
+
+Allowed claim:
+
+> The latest verified clinic record lists rabies as due on MM-DD-YYYY.
+
+Disallowed claim without a separate trusted administration event:
+
+> Momo received her rabies vaccine.
+
+No reminder should be created automatically unless the date meaning and source state have been verified and the applicable reminder contract has been approved in a later slice.
+
+## Deferred until after portfolio v1
+
+- Medication refill or prescription-renewal lifecycle, unless a trustworthy and very small source rule is identified
+- Complete vaccine reminder and administration lifecycle
+- Annual laboratory, urinalysis, imaging, and broad medical-document intelligence
+- Current-health inference, diagnosis, urgency judgment, or treatment recommendation
+- Broad durable relationship memory
+- Generic feedback controls that do not lead to source review or a concrete product-learning loop
+- Multi-agent orchestration without a demonstrated permission, responsibility, or recovery boundary
+
+## Portfolio v1 definition of done
+
+The portfolio checkpoint is ready when:
+
+- The three demo stories work end to end from a resettable synthetic starting state.
+- No demo action can affect Momo's live records, clinic contact, Calendar, or inbox.
+- Verification directs attention to meaningful uncertainty and does not silently ignore the vaccine section.
+- Profile, weight, attention, reminders, and the Librela request agree across UI, Chat, and Voice.
+- Every factual answer or operational calculation has a governing record or trusted source.
+- The Messages experience remains an approved draft handoff and makes no delivery or booking claim.
+- Voice and animation failures preserve the answer and provide a visible recovery path.
+- The demo has a rehearsed live path and recorded fallback.
+- Focused tests, the full regression suite, production build, and manual demo validation pass.
+- The case study clearly separates shipped capability, portfolio checkpoint, and long-term north star.
+
+## Immediate next step
+
+Continue with **Phase 3E.4 — Governed Profile Grounding** under the already reviewed bounded contract. After that slice is validated and merged, define the demo-environment slice before expanding assistant coverage or beginning annual-health intelligence.
+
+## Maintenance rule
+
+Update this document when the two-track strategy, portfolio checkpoint scope, demo-data policy, roadmap order, or portfolio definition of done changes. Record ordinary implementation details, branch names, care dates, and slice-level validation in the latest Current State and Handover document.
