@@ -57,19 +57,24 @@ test("returns null summary items when no verified events exist", () => {
 test("returns the stored pet profile fields needed for a live age", () => {
     assert.deepEqual(
         summarizePetProfile({
+            id: "pet-1",
             name: "Momo",
+            species: "canine",
             breed: "American Eskimo",
             sex: "female",
             spayed_neutered: true,
             birth_date: "2014-08-22",
             private_note: "do not expose",
-        }),
+        }, "2026-08-14"),
         {
+            id: "pet-1",
             name: "Momo",
+            species: "canine",
             breed: "American Eskimo",
-            sex: "female",
-            spayed_neutered: true,
             birth_date: "2014-08-22",
+            age: 11,
+            sex: "female",
+            reproductive_status: "spayed",
         }
     )
 })

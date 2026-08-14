@@ -29,7 +29,11 @@ test("routes each governed target to its existing view or trusted calendar URL",
         readFile(sidebarUrl, "utf8"),
     ])
 
-    assert.match(dashboard, /getAttentionNavigationEffect\(target\)/)
+    assert.match(dashboard, /getAttentionNavigationEffect\(target, \{ petId: PET_ID \}\)/)
+    assert.match(
+        dashboard,
+        /effect\.type === "profile"[\s\S]*section: HOME_SECTIONS\.PROFILE/
+    )
     assert.match(dashboard, /setFocusedReminderId\(effect\.recordId\)/)
     assert.match(
         dashboard,
@@ -43,6 +47,20 @@ test("routes each governed target to its existing view or trusted calendar URL",
     assert.match(sidebar, /reminderElement\.focus/)
 })
 
+test("renders a governed Profile source and typed Open Profile command", async () => {
+    const source = await readFile(assistantUrl, "utf8")
+    const profileSource = source.match(
+        /function ProfileSummarySource[\s\S]*?(?=\nfunction AttentionSummary)/
+    )?.[0]
+
+    assert.ok(profileSource)
+    assert.match(source, /answer\.answer_type === "profile_summary"/)
+    assert.match(profileSource, /aria-label="Governed Profile source"/)
+    assert.match(profileSource, /answer\.governing_reference/)
+    assert.match(profileSource, /answer\.navigation_targets/)
+    assert.match(profileSource, /onNavigate\?\.\(target\)/)
+})
+
 test("keeps the attention command interpreter navigation-only", async () => {
     const source = await readFile(navigationUrl, "utf8")
 
@@ -52,4 +70,5 @@ test("keeps the attention command interpreter navigation-only", async () => {
     assert.match(source, /open_review_document/)
     assert.match(source, /open_calendar_event/)
     assert.match(source, /open_calendar_home/)
+    assert.match(source, /open_profile/)
 })

@@ -157,22 +157,199 @@ test("describes Tomo and its bounded capabilities without loading care facts", (
     assert.deepEqual(response.citations, [])
 })
 
-test("describes Momo from the bounded relationship profile without describing Tomo", () => {
+test("answers a broad profile question from governed pets fields", () => {
     const response = composeGroundedAnswer({
         question: "What do you know about Momo?",
         queryPlan: {
-            intent: "social_response",
-            subject: "momo_profile",
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "summary",
+        },
+        context: {},
+        profileSummary: {
+            status: "available",
+            fields: {
+                id: "pet-1",
+                name: "Momo",
+                species: "canine",
+                breed: "American Eskimo",
+                birth_date: "2014-08-22",
+                age: 11,
+                sex: "female",
+                reproductive_status: "spayed",
+            },
+            missing_fields: [],
+            governing_reference: { table: "pets", record_id: "pet-1" },
+            navigation_targets: [
+                { kind: "open_profile", label: "Open Profile", target_id: "pet-1" },
+            ],
+        },
+    })
+
+    assert.equal(response.answer_type, "profile_summary")
+    assert.equal(response.profile_status, "available")
+    assert.equal(
+        response.governed_answer,
+        "Momo is an American Eskimo dog, born August 22, 2014, and is 11 years old. She is female and spayed according to her Profile."
+    )
+    assert.match(
+        response.answer,
+        /Beyond those official details, she’s regal, devoted, discerning, playful, and joyful—and very much your happy place\./
+    )
+    assert.equal(response.profile_fields.breed, "American Eskimo")
+    assert.equal(response.navigation_targets[0].kind, "open_profile")
+    assert.deepEqual(response.citations, [])
+    assert.equal(response.proposed_action, null)
+})
+
+test("does not let relationship texture override conflicting governed identity", () => {
+    const response = composeGroundedAnswer({
+        question: "Tell me about Momo",
+        queryPlan: {
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "summary",
+        },
+        context: {},
+        profileSummary: {
+            status: "available",
+            fields: {
+                id: "pet-2",
+                name: "Nova",
+                species: "canine",
+                breed: "Samoyed",
+                birth_date: "2020-01-02",
+                age: 6,
+                sex: "female",
+                reproductive_status: "spayed",
+            },
+            missing_fields: [],
+            governing_reference: { table: "pets", record_id: "pet-2" },
+            navigation_targets: [],
+        },
+    })
+
+    assert.match(response.governed_answer, /Nova.*Samoyed/)
+    assert.doesNotMatch(response.answer, /American Eskimo|August 22, 2014/)
+})
+
+test("answers direct Profile fields in natural language", () => {
+    const fields = {
+        id: "pet-1",
+        name: "Momo",
+        species: "canine",
+        breed: "American Eskimo",
+        birth_date: "2014-08-22",
+        age: 11,
+        sex: "female",
+        reproductive_status: "spayed",
+    }
+    const expected = {
+        age: "Momo is 11 years old.",
+        breed: "Momo is an American Eskimo.",
+        species: "Momo is a dog.",
+        birth_date: "Momo’s birthday is August 22, 2014.",
+        sex: "Momo’s Profile records her as female.",
+        reproductive_status: "Momo’s Profile records her as spayed.",
+    }
+
+    for (const [profile_focus, answer] of Object.entries(expected)) {
+        const response = composeGroundedAnswer({
+            question: "Profile question",
+            queryPlan: {
+                intent: "profile_summary",
+                subject: "profile",
+                profile_focus,
+            },
+            context: {},
+            profileSummary: {
+                status: "available",
+                fields,
+                missing_fields: [],
+                governing_reference: { table: "pets", record_id: "pet-1" },
+                navigation_targets: [],
+            },
+        })
+
+        assert.equal(response.answer, answer, profile_focus)
+    }
+})
+
+test("states missing direct fields and unavailable sources without inference", () => {
+    const partial = composeGroundedAnswer({
+        question: "How old is Momo?",
+        queryPlan: {
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "age",
+        },
+        context: {},
+        profileSummary: {
+            status: "partial",
+            fields: { name: "Momo", age: null },
+            missing_fields: ["birth_date", "age"],
+            governing_reference: { table: "pets", record_id: "pet-1" },
+            navigation_targets: [],
+        },
+    })
+    const unavailable = composeGroundedAnswer({
+        question: "What is Momo’s breed?",
+        queryPlan: {
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "breed",
+        },
+        context: {},
+        profileSummary: null,
+    })
+
+    assert.match(partial.answer, /birth date isn’t set.*can’t calculate age/)
+    assert.equal(partial.profile_status, "partial")
+    assert.equal(unavailable.profile_status, "unavailable")
+    assert.match(unavailable.answer, /couldn’t load the governed pets Profile row/)
+})
+
+test("keeps Profile corrections behind governance without a write proposal", () => {
+    const response = composeGroundedAnswer({
+        question: "Please update Momo’s breed",
+        queryPlan: {
+            intent: "action_request",
+            subject: "profile",
+            scope: "profile_change_governance",
+            requires_action: true,
         },
         context: {},
     })
 
-    assert.equal(response.answer_type, "social_response")
-    assert.match(response.answer, /beloved senior American Eskimo/)
-    assert.match(response.answer, /August 22, 2014/)
-    assert.match(response.answer, /ball-catching family queen/)
-    assert.doesNotMatch(response.answer, /I’m Tomo|what I can do/i)
-    assert.deepEqual(response.citations, [])
+    assert.equal(response.answer_type, "action_request")
+    assert.match(response.answer, /can’t change Momo’s Profile/)
+    assert.match(response.answer, /no Profile field was changed/)
+    assert.equal(response.proposed_action, null)
+})
+
+test("uses the user’s health wording in an ambiguous clarification", () => {
+    const howResponse = composeGroundedAnswer({
+        question: "How is Momo?",
+        queryPlan: {
+            intent: "ambiguous_health_question",
+            subject: "health",
+        },
+        context: {},
+    })
+    const okayResponse = composeGroundedAnswer({
+        question: "Is Momo okay?",
+        queryPlan: {
+            intent: "ambiguous_health_question",
+            subject: "health",
+        },
+        context: {},
+    })
+
+    assert.match(howResponse.answer, /When you ask how Momo is/)
+    assert.doesNotMatch(howResponse.answer, /what “okay” means/)
+    assert.match(okayResponse.answer, /When you ask whether Momo is okay/)
+    assert.equal(howResponse.answer_type, "clarification_needed")
+    assert.equal(okayResponse.answer_type, "clarification_needed")
 })
 
 test("names active reminders by care item in the answer and evidence cards", () => {

@@ -42,6 +42,23 @@ test("keeps numeric dates and common abbreviations inside their sentences", () =
     )
 })
 
+test("speaks the complete compact Profile answer including relationship warmth", () => {
+    const governedAnswer =
+        "Momo is an American Eskimo dog, born August 22, 2014, and is 11 years old. She is female and spayed according to her Profile."
+    const relationshipAnswer =
+        "Beyond those official details, she’s regal, devoted, discerning, playful, and joyful—and very much your happy place."
+    const spoken = composeSpokenAnswer({
+        answer_type: "profile_summary",
+        answer:
+            `Let’s see what Queen Momo has on her Profile. ${governedAnswer} ${relationshipAnswer}`,
+        governed_answer: governedAnswer,
+    })
+
+    assert.equal(spoken, `${governedAnswer} ${relationshipAnswer}`)
+    assert.match(spoken, /happy place/)
+    assert.doesNotMatch(spoken, /Let’s see/)
+})
+
 test("adds the fixed visual-review boundary to prepared actions", () => {
     const spoken = composeSpokenAnswer({
         answer_type: "action_prepared",

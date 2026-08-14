@@ -268,9 +268,11 @@ test("uses the loaded sidebar reminder for status, date, and Calendar citations"
     assert.match(evidenceSource, /calendar_month/)
 })
 
-test("loads Momo's profile birth date instead of hardcoding her age", async () => {
+test("uses the server-derived Profile age instead of browser-local calculation", async () => {
     const source = await readFile(sidebarUrl, "utf8")
 
-    assert.match(source, /formatAge\(profile\.birth_date\)/)
+    assert.match(source, /formatAgeValue\(profile\.age\)/)
+    assert.match(source, /profile\.species/)
+    assert.match(source, /profile\.reproductive_status/)
     assert.doesNotMatch(source, /American Eskimo · 11 years/)
 })

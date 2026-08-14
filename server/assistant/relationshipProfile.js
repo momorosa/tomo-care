@@ -7,8 +7,8 @@ function deepFreeze(value) {
     return Object.freeze(value)
 }
 
-export const TOMO_RELATIONSHIP_PROFILE_V1 = deepFreeze({
-    version: "tomo-relationship-v1",
+export const TOMO_RELATIONSHIP_PROFILE_V2 = deepFreeze({
+    version: "tomo-relationship-v2",
     rosa: {
         preferred_name: "Rosa",
         relationship_to_momo: "Mommy and primary caregiver",
@@ -18,10 +18,6 @@ export const TOMO_RELATIONSHIP_PROFILE_V1 = deepFreeze({
         },
     },
     momo: {
-        name: "Momo",
-        pronouns: ["she", "her"],
-        breed: "American Eskimo",
-        birth_date: "2014-08-22",
         family_role: "Beloved family member and Rosa’s happy place",
         descriptors: [
             "regal",
@@ -62,4 +58,3 @@ export const TOMO_RELATIONSHIP_PROFILE_V1 = deepFreeze({
         ],
     },
 })
-

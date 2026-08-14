@@ -1,7 +1,7 @@
 import { costItemCitation, documentCitation, eventCitation, factCitation, enrichCitations, } from "./citations.js"
 import { dateInRange, getDateRangePhrase, } from "./dateRanges.js"
 import { getCareDate } from "../lib/careDates.js"
-import { TOMO_RELATIONSHIP_PROFILE_V1 } from "./relationshipProfile.js"
+import { TOMO_RELATIONSHIP_PROFILE_V2 } from "./relationshipProfile.js"
 
 const LIBRELA_INTERVAL_DAYS = 49
 const LIBRELA_REMIND_BEFORE_DAYS = 7
@@ -13,6 +13,7 @@ export function composeGroundedAnswer({
     actionPreparation = null,
     messageDraftPreparation = null,
     attentionSummary = null,
+    profileSummary = null,
 }) {
     let response
 
@@ -25,12 +26,16 @@ export function composeGroundedAnswer({
             response = answerAttentionSummary(attentionSummary, queryPlan)
             break
 
+        case "profile_summary":
+            response = answerProfileSummary(profileSummary, queryPlan)
+            break
+
         case "semantic_clarification":
             response = answerSemanticClarification(queryPlan)
             break
 
         case "ambiguous_health_question":
-            response = answerAmbiguousHealthQuestion()
+            response = answerAmbiguousHealthQuestion(question)
             break
 
         case "care_recommendation_boundary":
@@ -115,7 +120,7 @@ export function composeGroundedAnswer({
             break
 
         case "action_request":
-            response = answerActionRequest()
+            response = answerActionRequest(queryPlan)
             break
 
         default:
@@ -316,6 +321,214 @@ function getAttentionSourceLabel(source) {
     }[source] || "a supported source"
 }
 
+function answerProfileSummary(profile, queryPlan) {
+    const focus = queryPlan?.profile_focus || "summary"
+    const fields = profile?.fields || {
+        id: null,
+        name: null,
+        species: null,
+        breed: null,
+        birth_date: null,
+        age: null,
+        sex: null,
+        reproductive_status: null,
+    }
+    const shared = {
+        answer_type: "profile_summary",
+        profile_status: profile?.status || "unavailable",
+        profile_focus: focus,
+        profile_fields: fields,
+        governing_reference: profile?.governing_reference || null,
+        navigation_targets: profile?.navigation_targets || [],
+        citations: [],
+        proposed_action: null,
+    }
+
+    if (!profile || profile.status === "unavailable") {
+        const governedAnswer =
+            "I couldn’t load the governed pets Profile row, so I can’t safely answer with Profile facts right now."
+        return {
+            ...shared,
+            answer: governedAnswer,
+            governed_answer: governedAnswer,
+            confidence: "low",
+            limitations: [
+                "The Profile source was unavailable; missing values were not treated as empty facts.",
+            ],
+        }
+    }
+
+    const governedAnswer =
+        focus === "summary"
+            ? composeProfileOverview(fields, profile.missing_fields)
+            : composeProfileFieldAnswer(fields, focus)
+    const relationshipColor =
+        focus === "summary"
+            ? composeRelationshipColor(
+                  TOMO_RELATIONSHIP_PROFILE_V2.momo,
+                  fields
+              )
+            : ""
+
+    return {
+        ...shared,
+        answer: [governedAnswer, relationshipColor].filter(Boolean).join(" "),
+        governed_answer: governedAnswer,
+        confidence: profile.status === "available" ? "high" : "medium",
+        limitations:
+            profile.status === "partial"
+                ? [
+                      `Not set in Profile: ${formatNaturalList(
+                          (profile.missing_fields || []).map(
+                              getProfileFieldLabel
+                          )
+                      )}.`,
+                  ]
+                : [],
+    }
+}
+
+function composeProfileOverview(fields, missingFields = []) {
+    const name = fields.name || "This pet"
+    const species = fields.species
+        ? formatProfileSpecies(fields.species)
+        : null
+    const identity = [fields.breed, species].filter(Boolean).join(" ")
+    const identityPhrase = identity
+        ? `${getIndefiniteArticle(identity)} ${identity}`
+        : "a pet whose breed and species aren’t set in Profile"
+    const subjectPronouns = getProfilePronouns(fields.sex)
+    const birthPhrase = fields.birth_date
+        ? `born ${formatDate(fields.birth_date)}`
+        : "with no birthday set in Profile"
+    const agePhrase = Number.isInteger(fields.age)
+        ? `and is ${fields.age} years old`
+        : `so ${subjectPronouns.possessive} age can’t be calculated`
+    const sexAndStatus = [
+        fields.sex ? String(fields.sex).toLowerCase() : null,
+        fields.reproductive_status
+            ? formatReproductiveStatus(fields.reproductive_status)
+            : null,
+    ].filter(Boolean)
+    const statusSentence = sexAndStatus.length
+        ? `${capitalize(subjectPronouns.subject)} ${subjectPronouns.copula}${sexAndStatus.length === 2 ? "" : " recorded as"} ${formatNaturalList(sexAndStatus)} according to ${subjectPronouns.possessive} Profile.`
+        : "Sex and spay or neuter status aren’t set in Profile."
+    const missingNote = missingFields.length
+        ? ` Not set in Profile: ${formatNaturalList(
+              missingFields.map(getProfileFieldLabel)
+          )}.`
+        : ""
+
+    return `${name} is ${identityPhrase}, ${birthPhrase}, ${agePhrase}. ${statusSentence}${missingNote}`
+}
+
+function composeProfileFieldAnswer(fields, focus) {
+    const name = fields.name || "This pet"
+    const value = fields[focus]
+
+    if (value === null || value === undefined || value === "") {
+        if (focus === "age") {
+            return `${name}’s birth date isn’t set in Profile, so I can’t calculate age.`
+        }
+        return `${name}’s ${getProfileFieldLabel(focus)} isn’t set in Profile.`
+    }
+
+    const displayedValue =
+        focus === "birth_date"
+            ? formatDate(value)
+            : focus === "age"
+              ? `${value} years old`
+              : focus === "reproductive_status"
+                ? formatReproductiveStatus(value)
+                : value
+
+    if (focus === "age") return `${name} is ${displayedValue}.`
+    if (focus === "breed") {
+        return `${name} is ${getIndefiniteArticle(displayedValue)} ${displayedValue}.`
+    }
+    if (focus === "species") {
+        return `${name} is ${getIndefiniteArticle(formatProfileSpecies(displayedValue))} ${formatProfileSpecies(displayedValue)}.`
+    }
+    if (focus === "birth_date") return `${name}’s birthday is ${displayedValue}.`
+    if (focus === "name") return `The Profile name is ${displayedValue}.`
+    if (focus === "sex" || focus === "reproductive_status") {
+        const pronouns = getProfilePronouns(fields.sex)
+        return `${name}’s Profile records ${pronouns.object} as ${String(displayedValue).toLowerCase()}.`
+    }
+
+    return `${name}’s ${getProfileFieldLabel(focus)} is ${displayedValue}.`
+}
+
+function composeRelationshipColor(relationshipProfile, fields) {
+    const descriptors = relationshipProfile?.descriptors || []
+    const familyRole = relationshipProfile?.family_role
+    if (!familyRole && !descriptors.length) return ""
+
+    const pronouns = getProfilePronouns(fields?.sex)
+    if (descriptors.length) {
+        return `Beyond those official details, ${pronouns.contraction} ${formatNaturalList(descriptors)}—and very much your happy place.`
+    }
+
+    return `Beyond those official details, ${pronouns.contraction} your beloved family member and happy place.`
+}
+
+function formatProfileSpecies(value) {
+    return {
+        canine: "dog",
+        feline: "cat",
+    }[String(value).toLowerCase()] || String(value).toLowerCase()
+}
+
+function getIndefiniteArticle(value) {
+    return /^[aeiou]/i.test(String(value).trim()) ? "an" : "a"
+}
+
+function getProfilePronouns(sex) {
+    const normalized = String(sex || "").toLowerCase()
+    if (normalized === "female") {
+        return {
+            subject: "she",
+            object: "her",
+            possessive: "her",
+            copula: "is",
+            contraction: "she’s",
+        }
+    }
+    if (normalized === "male") {
+        return {
+            subject: "he",
+            object: "him",
+            possessive: "his",
+            copula: "is",
+            contraction: "he’s",
+        }
+    }
+    return {
+        subject: "they",
+        object: "them",
+        possessive: "their",
+        copula: "are",
+        contraction: "they’re",
+    }
+}
+
+function getProfileFieldLabel(field) {
+    return {
+        id: "record ID",
+        name: "name",
+        species: "species",
+        breed: "breed",
+        birth_date: "birth date",
+        age: "age",
+        sex: "sex",
+        reproductive_status: "reproductive status",
+    }[field] || field
+}
+
+function formatReproductiveStatus(value) {
+    return String(value).replaceAll("_", " ")
+}
+
 function answerLastLibrela(context, queryPlan) {
     const injections = context.librelaInjectionEvents
         .filter((event) => dateInRange(event.event_date, queryPlan.date_range))
@@ -446,17 +659,12 @@ function selectSocialResponse(subject, question) {
 }
 
 function answerSocialResponse(subject, question) {
-    const momo = TOMO_RELATIONSHIP_PROFILE_V1.momo
     const answers = {
         acknowledgement: "Got it, Rosa.",
         capabilities:
             "I’m Tomo—your sidekick for Momo’s care. I can answer from verified TomoCare records, summarize medication and weight history, check care reminders and due dates, total Librela spending, and prepare care updates or messages for your review. I can be warm and playful with you, but I won’t invent records, make veterinary judgments, or send or change anything without your approval.",
         goodbye: "Talk soon, Rosa. Give Momo a little hello from me.",
         greeting: "Hi Rosa. What would you like to check for Momo?",
-        momo_profile:
-            `${momo.name} is Rosa’s beloved senior ${momo.breed}, born ${formatDate(momo.birth_date)}. ` +
-            `She’s ${formatNaturalList(momo.descriptors)}—a ball-catching family queen who loves staying close to her people. ` +
-            "TomoCare keeps these relationship details separate from her verified care records.",
     }
     const variedResponse = selectSocialResponse(subject, question)
 
@@ -725,10 +933,16 @@ function answerActiveReminders(context, queryPlan) {
     }
 }
 
-function answerAmbiguousHealthQuestion() {
+function answerAmbiguousHealthQuestion(question) {
+    const normalized = String(question || "")
+        .toLowerCase()
+        .replace(/[’]/g, "'")
+    const asksWhetherOkay = /\b(okay|ok|alright)\b/.test(normalized)
+
     return {
-        answer:
-            "I’m not sure what “okay” means here. I can answer specific questions from verified TomoCare records, such as Momo’s weight trend, Librela history, reminders, costs, recent verified records, or lab abnormalities.",
+        answer: asksWhetherOkay
+            ? "When you ask whether Momo is okay, what would you like me to check—her recent care records, what needs attention right now, or a specific concern such as her weight, Librela, or medications?"
+            : "When you ask how Momo is, do you mean how she’s been doing based on her recent records, what needs attention right now, or something specific such as her weight, Librela, or medications?",
         answer_type: "clarification_needed",
         confidence: "high",
         citations: [],
@@ -1421,7 +1635,22 @@ function answerRecentVerifiedRecords(context) {
     }
 }
 
-function answerActionRequest() {
+function answerActionRequest(queryPlan) {
+    if (queryPlan?.subject === "profile") {
+        return {
+            answer:
+                "I can’t change Momo’s Profile from this conversation. Profile corrections must go through TomoCare’s governed edit and review path, and no Profile field was changed.",
+            answer_type: "action_request",
+            confidence: "high",
+            citations: [],
+            limitations: [
+                "No pets row was mutated.",
+                "No Profile change was prepared or proposed.",
+            ],
+            proposed_action: null,
+        }
+    }
+
     return {
         answer:
             "I can help prepare that, but I cannot take action directly from chat. Any booking, message, calendar write, or external action needs to go through TomoCare’s approval gate first.",

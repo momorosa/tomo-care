@@ -61,6 +61,10 @@ const PLAN_CONFIG = {
         subjects: ["librela"],
         scope: "planned_reminders",
     },
+    profile_summary: {
+        subjects: ["profile"],
+        scope: "governed_pet_profile",
+    },
     recent_verified_records: {
         subjects: ["documents"],
         scope: "verified_documents",
@@ -98,6 +102,7 @@ const INTERPRETATION_LABELS = {
     medical_judgment_boundary: "A medical judgment question",
     next_librela_due: "Next Librela due date",
     next_librela_reminder: "Next Librela reminder",
+    profile_summary: "Momo’s governed Profile",
     recent_verified_records: "Recently verified records",
     spend_summary: "Verified Librela spending",
     vaccine_record_lookup: "Verified vaccine records",
@@ -145,14 +150,6 @@ function getLocalSocialIntent(question) {
         )
     ) {
         return "capabilities"
-    }
-
-    if (
-        /^(?:tomo )?(?:what do you know about momo|tell me about momo|who is momo|describe momo)$/.test(
-            normalized
-        )
-    ) {
-        return "momo_profile"
     }
 
     if (
@@ -254,6 +251,9 @@ function semanticPlan(interpretation, question, currentCareDate) {
             interpretation.intent === "last_librela"
                 ? interpretation.event_offset
                 : 0,
+        ...(interpretation.intent === "profile_summary"
+            ? { profile_focus: interpretation.profile_field || "summary" }
+            : {}),
     }
 }
 
@@ -443,7 +443,6 @@ export async function resolveAssistantPlan({
             "capabilities",
             "goodbye",
             "greeting",
-            "momo_profile",
             "negative_feedback",
             "positive_feedback",
             "thanks",

@@ -1066,10 +1066,13 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
     const isPreparedAction = answer.answer_type === "action_prepared"
     const isPreparedMessage = answer.answer_type === "message_draft_prepared"
     const isAttentionSummary = answer.answer_type === "attention_summary"
+    const isProfileSummary = answer.answer_type === "profile_summary"
     const needsClarification = answer.answer_type === "clarification_needed"
     const badgeLabel =
         answer.answer_type === "social_response"
             ? "Tomo"
+            : isProfileSummary
+              ? "Momo’s Profile"
             : isAttentionSummary
               ? "Needs attention"
             : isPreparedMessage
@@ -1119,6 +1122,13 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
                         onNavigate={onNavigateAttention}
                     />
                 )}
+
+            {isProfileSummary && (
+                <ProfileSummarySource
+                    answer={answer}
+                    onNavigate={onNavigateAttention}
+                />
+            )}
 
             {answer.transcript_corrections?.length > 0 && (
                 <div className="mt-2 space-y-1 text-xs text-tomo-text">
@@ -1182,6 +1192,35 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
                 </div>
             )}
         </article>
+    )
+}
+
+function ProfileSummarySource({ answer, onNavigate }) {
+    const reference = answer.governing_reference
+    const sourceLabel =
+        reference?.table === "pets" && reference?.record_id
+            ? `Source: Governed Profile · ${reference.record_id}`
+            : "Source: Governed Profile unavailable"
+
+    return (
+        <section
+            className="mt-4 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3"
+            aria-label="Governed Profile source"
+        >
+            <p className="text-xs text-tomo-text">{sourceLabel}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+                {(answer.navigation_targets || []).map((target) => (
+                    <button
+                        key={`${target.kind}-${target.target_id}`}
+                        type="button"
+                        className="tomo-btn tomo-btn-secondary px-3 py-1 text-xs"
+                        onClick={() => onNavigate?.(target)}
+                    >
+                        {target.label}
+                    </button>
+                ))}
+            </div>
+        </section>
     )
 }
 

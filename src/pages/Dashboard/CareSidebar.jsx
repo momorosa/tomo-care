@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import momoPortrait from "../../../assets/momoPic.png"
 import { formatDisplayDate } from "../../lib/displayDate.js"
-import { formatAge } from "../../lib/petAge.js"
+import { formatAgeValue } from "../../lib/petAge.js"
 import { HOME_SECTIONS } from "./conversationalHomeState.js"
 import { getInboxErrorPresentation } from "./inboxErrorPresentation.js"
 import { getCompactReminderPresentation } from "./reminderPresentation.js"
@@ -215,18 +215,18 @@ function ContextHeading({ section }) {
 function ProfileContext({ careSummary, reminderCount }) {
     const profile = careSummary.pet_profile || {}
     const name = profile.name || "Momo"
+    const species = profile.species
+        ? profile.species.charAt(0).toUpperCase() + profile.species.slice(1)
+        : "Species not set"
     const breed = profile.breed || "Breed not set"
     const sex = profile.sex
         ? profile.sex.charAt(0).toUpperCase() + profile.sex.slice(1)
         : "Sex not set"
-    const reproductiveStatus =
-        profile.spayed_neutered === true
-            ? sex === "Male"
-                ? "Neutered"
-                : "Spayed"
-            : profile.spayed_neutered === false
-              ? "Not spayed/neutered"
-              : "Status not set"
+    const reproductiveStatus = profile.reproductive_status
+        ? profile.reproductive_status
+              .replaceAll("_", " ")
+              .replace(/^./, (character) => character.toUpperCase())
+        : "Status not set"
 
     return (
         <div className="tomo-profile-context">
@@ -239,7 +239,7 @@ function ProfileContext({ careSummary, reminderCount }) {
                 <div className="min-w-0">
                     <p className="text-lg font-semibold text-tomo-text-h">{name}</p>
                     <p className="mt-1 text-sm text-tomo-text">
-                        {breed} · {formatAge(profile.birth_date)}
+                        {species} · {breed} · {formatAgeValue(profile.age)}
                     </p>
                     <p className="text-sm text-tomo-text">
                         {sex} · {reproductiveStatus}
