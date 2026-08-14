@@ -1,4 +1,7 @@
-import { resolveDateRange } from "./dateRanges.js"
+import {
+    resolveAttentionDateRange,
+    resolveDateRange,
+} from "./dateRanges.js"
 import { parseHomeMedicationActionRequest } from "./homeMedicationAction.js"
 import { isLibrelaAppointmentMessageRequest } from "./librelaAppointmentMessage.js"
 
@@ -12,6 +15,27 @@ export function buildQueryPlan(question, options = {}) {
         question,
         options
     )
+
+    if (isAttentionSummaryQuestion(q)) {
+        return basePlan({
+            intent: "attention_summary",
+            subject: "attention",
+            scope: "governed_attention",
+            dateRange: resolveAttentionDateRange(
+                question,
+                options.currentCareDate || new Date()
+            ),
+        })
+    }
+
+    if (isBroadCareOverviewQuestion(q)) {
+        return basePlan({
+            intent: "semantic_clarification",
+            subject: "care_overview",
+            scope: "clarification_needed",
+            dateRange,
+        })
+    }
 
     if (isLibrelaAppointmentMessageRequest(question)) {
         return basePlan({
@@ -258,15 +282,69 @@ function isActionRequest(q) {
         "add to calendar",
         "put on calendar",
         "make appointment",
+        "approve",
+        "execute",
+        "complete",
+        "mark",
     ]
 
     if (directActionWords.some((word) => q.startsWith(word))) {
         return true
     }
 
-    return /(can you|could you|would you|please).*(schedule|create|book|send|text|email|call|add|put)/.test(
+    return /(can you|could you|would you|please).*(schedule|create|book|send|text|email|call|add|put|approve|execute|complete|mark)/.test(
         q
     )
+}
+
+function isAttentionSummaryQuestion(q) {
+    if (
+        /\b(approve|execute|complete|mark|send|schedule|book|create|add|put)\b/.test(
+            q
+        )
+    ) {
+        return false
+    }
+
+    const normalized = normalizeOverviewQuestion(q)
+    const time = "(?: (?:today|tomorrow|this week|this month))?"
+    const patterns = [
+        `what (?:currently )?needs (?:my )?attention${time}`,
+        `show me what needs (?:my )?attention${time}`,
+        `(?:is there )?anything (?:that )?needs (?:my )?attention${time}`,
+        `do i need to do anything${time}`,
+        `is there anything i need to (?:do|review|handle|take care of)${time}`,
+        `anything i need to (?:do|review|handle|take care of)${time}`,
+        `what do i need to (?:do|review|handle|take care of)${time}`,
+        `what should i (?:do|review|handle|take care of)(?: next)?${time}`,
+        `what do i have to (?:do|review|handle|take care of)${time}`,
+        `(?:is there )?anything waiting for me${time}`,
+        `what is waiting for me${time}`,
+        `anything pending${time}`,
+    ]
+
+    return patterns.some((pattern) => new RegExp(`^${pattern}$`).test(normalized))
+}
+
+function isBroadCareOverviewQuestion(q) {
+    const normalized = normalizeOverviewQuestion(q)
+
+    return [
+        /^(?:what is|what's) new$/,
+        /^is there anything new$/,
+        /^what do i need to know$/,
+        /^(?:is there )?anything i need to know$/,
+    ].some((pattern) => pattern.test(normalized))
+}
+
+function normalizeOverviewQuestion(question) {
+    return question
+        .toLowerCase()
+        .replace(/[’]/g, "'")
+        .replace(/[^a-z0-9'\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^(?:(?:hey|hi|hello) )?tomo /, "")
 }
 
 function isLibrelaSpendQuestion(q) {

@@ -13,6 +13,7 @@ const SEMANTIC_SCHEMA = {
             type: "string",
             enum: [
                 "active_reminders",
+                "attention_summary",
                 "ambiguous_health_question",
                 "appointment_status",
                 "care_recommendation_boundary",
@@ -38,6 +39,7 @@ const SEMANTIC_SCHEMA = {
             enum: [
                 "adequan",
                 "appointment",
+                "attention",
                 "care_timeline",
                 "diet",
                 "documents",
@@ -144,7 +146,9 @@ Return only the supplied schema.
 Choose only a supported intent. Care facts will be retrieved separately from
 verified TomoCare records. A previous turn contains only an intent and subject;
 use it only when the current utterance clearly refers back with language such
-as "that", "it", or "the one before".
+as "that", "it", or "the one before". When the previous intent is
+attention_summary, a bounded follow-up such as "what about tomorrow?" or "how
+about this month?" may keep attention_summary and apply the new time window.
 
 Use event_offset 1 only when the user asks for the Librela injection before the
 most recently discussed one. Otherwise use 0.
@@ -160,6 +164,19 @@ the utterance asks what is listed or whether a care item is listed. Use
 active_reminders for a general calendar question and home_medication_due for a
 supported home medication such as Adequan or Simparica Trio. Do not claim that
 an item is synced to Google Calendar.
+
+Use attention_summary with subject attention when the user asks generally what
+needs attention, whether they need to do anything, what needs review, what is
+waiting for them, or what they should handle or take care of next. This intent
+may include today, tomorrow, this week, or this month; the deterministic planner
+will calculate that window. Urgency and ordering will be calculated separately
+from governed state.
+
+Broad overview prompts such as "what's new?", "what do I need to know?", or
+"anything I need to know?" do not necessarily mean actionable work. Return
+clarification unless the utterance or bounded previous context identifies a
+supported subject. Ask whether the user wants current attention items, recently
+verified records, or a specific part of Momo's care. Do not invent an update.
 
 Use social only for ordinary conversation that contains no care question.
 Classify questions about who Tomo is, what Tomo can do, or how Tomo can help as

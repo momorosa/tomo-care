@@ -1,4 +1,4 @@
-import { getCareDate } from "../lib/careDates.js"
+import { addDaysToIsoDate, getCareDate } from "../lib/careDates.js"
 
 export function resolveDateRange(question, today = new Date()) {
     const q = question.toLowerCase()
@@ -65,6 +65,63 @@ export function resolveDateRange(question, today = new Date()) {
     }
 }
 
+export function resolveAttentionDateRange(question, today = new Date()) {
+    const q = question.toLowerCase()
+    const todayString = /^\d{4}-\d{2}-\d{2}$/.test(String(today))
+        ? String(today)
+        : getCareDate(today)
+
+    if (/\btomorrow\b/.test(q)) {
+        const tomorrow = addDaysToIsoDate(todayString, 1)
+        return {
+            type: "next_care_day",
+            label: "tomorrow",
+            start: tomorrow,
+            end: tomorrow,
+        }
+    }
+
+    if (/\btoday\b/.test(q)) {
+        return {
+            type: "care_day",
+            label: "today",
+            start: todayString,
+            end: todayString,
+        }
+    }
+
+    if (/\bthis week\b/.test(q)) {
+        const dayOfWeek = new Date(`${todayString}T00:00:00.000Z`).getUTCDay()
+        const daysUntilSunday = (7 - dayOfWeek) % 7
+
+        return {
+            type: "current_week",
+            label: "this week",
+            start: todayString,
+            end: addDaysToIsoDate(todayString, daysUntilSunday),
+        }
+    }
+
+    if (/\bthis month\b/.test(q)) {
+        const [year, month] = todayString.split("-").map(Number)
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+
+        return {
+            type: "current_month",
+            label: "this month",
+            start: todayString,
+            end: `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+        }
+    }
+
+    return {
+        type: "all_time",
+        label: "current attention",
+        start: null,
+        end: null,
+    }
+}
+
 export function dateInRange(value, dateRange) {
     if (!value || !dateRange) return true
     if (!dateRange.start && !dateRange.end) return true
@@ -90,6 +147,14 @@ export function getDateRangePhrase(dateRange) {
 
     if (dateRange.type === "calendar_month") {
         return `in ${dateRange.label}`
+    }
+
+    if (
+        ["care_day", "next_care_day", "current_week", "current_month"].includes(
+            dateRange.type
+        )
+    ) {
+        return dateRange.label
     }
 
     return ""

@@ -1,5 +1,6 @@
 const CONTEXTUAL_INTENTS = new Set([
     "active_reminders",
+    "attention_summary",
     "appointment_status",
     "care_timeline_summary",
     "count_events",
@@ -19,6 +20,7 @@ const CONTEXTUAL_INTENTS = new Set([
 const CONTEXTUAL_SUBJECTS = new Set([
     "adequan",
     "appointment",
+    "attention",
     "care_timeline",
     "documents",
     "librela",

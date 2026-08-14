@@ -28,6 +28,7 @@ import {
     buildInsuranceClaimReminderPlan,
     INSURANCE_CLAIM_SUBTYPE,
 } from "../lib/insuranceClaimReminder.js"
+import { resolveReminderTimingState } from "../reminders/reminderTiming.js"
 
 const router = express.Router()
 
@@ -61,80 +62,6 @@ const REMINDER_RETURN_COLUMNS =
 
 function addMinutes(date, minutes) {
     return new Date(date.getTime() + minutes * 60 * 1000)
-}
-
-function getReminderTimingState({ reminderDate, dueDate }) {
-    const today = getCareDate()
-
-    if (dueDate < today) return "overdue"
-    if (reminderDate < today) return "reminder_window_passed"
-    return "upcoming"
-}
-
-function getInsuranceClaimTimingState({ targetSubmitDate, claimDeadlineDate }) {
-    const today = getCareDate()
-
-    if (claimDeadlineDate < today) return "claim_window_expired"
-    if (targetSubmitDate <= today) return "due_now"
-    return "upcoming"
-}
-
-function getHomeMedicationTimingState({ reminderDate, targetAdminDate }) {
-    const today = getCareDate()
-
-    if (!targetAdminDate || !reminderDate) return "unknown"
-
-    if (targetAdminDate < today) return "overdue"
-    if (reminderDate <= today) return "due_now"
-
-    return "upcoming"
-}
-
-// Recomputes a reminder's timing state from today's date plus the anchor
-// dates stored on the row. details_json.timing_state is a cache we refresh
-// here, not the source of truth: it's set once at creation/update time and
-// would otherwise go stale the moment real time passes it by, letting an
-// actually-overdue reminder slip through the calendar-sync eligibility
-// check below. Dispatches on subtype because Librela and insurance-claim
-// reminders use different rules (and different state vocabularies).
-function resolveReminderTimingState(event) {
-    const details = event?.details_json || {}
-
-    if (details.subtype === INSURANCE_CLAIM_SUBTYPE) {
-        if (!details.target_submit_date || !details.claim_deadline_date) {
-            return "unknown"
-        }
-
-        return getInsuranceClaimTimingState({
-            targetSubmitDate: details.target_submit_date,
-            claimDeadlineDate: details.claim_deadline_date,
-        })
-    }
-
-    if (details.subtype === LIBRELA_SUBTYPE) {
-        if (!event?.event_date || !details.due_date) {
-            return "unknown"
-        }
-
-        return getReminderTimingState({
-            reminderDate: event.event_date,
-            dueDate: details.due_date,
-        })
-    }
-
-    if (details.reminder_type === HOME_MEDICATION_REMINDER_TYPE) {
-        const targetAdminDate =
-            details.target_admin_date ||
-            details.due_date ||
-            event?.event_date
-
-        return getHomeMedicationTimingState({
-            reminderDate: event?.event_date,
-            targetAdminDate,
-        })
-    }
-
-    return "unknown"
 }
 
 // ---------------------------------------------------------------------------

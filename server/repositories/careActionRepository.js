@@ -70,7 +70,12 @@ const PENDING_CARE_ACTION_RETURN_COLUMNS = [
     "execution_started_at",
 ].join(", ")
 
-const PENDING_CARE_ACTION_STATUSES = ["proposed", "approved", "executing"]
+const PENDING_CARE_ACTION_STATUSES = [
+    "proposed",
+    "approved",
+    "executing",
+    "outcome_unknown",
+]
 
 const APPLE_MESSAGES_HANDOFF_RETURN_COLUMNS = [
     "id",

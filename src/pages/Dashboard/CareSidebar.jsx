@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import momoPortrait from "../../../assets/momoPic.png"
 import { formatDisplayDate } from "../../lib/displayDate.js"
@@ -126,6 +127,7 @@ export function CareContextDrawer({
     inboxError,
     checkingInbox,
     calendarSyncByReminder,
+    focusedReminderId,
     onClose,
     onCheckInbox,
     onRefreshReminders,
@@ -166,6 +168,7 @@ export function CareContextDrawer({
                         error={remindersError}
                         refreshing={refreshingReminders}
                         calendarSyncByReminder={calendarSyncByReminder}
+                        focusedReminderId={focusedReminderId}
                         onRefresh={onRefreshReminders}
                         onRecordGiven={onRecordGiven}
                         onMarkFiled={onMarkFiled}
@@ -281,11 +284,25 @@ function ReminderContext({
     error,
     refreshing,
     calendarSyncByReminder,
+    focusedReminderId,
     onRefresh,
     onRecordGiven,
     onMarkFiled,
     onSyncCalendar,
 }) {
+    const reminderRefs = useRef(new Map())
+
+    useEffect(() => {
+        if (!focusedReminderId) return
+
+        const reminderElement = reminderRefs.current.get(focusedReminderId)
+        if (!reminderElement) return
+
+        reminderElement.open = true
+        reminderElement.scrollIntoView({ block: "nearest" })
+        reminderElement.focus({ preventScroll: true })
+    }, [focusedReminderId, reminders])
+
     return (
         <div>
             <button
@@ -324,6 +341,15 @@ function ReminderContext({
                     return (
                         <details
                             key={reminder.id}
+                            id={`reminder-${reminder.id}`}
+                            ref={(element) => {
+                                if (element) {
+                                    reminderRefs.current.set(reminder.id, element)
+                                } else {
+                                    reminderRefs.current.delete(reminder.id)
+                                }
+                            }}
+                            tabIndex={-1}
                             className={`tomo-compact-reminder tomo-compact-reminder--${meta.kind} group`}
                         >
                             <summary className="list-none cursor-pointer">

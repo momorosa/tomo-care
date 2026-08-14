@@ -393,3 +393,91 @@ test("falls back safely when semantic interpretation is unavailable", async () =
         "deterministic_fallback"
     )
 })
+
+test("maps a meaning-based attention paraphrase into governed attention", async () => {
+    const result = await resolveAssistantPlan({
+        question: "What should I be taking care of next?",
+        currentCareDate: "2026-08-14",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    intent: "attention_summary",
+                    subject: "attention",
+                    cost_scope: "none",
+                    interpreted_question: "What needs attention",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "attention_summary")
+    assert.equal(result.queryPlan.subject, "attention")
+    assert.equal(result.queryPlan.scope, "governed_attention")
+    assert.equal(result.queryPlan.requires_action, false)
+})
+
+test("preserves a bounded attention window for a semantic paraphrase", async () => {
+    const result = await resolveAssistantPlan({
+        question: "Anything on my plate this week?",
+        currentCareDate: "2026-08-14",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    intent: "attention_summary",
+                    subject: "attention",
+                    cost_scope: "none",
+                    interpreted_question: "Attention items this week",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "attention_summary")
+    assert.deepEqual(result.queryPlan.date_range, {
+        type: "current_week",
+        label: "this week",
+        start: "2026-08-14",
+        end: "2026-08-16",
+    })
+})
+
+test("keeps a deterministic broad overview clarification without model inference", async () => {
+    const result = await resolveAssistantPlan({
+        question: "Hey Tomo, anything I need to know?",
+        currentCareDate: "2026-08-14",
+        semanticProvider: null,
+    })
+
+    assert.equal(result.queryPlan.intent, "semantic_clarification")
+    assert.equal(result.queryPlan.subject, "care_overview")
+})
+
+test("supports a bounded time follow-up after an attention summary", async () => {
+    const result = await resolveAssistantPlan({
+        question: "What about tomorrow?",
+        currentCareDate: "2026-08-14",
+        conversationContext: {
+            intent: "attention_summary",
+            subject: "attention",
+        },
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    intent: "attention_summary",
+                    subject: "attention",
+                    cost_scope: "none",
+                    used_previous_context: true,
+                    interpreted_question: "Attention items tomorrow",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "attention_summary")
+    assert.equal(result.queryPlan.date_range.type, "next_care_day")
+    assert.equal(result.queryPlan.date_range.start, "2026-08-15")
+    assert.equal(result.semanticInterpretation.used_previous_context, true)
+})

@@ -67,6 +67,16 @@ test("requests a stateless schema-constrained semantic interpretation", async ()
         )
     )
     assert.ok(
+        request.text.format.schema.properties.intent.enum.includes(
+            "attention_summary"
+        )
+    )
+    assert.ok(
+        request.text.format.schema.properties.subject.enum.includes(
+            "attention"
+        )
+    )
+    assert.ok(
         request.text.format.schema.properties.social_intent.enum.includes(
             "capabilities"
         )
@@ -116,6 +126,11 @@ test("requests a stateless schema-constrained semantic interpretation", async ()
     )
     assert.match(calls[0].options.body, /fresh social_response/)
     assert.match(calls[0].options.body, /must not include/)
+    assert.match(calls[0].options.body, /Urgency and ordering will be calculated/)
+    assert.match(calls[0].options.body, /whether they need to do anything/)
+    assert.match(calls[0].options.body, /what's new\?/)
+    assert.match(calls[0].options.body, /Return\\nclarification/)
+    assert.match(calls[0].options.body, /what about tomorrow\?/)
 })
 
 test("requires server configuration without exposing a credential", async () => {
