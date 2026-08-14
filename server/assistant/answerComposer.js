@@ -228,7 +228,7 @@ function answerAttentionSummary(summary, queryPlan) {
     }
 
     const itemText = items
-        .map((item) => `${item.title}: ${item.reason}`)
+        .map((item) => getAttentionItemSentence(item))
         .join("; ")
     const countText = getAttentionCountText({
         totalCount: summary.total_qualifying_count,
@@ -237,7 +237,7 @@ function answerAttentionSummary(summary, queryPlan) {
     })
 
     return {
-        answer: `${countText}: ${itemText}`,
+        answer: `${countText}. ${itemText}.`,
         answer_type: "attention_summary",
         attention_status:
             summary?.status === "partial" ? "partial" : "available",
@@ -256,27 +256,56 @@ function getAttentionRangePhrase(dateRange) {
 }
 
 function getAttentionCountText({ totalCount, visibleCount, dateRange }) {
-    const plural = totalCount === 1 ? "item" : "items"
+    const countWord = getSmallCountWord(totalCount)
+    const plural = totalCount === 1 ? "thing" : "things"
     let opening
 
     if (dateRange?.type === "care_day") {
-        opening = `Today, ${totalCount} ${plural} need${totalCount === 1 ? "s" : ""} attention`
+        opening = `Today, ${countWord} ${plural} need${totalCount === 1 ? "s" : ""} your attention`
     } else if (dateRange?.type === "next_care_day") {
-        const reminderPlural = totalCount === 1 ? "reminder is" : "reminders are"
-        opening = `Tomorrow, ${totalCount} ${reminderPlural} scheduled to need attention`
+        const reminderPlural = totalCount === 1 ? "reminder" : "reminders"
+        opening = `Tomorrow, ${countWord} ${reminderPlural} will need your attention`
     } else if (
         ["current_week", "current_month"].includes(dateRange?.type)
     ) {
         const label =
             dateRange.label.charAt(0).toUpperCase() + dateRange.label.slice(1)
-        opening = `${label}, ${totalCount} ${plural} ${totalCount === 1 ? "needs attention or becomes active" : "need attention or become active"}`
+        opening = `${label}, ${countWord} ${plural} need${totalCount === 1 ? "s" : ""} your attention`
     } else {
-        opening = `${totalCount} ${plural} need${totalCount === 1 ? "s" : ""} attention`
+        opening = `${capitalize(countWord)} ${plural} need${totalCount === 1 ? "s" : ""} your attention`
     }
 
     return totalCount > visibleCount
-        ? `${opening}. Here are the ${visibleCount} highest priority`
+        ? `${opening}; here are the ${getSmallCountWord(visibleCount)} highest-priority ones`
         : opening
+}
+
+function getAttentionItemSentence(item) {
+    const reason = String(item?.reason || "").trim()
+    const title = item?.title || "This item"
+
+    if (reason) {
+        const withoutTerminalPunctuation = reason.replace(/[.!?]+$/, "")
+        const demonstrativeMatch = withoutTerminalPunctuation.match(
+            /^This (?:document|action|reminder|item)\s+(.+)$/i
+        )
+
+        if (demonstrativeMatch) {
+            return `${title} ${demonstrativeMatch[1]}`
+        }
+
+        return withoutTerminalPunctuation
+    }
+
+    return `${title} needs attention`
+}
+
+function getSmallCountWord(value) {
+    return ["zero", "one", "two", "three", "four", "five"][value] || String(value)
+}
+
+function capitalize(value) {
+    return value ? value.charAt(0).toUpperCase() + value.slice(1) : value
 }
 
 function getAttentionSourceLabel(source) {

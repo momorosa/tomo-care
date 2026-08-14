@@ -326,6 +326,10 @@ Navigation commands may change only client view state or open an allowlisted des
 
 Meaning-based reactions remain harmless presentation work for a later slice. Phase 4 should not begin until a real role, permission, context, or coordination boundary makes a separate agent clearer than the current modular architecture.
 
+### Enhancement backlog captured during Phase 3E.3 user testing
+
+- **Animate Tomo reliability and recovery:** Investigate cases where the Runway/LiveKit lip-sync path silently fails and Tomo falls back to local voice. Preserve uninterrupted audio fallback, but surface a clear non-blocking status, retain a typed failure reason for diagnosis, and offer a safe retry without restarting the conversation. This is deferred from Phase 3E.3 because the governed attention result remains available and the fallback works.
+
 ## Suggested branch and startup checks
 
 Create the next branch from current `main`:

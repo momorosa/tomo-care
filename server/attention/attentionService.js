@@ -160,9 +160,11 @@ export function buildReminderAttentionItem(
         priority: ["overdue", "expired"].includes(normalizedState) ? 3 : 5,
         title,
         reason: getReminderReason({
+            details,
             reminderKind,
             normalizedState,
             title,
+            effectiveDate,
         }),
         effective_date: effectiveDate,
         governing_reference: {
@@ -198,7 +200,7 @@ export function buildCareActionAttentionItem(action) {
         state: action.status,
         priority,
         title,
-        reason: getCareActionReason(action.status),
+        reason: getCareActionReason(action.status, title),
         effective_date: effectiveDate || null,
         governing_reference: {
             table: "care_actions",
@@ -219,14 +221,15 @@ export function buildCareActionAttentionItem(action) {
 export function buildDocumentReviewAttentionItem(document) {
     if (document?.status !== "needs_review" || !document?.id) return null
 
+    const title = document.title || "Document ready for review"
+
     return {
         id: `document_review:${document.id}`,
         kind: "document_review",
         state: "needs_review",
         priority: 7,
-        title: document.title || "Document ready for review",
-        reason:
-            "This document needs verification before its extracted contents can become trusted facts.",
+        title,
+        reason: `${title} needs verification before its extracted contents can become trusted facts.`,
         effective_date: document.created_at || document.doc_date || null,
         governing_reference: {
             table: "documents",
@@ -315,30 +318,45 @@ function getReminderEffectiveDate({
     return reminder.event_date || null
 }
 
-function getReminderReason({ reminderKind, normalizedState, title }) {
+function getReminderReason({
+    details,
+    reminderKind,
+    normalizedState,
+    title,
+    effectiveDate,
+}) {
+    const dateLabel = formatCareDate(effectiveDate)
+
     if (normalizedState === "scheduled") {
         if (reminderKind === "librela") {
-            return "The planned Librela reminder window opens during this period."
+            const dueDateLabel = formatCareDate(details.due_date)
+            return details.due_date && details.due_date !== effectiveDate
+                ? `${title} reminder window opens on ${dateLabel}, ahead of its ${dueDateLabel} due date.`
+                : `${title} reminder window opens on ${dateLabel}.`
         }
         if (reminderKind === "insurance_claim") {
-            return "The target insurance filing date falls during this period."
+            return `${title} target filing date is ${dateLabel}.`
         }
-        return `${title} is scheduled for confirmation during this period.`
+        const targetDate = details.target_admin_date || details.due_date
+        const targetDateLabel = formatCareDate(targetDate || effectiveDate)
+        return targetDate && targetDate !== effectiveDate
+            ? `${title} is due by ${targetDateLabel}, and its reminder appears on ${dateLabel} so you can confirm it was given.`
+            : `${title} is due on ${targetDateLabel}, so please confirm whether it was given.`
     }
 
     if (reminderKind === "librela") {
         return normalizedState === "overdue"
-            ? "The Librela due date has passed. Review the appointment and treatment status."
-            : "The Librela reminder window is open. Review the appointment follow-through."
+            ? `${title} was due on ${dateLabel}, so the appointment and treatment status need review.`
+            : `${title} reminder window is open as of ${dateLabel}; review the appointment follow-through.`
     }
     if (reminderKind === "insurance_claim") {
         return normalizedState === "expired"
-            ? "The final claim deadline has passed. Review the filing status."
-            : "The target filing date has arrived. Review or record the claim status."
+            ? `${title} final filing deadline was ${dateLabel}; review the filing status.`
+            : `${title} target filing date is ${dateLabel}; review or record the claim status.`
     }
     return normalizedState === "overdue"
-        ? `${title} is past its target administration date.`
-        : `${title} is due for confirmation.`
+        ? `Please confirm whether ${title} was given; its target date was ${dateLabel}.`
+        : `${title} is due by ${dateLabel}, so please confirm whether it was given.`
 }
 
 function isScheduledReminderInAttentionRange({
@@ -422,16 +440,30 @@ function getCareActionTitle(actionType) {
     }[actionType] || "TomoCare action"
 }
 
-function getCareActionReason(status) {
+function getCareActionReason(status, title) {
     return {
         outcome_unknown:
-            "TomoCare could not confirm the outcome. Review it before any retry.",
+            `The outcome of ${title} is unknown and needs review before any retry.`,
         executing:
-            "This action was interrupted while executing and needs recovery review.",
+            `${title} was interrupted and needs recovery review.`,
         approved:
-            "This action is approved but has not reached a completed state.",
-        proposed: "This action is waiting for your review and decision.",
+            `${title} is approved and waiting to be completed.`,
+        proposed: `${title} is waiting for your review and decision.`,
     }[status]
+}
+
+function formatCareDate(value) {
+    if (!value) return "an unknown date"
+
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`)
+    if (Number.isNaN(date.getTime())) return value
+
+    return new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+    }).format(date)
 }
 
 function compareAttentionItems(a, b) {

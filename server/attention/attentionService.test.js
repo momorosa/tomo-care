@@ -131,7 +131,7 @@ test("identifies expired insurance work without calling it a completed claim", (
     )
 
     assert.equal(item.state, "expired")
-    assert.match(item.reason, /deadline has passed/)
+    assert.match(item.reason, /final filing deadline was August 13, 2026/)
     assert.doesNotMatch(item.reason, /filed|completed/)
 })
 
@@ -249,6 +249,10 @@ test("returns only scheduled reminders for a tomorrow-only attention window", as
         ["reminder:tomorrow-reminder"]
     )
     assert.equal(result.items[0].state, "scheduled")
+    assert.equal(
+        result.items[0].reason,
+        "Simparica Trio is due by August 16, 2026, and its reminder appears on August 15, 2026 so you can confirm it was given."
+    )
 })
 
 test("combines current work with reminders becoming active this week", async () => {

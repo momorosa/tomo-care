@@ -634,7 +634,8 @@ test("explains a tomorrow-only attention result without implying current work is
         kind: "reminder",
         state: "scheduled",
         title: "Simparica Trio",
-        reason: "Simparica Trio is scheduled for confirmation during this period.",
+        reason:
+            "Simparica Trio is due on August 15, 2026, so please confirm whether it was given.",
         navigation_targets: [],
     }
     const response = composeGroundedAnswer({
@@ -664,9 +665,56 @@ test("explains a tomorrow-only attention result without implying current work is
         },
     })
 
-    assert.match(response.answer, /Tomorrow, 1 reminder is scheduled/)
+    assert.match(response.answer, /Tomorrow, one reminder will need your attention/)
+    assert.doesNotMatch(response.answer, /Simparica Trio: Simparica Trio/)
     assert.match(response.limitations.join(" "), /tomorrow-only check/)
     assert.deepEqual(response.attention_items, [item])
+})
+
+test("describes multiple scheduled medications naturally with exact dates", () => {
+    const response = composeGroundedAnswer({
+        question: "How about this month?",
+        queryPlan: {
+            intent: "attention_summary",
+            date_range: {
+                type: "current_month",
+                label: "this month",
+                start: "2026-08-14",
+                end: "2026-08-31",
+            },
+        },
+        context: {},
+        attentionSummary: {
+            status: "available",
+            items: [
+                {
+                    title: "Simparica Trio",
+                    reason:
+                        "Simparica Trio is due on August 20, 2026, so please confirm whether it was given.",
+                },
+                {
+                    title: "Adequan",
+                    reason:
+                        "Adequan is due on August 31, 2026, so please confirm whether it was given.",
+                },
+            ],
+            total_qualifying_count: 2,
+            sources: [],
+            date_range: {
+                type: "current_month",
+                label: "this month",
+                start: "2026-08-14",
+                end: "2026-08-31",
+            },
+            current_work_included: true,
+        },
+    })
+
+    assert.equal(
+        response.answer,
+        "This month, two things need your attention. Simparica Trio is due on August 20, 2026, so please confirm whether it was given; Adequan is due on August 31, 2026, so please confirm whether it was given."
+    )
+    assert.doesNotMatch(response.answer, /scheduled for confirmation during this period/)
 })
 
 test("asks a bounded follow-up for a broad care overview", () => {
