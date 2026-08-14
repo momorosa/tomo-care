@@ -75,15 +75,40 @@ Tomo prepares a Librela appointment request from trusted state, Rosa reviews it,
 
 ## Portfolio-readiness sequence
 
-The agreed sequence after the shipped Phase 3E.3 checkpoint is:
+The sequence was refined after Phase 3E.4 shipped. Product improvements that benefit both real care and the portfolio should land before the separate demo environment is finalized. A representative synthetic or sanitized document fixture may be introduced early for safe testing, while the polished invoice and Gmail demonstration remain later work.
 
-1. **Phase 3E.4 — Governed Profile Grounding**
+1. **Phase 3E.4 — Governed Profile Grounding · Shipped**
    - Answer bounded Profile questions from the current `pets` row.
    - Calculate age from the TomoCare care date.
    - Keep governed identity separate from harmless relationship context.
    - Open the existing Profile panel through typed, read-only navigation.
 
-2. **Demo environment and resettable synthetic dataset**
+2. **Phase 3E.5 — Risk-weighted verification intelligence**
+   - Improve review around consequence and uncertainty rather than asking Rosa to confirm every field equally.
+   - Explain why a reviewed field matters when it affects scheduling, costs, or trusted care state.
+   - Detect missing, contradictory, or ignored content and check internally consistent administrative values where possible.
+   - Preserve human-controlled promotion to trusted truth.
+   - Use a representative synthetic or sanitized fixture for safe tests without completing the demo Gmail workflow.
+
+3. **Bounded vaccine-status capture**
+   - Detect the vaccine section instead of silently ignoring prominent source content.
+   - Preserve vaccine name, clinic-reported status, due date, and record-as-of date as candidate information.
+   - Require review before materialization.
+   - Treat the result as a verified clinic-reported status snapshot, not proof that a vaccine was administered.
+   - Defer the complete vaccine reminder and administration lifecycle unless a later bounded slice is justified.
+
+4. **Verified weight-trend visualization**
+   - Plot verified measurements only.
+   - Preserve source access and trust state for each point.
+   - Keep Tomo's explanation consistent with the chart's deterministic data.
+   - Avoid medical conclusions about the trend.
+
+5. **Animate Tomo reliability and recovery**
+   - Make Runway/LiveKit fallback visible and non-blocking.
+   - Offer a safe retry while preserving uninterrupted local voice.
+   - Retain a typed failure reason for diagnosis.
+
+6. **Demo environment and resettable synthetic dataset**
    - Keep one application codebase.
    - Use separate demo configuration and data from Momo's live care records.
    - Prefer a separate hosted Supabase demo project for interview reliability.
@@ -92,33 +117,17 @@ The agreed sequence after the shipped Phase 3E.3 checkpoint is:
    - Keep Google Calendar and Apple Messages destinations demo-safe.
    - Display a clear Demo indicator so synthetic and real state cannot be confused.
 
-3. **Synthetic invoice and risk-weighted verification**
-   - Create a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
+7. **Synthetic invoice and demo Gmail ingestion**
+   - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
    - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
-   - Improve review around consequence and uncertainty rather than asking Rosa to confirm every field equally.
-   - Explain why a reviewed field matters when it affects scheduling, costs, or trusted care state.
-   - Detect missing, contradictory, or ignored content and check internally consistent administrative values where possible.
+   - Send it through a dedicated demo-safe inbox and exercise the completed verification path.
+   - Prevent the workflow from affecting Momo's live records or external destinations.
 
-4. **Bounded vaccine-status capture**
-   - Detect the vaccine section instead of silently ignoring prominent source content.
-   - Preserve vaccine name, clinic-reported status, due date, and record-as-of date as candidate information.
-   - Require review before materialization.
-   - Treat the result as a verified clinic-reported status snapshot, not proof that a vaccine was administered.
-   - Defer the complete vaccine reminder and administration lifecycle unless a later bounded slice is justified.
-
-5. **Verified weight-trend visualization**
-   - Plot verified measurements only.
-   - Preserve source access and trust state for each point.
-   - Keep Tomo's explanation consistent with the chart's deterministic data.
-   - Avoid medical conclusions about the trend.
-
-6. **Voice, animation-recovery, and UI polish**
-   - Make Runway/LiveKit fallback visible and non-blocking.
-   - Offer a safe retry while preserving uninterrupted local voice.
+8. **Final Voice, animation, and UI polish**
    - Refine listening, thinking, speaking, playback, and idle transitions.
    - Resolve visual inconsistencies, dead ends, and unclear state changes across the end-to-end demo.
 
-7. **Demo evidence and portfolio freeze**
+9. **Demo evidence and portfolio freeze**
    - Rehearse one deterministic end-to-end path.
    - Capture screenshots and video evidence.
    - Prepare a recorded fallback for provider-dependent moments.
@@ -199,7 +208,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Continue with **Phase 3E.4 — Governed Profile Grounding** under the already reviewed bounded contract. After that slice is validated and merged, define the demo-environment slice before expanding assistant coverage or beginning annual-health intelligence.
+Begin **Phase 3E.5 — Risk-Weighted Verification Intelligence** with a contract-first inspection of the current extraction, AI triage, VerifyDocs presentation, user correction, verification, and trusted-materialization path. Confirm the decision categories, consequence model, missing-data behavior, explanation language, fixture boundary, and test plan before changing code.
 
 ## Maintenance rule
 

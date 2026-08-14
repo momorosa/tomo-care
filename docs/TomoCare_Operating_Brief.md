@@ -324,17 +324,18 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.1a shipped:** trusted Librela state through grounded answer, approved draft, verified recipient, and native Messages handoff intent
 - **3E.2 shipped:** shared Simparica and Adequan home-medication lifecycle with explicit confirmation, one atomic trusted write, reminder completion, exactly one cadence-based successor, Calendar sync, grounded answers, and idempotent retry behavior
 - **3E.3 shipped:** governed attention across qualifying reminders, pending or recoverable actions, and documents awaiting review; deterministic ranking and time windows; natural Chat and Voice summaries; and typed navigation to the governing TomoCare or Google Calendar destination
+- **3E.4 shipped:** governed Profile answers from the current `pets` row; deterministic age calculation; honest missing-data behavior; warm but clearly separated relationship context; question-aware clarification for broad wellbeing language; and typed read-only navigation to the Profile panel
 
-The next bounded slice is **3E.4 — Governed Profile Grounding**:
+The next bounded slice is **3E.5 — Risk-Weighted Verification Intelligence**:
 
-- Answer bounded questions about Momo's identity from the current `pets` row used by the Profile panel
-- Support name, species, breed, birth date, calculated age, sex, and spay/neuter status with honest missing-field behavior
-- Keep governed profile fields distinct from the versioned relationship profile, which may add harmless personal color but is not care evidence
-- Add a typed `open_profile` navigation target without creating an edit path or mutation authority
-- Keep hardcoded clinic and insurance labels out of grounded answers until they have a governed source
-- Preserve the same profile facts across Chat and Voice
+- Inspect the existing extraction, triage, VerifyDocs, correction, and materialization boundaries before changing behavior
+- Direct human attention according to uncertainty and downstream consequence instead of treating every extracted field equally
+- Explain why a field needs review when it can affect trusted care state, scheduling, costs, or a later governed workflow
+- Surface missing, contradictory, unreadable, or prominent unsupported source content without promoting it to trusted truth
+- Preserve source-side review, editable candidate truth, explicit verification, and human-controlled materialization
+- Use a representative synthetic or sanitized fixture for tests without yet building the complete demo Gmail path
 
-After Phase 3E.4 is validated, near-term work shifts to the portfolio-readiness sequence: a separate resettable demo environment, a synthetic invoice, risk-weighted verification, bounded vaccine-status capture, a verified weight-trend visualization, and Voice/UI recovery polish. Annual-health intelligence remains part of the real-care north star rather than portfolio v1 scope.
+After Phase 3E.5, near-term work proceeds through bounded vaccine-status capture, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and then the final synthetic-invoice Gmail path and end-to-end polish. This order lets verification, vaccine, weight, and recovery improvements benefit the real product before the demo environment inherits them. Annual-health intelligence remains part of the real-care north star rather than portfolio v1 scope.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 

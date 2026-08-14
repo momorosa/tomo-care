@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.3, including lifecycle hardening for Librela, Simparica, and Adequan plus governed attention and navigation. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.4: governed Profile grounding.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.4, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; and governed Profile grounding. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.5: risk-weighted verification intelligence.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), and [Phase 3E.3 closeout and Phase 3E.4 handover](./docs/Phase3E3_Closeout_and_Phase3E4_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), and [Phase 3E.4 closeout and Phase 3E.5 handover](./docs/Phase3E4_Closeout_and_Phase3E5_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -117,6 +117,7 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Governed attention summaries across qualifying reminders, pending or recoverable actions, and documents awaiting review
 * Deterministic today, tomorrow, this-week, and this-month attention windows with natural Chat and Voice responses
 * Typed navigation to the governing reminder, action, review document, or allowlisted Google Calendar destination without granting write authority
+* Governed Profile answers from the current `pets` record, deterministic age calculation, honest missing-data behavior, warm relationship context, and typed read-only Profile navigation
 
 ### Phase 3F — Native Apple Messages Handoff
 
@@ -138,12 +139,13 @@ TomoCare now follows one product roadmap with two release tracks:
 
 The agreed near-term sequence is:
 
-1. Ship Phase 3E.4: ground bounded Profile questions in the current `pets` row, calculate age from the care date, preserve honest missing-field behavior, and open the existing Profile panel through typed navigation.
-2. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
-3. Add a clearly labeled synthetic Librela invoice and improve verification so human attention follows uncertainty and consequence rather than treating every field equally.
-4. Capture the invoice's vaccine-status section as reviewed clinic-reported status without claiming a vaccine administration or automatically creating a reminder.
-5. Add a source-linked visualization of verified weight measurements.
-6. Improve Voice, Animate Tomo fallback, and end-to-end UI reliability before freezing the portfolio v1 checkpoint.
+1. Improve verification so human attention follows uncertainty and consequence rather than treating every extracted field equally. Use a representative synthetic or sanitized fixture for testing, without building the full demo-ingestion path yet.
+2. Capture the invoice's vaccine-status section as reviewed clinic-reported status without claiming a vaccine administration or automatically creating a reminder.
+3. Add a source-linked visualization of verified weight measurements.
+4. Make Animate Tomo failure visible and recoverable while preserving local Voice.
+5. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
+6. Finalize a clearly labeled synthetic Librela invoice and pass it through a demo-safe Gmail intake.
+7. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
 
 Medication refill or renewal, the complete vaccine lifecycle, annual labs, urinalysis, imaging, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
@@ -322,9 +324,13 @@ this-week, and this-month follow-ups across Chat and Voice. Candidate document
 contents remain untrusted, and navigation grants no authority to change care
 state.
 
-Assistant coverage is still narrower than the visible product surface. Phase
-3E.4 will ground Profile questions in the current `pets` row, calculate age from
-`birth_date`, disclose missing fields, and open the existing Profile panel. The
-versioned relationship profile may still add harmless personality context, but
-it cannot replace or override governed identity fields. Stored Inbox state and
-deeper Recently verified follow-up remain later bounded slices.
+Phase 3E.4 grounds Profile questions in the current `pets` row, calculates age
+from `birth_date`, discloses missing fields, and opens the existing Profile
+panel. The versioned relationship profile may add warmth and harmless personal
+context, but it cannot replace or override governed identity fields. Broad
+wellbeing questions remain distinct from identity questions and receive a
+question-aware clarification when current health cannot be established from the
+bounded record.
+
+Assistant coverage is still narrower than the visible product surface. Stored
+Inbox state and deeper Recently verified follow-up remain later bounded slices.
