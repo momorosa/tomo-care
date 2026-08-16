@@ -1,10 +1,12 @@
 # TomoCare Current State: Phase 3E.4 Closeout and Phase 3E.5 Handover
 
-**Prepared:** August 14, 2026
+**Prepared:** August 16, 2026
 
 **Owner:** Rosa Choi
 
-**Current branch:** `main`
+**Current branch:** `phase-3e-5-verification-intelligence`
+
+**Phase 3E.4 documentation checkpoint:** `1690eb1` — `docs: close Phase 3E.4 and define Phase 3E.5`
 
 **Phase 3E.4 merge checkpoint:** `3276dbe` — `Merge Phase 3E.4 governed profile grounding`
 
@@ -12,9 +14,9 @@
 
 ## Purpose
 
-This is the current handover after Phase 3E.4. It records the shipped governed Profile contract, Rosa's validation evidence, the revised portfolio-readiness sequence, and the inspection-first boundary for Phase 3E.5.
+This is the current handover after Phase 3E.4. It records the shipped governed Profile contract, Rosa's validation evidence, the accepted Phase 3E.5 contract, and the decision to build TomoCare as a small governed manager-style multi-agent system beginning with the Verification Intelligence Agent.
 
-At the verified checkpoint, `main` and `origin/main` both pointed to `3276dbe`. The local `.claude/` directory remains intentionally untracked and is not product source.
+At the verified Phase 3E.4 merge checkpoint, `main` and `origin/main` both pointed to `3276dbe`. The closeout and original Phase 3E.5 handover were then recorded at `1690eb1`. The local `.claude/` directory remains intentionally untracked and is not product source.
 
 ## Product in one paragraph
 
@@ -26,10 +28,11 @@ Use these sources in order:
 
 1. Current code and passing tests on `main`
 2. Current database and persisted action state
-3. This handover for settled product decisions and next-slice scope
-4. The TomoCare Product Roadmap and Portfolio Checkpoint for accepted sequencing and portfolio scope
-5. The TomoCare Operating Brief for durable principles
-6. Earlier handovers and phase notes for historical context
+3. This handover for settled Phase 3E.5 decisions and next-slice scope
+4. The TomoCare Multi-Agent Orchestration Decision and Build Plan for agent boundaries and phased implementation
+5. The TomoCare Product Roadmap and Portfolio Checkpoint for accepted sequencing and portfolio scope
+6. The TomoCare Operating Brief for durable principles
+7. Earlier handovers and phase notes for historical context
 
 When an older document conflicts with current code, tests, or this handover, follow the current implementation and record the discrepancy before changing behavior.
 
@@ -126,20 +129,21 @@ Preserve these rules:
 
 After Phase 3E.4, Rosa accepted a revised order that improves the real product before finalizing the demo environment:
 
-1. Phase 3E.5 — Risk-weighted verification intelligence
-2. Bounded vaccine-status capture
-3. Verified weight-trend visualization
-4. Animate Tomo reliability and recovery
-5. Separate demo environment and resettable synthetic dataset
-6. Final synthetic invoice and demo-safe Gmail ingestion
-7. Final Voice, animation, and end-to-end UI polish
-8. Demo evidence and portfolio freeze
+1. Phase 3E.5 — Verification Intelligence Agent
+2. Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent
+3. Bounded vaccine-status capture
+4. Verified weight-trend visualization
+5. Animate Tomo reliability and recovery
+6. Separate demo environment and resettable synthetic dataset
+7. Final synthetic invoice and demo-safe Gmail ingestion
+8. Final Voice, animation, and end-to-end UI polish
+9. Demo evidence and portfolio freeze
 
-A representative synthetic or sanitized document fixture may be created early for safe tests. That fixture is not the finished visual demo invoice and does not require the live demo Gmail path.
+A wholly fictional document fixture will be created early for safe Phase 3E.5 tests. That fixture is not the finished visual demo invoice and does not require the live demo Gmail path.
 
 This sequence lets verification, vaccine, weight, and recovery improvements benefit Momo's real-care experience. It also avoids stabilizing demo seeds and polished provider flows before the underlying schema and review behavior settle.
 
-## Next bounded slice: Phase 3E.5 — Risk-Weighted Verification Intelligence
+## Next bounded slice: Phase 3E.5 — Verification Intelligence Agent
 
 ### User problem
 
@@ -147,50 +151,67 @@ The current VerifyDocs experience preserves human verification, but some recomme
 
 At the same time, prominent source content can be ignored without a useful explanation. Governance should direct human attention to uncertainty and consequence, not merely add confirmation work.
 
-### Product objective
+### Accepted product objective
 
-Make verification more selective, understandable, and useful while preserving the distinction between source truth, candidate truth, and trusted truth.
+Make verification more selective, understandable, and useful by comparing the current document with deterministic checks and recent comparable trusted history while preserving the distinction between source truth, candidate truth, and trusted truth.
 
 Phase 3E.5 should improve how TomoCare prioritizes and explains review. It must not silently verify uncertain care facts, materialize candidate data, or use model confidence as authority.
 
-### Required inspection before contract approval
+### Inspection completed before contract approval
 
-Before changing code, inspect:
+The current extraction, triage, VerifyDocs, draft, verification, materialization, error, and fixture seams were inspected before this contract was accepted. The inspection found:
 
-1. PDF and text extraction inputs and normalized candidate shape
-2. Current AI triage prompt, response schema, and deterministic validation
-3. VerifyDocs field rendering, grouping, badges, recommendations, and editing
-4. Draft save and save-and-verify boundaries
-5. Materialization into trusted events, costs, facts, labs, and weight measurements
-6. Current fixture coverage and whether private source content appears in tests
-7. Error, unreadable, partial-extraction, and unsupported-section behavior
-8. Any feedback or correction data already persisted
+1. Triage currently sees the current source and extraction but not recent trusted history.
+2. Existing accepted and fail-open paths are primarily browser-enforced; backend approval needs a current assessment and candidate-fingerprint check.
+3. Editing can leave cached triage stale, and the dirty save-and-verify path can skip reassessment.
+4. Draft and trusted materialization are conceptually separate and must remain so.
+5. Deterministic arithmetic and date-consistency checks are not yet first-class review evidence.
+6. Prominent unsupported source sections can disappear from review without explanation.
+7. Current field enumeration and response validation are too limited for the agreed outcome contract.
+8. A generic materializer can accept vaccine-shaped events, so Phase 3E.5 must explicitly prevent vaccine materialization.
+9. The legacy August 3 fixture is useful for regression but should not be extended into the new historical-comparison fixture.
 
-### Decisions to settle before implementation
+### Accepted comparison and review contract
 
-Agree on:
+The Verification Intelligence Agent may compare the current invoice with up to the five most recent comparable trusted records. An established pattern requires at least three consecutive comparable verified records. History may reduce review burden only when the current source is clear, deterministic checks agree, and the comparison is semantically valid.
 
-1. The review categories and what each category permits
-2. How consequence and uncertainty combine without creating a false numerical precision
-3. Which fields always require deliberate review because they affect care state or downstream workflows
-4. Which low-risk administrative fields may be grouped for efficient review
-5. How missing, contradictory, unreadable, and unsupported content is surfaced
-6. What recommendation explanations say and how technical they should be
-7. Whether corrections should be recorded beyond the existing candidate update
-8. The synthetic or sanitized fixture boundary
-9. The exact focused, regression, build, and manual test plan
+The accepted outcomes are:
 
-### Proposed safety boundary
+1. **Consistent pattern** — current evidence agrees with deterministic checks and an established trusted pattern; group as nonblocking confirmation.
+2. **New or limited history** — current evidence may be clear, but history is insufficient to establish a pattern; show as a light review item.
+3. **Changed from pattern** — a comparable value differs from recent trusted history; show the old and new values and why the difference matters.
+4. **Conflict or uncertainty** — source, extraction, units, dates, history, or deterministic checks disagree or remain ambiguous; require deliberate review.
+5. **Not captured** — a prominent source section is outside the current extraction contract; acknowledge it and explain the boundary.
+6. **Manual review** — the system cannot safely classify the item; keep it explicit and blocking.
 
-Until the contract is approved, preserve these defaults:
+These are qualitative consequence-and-uncertainty categories, not model-confidence scores. The complete agent, tool, permission, handoff, and roadmap decision is recorded in [TomoCare Multi-Agent Orchestration Decision and Build Plan](./TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md).
+
+### Accepted attention rules
+
+- Matching invoice and line-item dates become one deterministic consistency result rather than repeated approvals.
+- Repeated low-risk administrative values, such as an unchanged nurse office visit charge, may be grouped when the current source is clear and at least three recent comparable trusted records establish the pattern.
+- A repeated product description such as `10 mg/ml solution vial` may be grouped as a consistent Librela product pattern. It must not be described as the administered dose unless the source states an administered dose.
+- Medication or service identity, administration date, dose when stated, weight, totals, and any field that can change scheduling or trusted care state receive deliberate treatment when uncertain or changed.
+- Invoice arithmetic is deterministic with a one-cent tolerance. A calculated line-item check remains separate from a missing source `paid` total.
+- Weight is compared with the latest verified measurement. A change of at least five percent is an attention threshold for review, not a medical conclusion. Unit, date, duplicate, and source conflicts also require review.
+- Missing values remain missing. Contradictions display both pieces of evidence. Unreadable content remains explicit.
+- Prominent vaccine, annual-checkup, reminder, and lab sections are acknowledged as not captured when outside the current schema.
+- Explanations use plain language: what changed or could not be confirmed, the evidence compared, and why Rosa's attention is requested. They do not diagnose or judge clinical urgency.
+
+### Accepted safety and state boundary
 
 - Triage may prioritize and explain; it does not verify.
 - No candidate fact becomes trusted without Rosa's explicit save-and-verify action.
 - Model confidence alone never authorizes promotion or a downstream action.
 - Missing or unsupported source content is disclosed rather than invented.
-- Deterministic checks should be used where invoice arithmetic or required-field rules can be expressed reliably.
-- A field affecting medication identity, administration date, dose, weight, cost totals, scheduling, or later action state should not be silently de-emphasized.
-- Vaccine details remain outside Phase 3E.5 materialization and belong to the next bounded slice.
+- Deterministic checks establish invoice arithmetic, date agreement, fingerprints, schema validity, and other expressible rules.
+- Saving a draft updates candidate truth only.
+- Editing candidate truth invalidates the prior assessment.
+- A dirty Save and verify path saves, reruns assessment, and requires the current result before promotion.
+- Final backend verification checks the current candidate fingerprint and review state.
+- A bounded correction record may be stored inside the versioned triage result; no new migration is required for the initial slice.
+- Vaccine details remain outside Phase 3E.5 materialization and belong to the next bounded data-capture slice after the orchestration foundation.
+- Lab interpretation and longitudinal lab comparison remain post-demo work.
 - No Gmail, Calendar, Messages, or care-state action is added to this read-and-review slice.
 
 ### Out of scope
@@ -203,23 +224,28 @@ Until the contract is approved, preserve these defaults:
 - Finished synthetic visual invoice and live demo Gmail ingestion
 - Annual labs, urinalysis, imaging, or medical interpretation expansion
 - Autonomous verification or automatic promotion to trusted truth
+- Formal Tomo manager routing or Care Operations Agent implementation; those belong to Phase 3E.6
 
-### Validation direction
+### Accepted fixture and validation plan
 
-The final test plan should cover at least:
+Add one wholly fictional fixture for the new historical-comparison contract. Keep the legacy August 3 fixture unchanged as regression-only coverage. No private clinic, invoice, recipient, insurance, or care identifier may enter fixtures, logs, packages, or demo evidence.
 
-- High-consequence uncertain fields receive deliberate review
-- Low-risk consistent fields can be grouped without being mislabeled as trusted
-- Contradictions and deterministic arithmetic mismatches are surfaced
-- Missing or unreadable values remain explicit
-- Unsupported prominent sections are acknowledged without fabricated extraction
-- User corrections persist through the existing governed path
-- Save draft does not materialize trusted records
-- Save and verify remains the only promotion boundary
-- Existing Librela, cost, weight, reminder, and post-verification behavior does not regress
-- No private care record or identifier is added to fixtures, logs, or packages
+The implementation test plan covers:
 
-No implementation should begin until the current seams are inspected and Rosa agrees to the bounded contract.
+- schema and prompt conformance for the six accepted outcomes and evidence-bearing explanations;
+- historical retrieval bounded to five records and pattern establishment after three consecutive comparable matches;
+- date consistency, one-cent arithmetic tolerance, missing paid total, weight delta, unit, and duplicate checks;
+- consistent, limited-history, changed, conflict, not-captured, and manual-review decisions;
+- stale-assessment invalidation, candidate fingerprint enforcement, and explicit verification as the only promotion boundary;
+- triage unavailable, malformed response, partial source, unreadable content, and history-retrieval failure paths;
+- existing Librela, cost, weight, reminder, post-verification, and legacy-fixture regression behavior; and
+- manual proof that Rosa can understand what changed, what stayed consistent, what was not captured, and why her approval is requested.
+
+## Following bounded slice: Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation
+
+After Phase 3E.5 is shipped and accepted, Phase 3E.6 will make Tomo the explicit manager, expose Verification Intelligence through a typed read-only specialist contract, and wrap existing reminder and care-action reconciliation as the Care Operations Agent.
+
+Phase 3E.6 will reuse `orchestration_runs` for durable run state and `care_actions` for governed action state. Calendar, Messages, materialization, date math, arithmetic, validation, and idempotency remain deterministic restricted tools. Specialists may return assessments or proposed actions; they may not directly promote trusted truth or execute consequential mutations.
 
 ## Opening message for the next working session
 
@@ -227,6 +253,7 @@ No implementation should begin until the current seams are inspected and Rosa ag
 I am continuing TomoCare from the shipped Phase 3E.4 checkpoint.
 
 Current checkpoint:
+- 1690eb1 — docs: close Phase 3E.4 and define Phase 3E.5
 - 3276dbe — Merge Phase 3E.4 governed profile grounding
 - 7d1834f — feat(phase-3e-4): add governed profile grounding
 
@@ -236,11 +263,12 @@ Please read:
 - docs/Phase3E4_Closeout_and_Phase3E5_Handover.md
 - docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md
 - docs/TomoCare_Operating_Brief.md
+- docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md
 - README.md
 
 We are starting Phase 3E.5 — Risk-Weighted Verification Intelligence.
 
 Before changing code, inspect the extraction inputs, AI triage prompt and schema, VerifyDocs UI, draft and verification boundaries, trusted materialization, error handling, and current fixtures.
 
-First, help me confirm the review categories, consequence and uncertainty model, always-review fields, low-risk grouping, missing and contradictory data behavior, explanation language, fixture boundary, and test plan. Do not implement until we agree on the contract.
+The Phase 3E.5 contract is accepted. Implement only the Verification Intelligence Agent slice described in the handover and architecture decision. Do not begin Phase 3E.6 orchestration or vaccine/lab materialization in this slice.
 ```
