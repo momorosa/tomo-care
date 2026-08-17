@@ -150,14 +150,14 @@ The agreed near-term sequence is:
 
 1. Build Phase 3E.5 as the first formal specialist: compare the current invoice with deterministic checks and up to five comparable trusted records, surface meaningful changes and conflicts, group established low-risk patterns, and preserve Rosa's final verification.
 2. Build Phase 3E.6: make Tomo the explicit manager, expose Verification Intelligence through a typed read-only handoff, and introduce the Care Operations Agent over existing reminder and action state.
-3. Capture the invoice's vaccine-status section as reviewed clinic-reported status without claiming a vaccine administration or automatically creating a reminder.
+3. Build Phase 3E.7 as a governed Preventive Care Lifecycle for vaccines, annual wellness exams, annual senior-lab panels, and preventive screening such as heartworm testing. Track due, scheduled, and completed state without treating a future reminder as proof of completed care or interpreting lab results.
 4. Add a source-linked visualization of verified weight measurements.
 5. Make Animate Tomo failure visible and recoverable while preserving local Voice.
 6. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
 7. Finalize a clearly labeled synthetic Librela invoice and pass it through a demo-safe Gmail intake.
 8. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
 
-Medication refill or renewal, the complete vaccine lifecycle, annual labs, urinalysis, imaging, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
+Medication refill or renewal, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. Phase 3E.7 may track that a senior-lab panel is due, scheduled, or completed; it does not interpret the results. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
 ## What TomoCare is not
 

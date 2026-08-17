@@ -131,7 +131,7 @@ After Phase 3E.4, Rosa accepted a revised order that improves the real product b
 
 1. Phase 3E.5 — Verification Intelligence Agent
 2. Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent
-3. Bounded vaccine-status capture
+3. Phase 3E.7 — Preventive Care Lifecycle for vaccines, annual wellness, annual senior-lab tracking, and bounded preventive screening
 4. Verified weight-trend visualization
 5. Animate Tomo reliability and recovery
 6. Separate demo environment and resettable synthetic dataset
@@ -189,6 +189,7 @@ These are qualitative consequence-and-uncertainty categories, not model-confiden
 ### Accepted attention rules
 
 - Matching invoice and line-item dates become one deterministic consistency result rather than repeated approvals.
+- The source reviewer classifies source support and ambiguity only. A field's downstream consequence does not make clear source evidence uncertain or create an automatic human-confirmation requirement.
 - Repeated low-risk administrative values, such as an unchanged nurse office visit charge, may be grouped when the current source is clear and at least three recent comparable trusted records establish the pattern.
 - A repeated product description such as `10 mg/ml solution vial` may be grouped as a consistent Librela product pattern. It must not be described as the administered dose unless the source states an administered dose.
 - Medication or service identity, administration date, dose when stated, weight, totals, and any field that can change scheduling or trusted care state receive deliberate treatment when uncertain or changed.
@@ -196,6 +197,7 @@ These are qualitative consequence-and-uncertainty categories, not model-confiden
 - Weight is compared with the latest verified measurement. A change of at least five percent is an attention threshold for review, not a medical conclusion. Unit, date, duplicate, and source conflicts also require review.
 - Missing values remain missing. Contradictions display both pieces of evidence. Unreadable content remains explicit.
 - Prominent vaccine, annual-checkup, reminder, and lab sections are acknowledged as not captured when outside the current schema.
+- Verified documents created under older triage rules preserve their audit history but label and collapse it as a historical legacy review rather than presenting it as current Verification Intelligence.
 - Explanations use plain language: what changed or could not be confirmed, the evidence compared, and why Rosa's attention is requested. They do not diagnose or judge clinical urgency.
 
 ### Accepted safety and state boundary
@@ -210,19 +212,19 @@ These are qualitative consequence-and-uncertainty categories, not model-confiden
 - A dirty Save and verify path saves, reruns assessment, and requires the current result before promotion.
 - Final backend verification checks the current candidate fingerprint and review state.
 - A bounded correction record may be stored inside the versioned triage result; no new migration is required for the initial slice.
-- Vaccine details remain outside Phase 3E.5 materialization and belong to the next bounded data-capture slice after the orchestration foundation.
+- Vaccine and preventive-care details remain outside Phase 3E.5 materialization and belong to Phase 3E.7 after the orchestration foundation.
 - Lab interpretation and longitudinal lab comparison remain post-demo work.
 - No Gmail, Calendar, Messages, or care-state action is added to this read-and-review slice.
 
 ### Out of scope
 
-- Vaccine-status extraction or materialization
-- Complete vaccine reminder and administration lifecycle
+- Vaccine-status extraction or materialization; that belongs to Phase 3E.7
+- Complete preventive-care reminder and completion lifecycle; that belongs to Phase 3E.7
 - Verified weight chart
 - Animate Tomo reliability work
 - Demo Supabase project and reset tooling
 - Finished synthetic visual invoice and live demo Gmail ingestion
-- Annual labs, urinalysis, imaging, or medical interpretation expansion
+- Lab-result interpretation, longitudinal analyte comparison, urinalysis, imaging, or broader medical interpretation
 - Autonomous verification or automatic promotion to trusted truth
 - Formal Tomo manager routing or Care Operations Agent implementation; those belong to Phase 3E.6
 

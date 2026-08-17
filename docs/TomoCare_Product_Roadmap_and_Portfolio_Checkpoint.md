@@ -103,12 +103,13 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Add permission enforcement, concise traces, timeouts, retries, stale-state handling, and specialist-specific evals.
    - Keep trusted materialization and Calendar or Messages execution behind deterministic server contracts and human approval.
 
-4. **Bounded vaccine-status capture**
-   - Detect the vaccine section instead of silently ignoring prominent source content.
-   - Preserve vaccine name, clinic-reported status, due date, and record-as-of date as candidate information.
-   - Require review before materialization.
-   - Treat the result as a verified clinic-reported status snapshot, not proof that a vaccine was administered.
-   - Defer the complete vaccine reminder and administration lifecycle unless a later bounded slice is justified.
+4. **Phase 3E.7 — Preventive Care Lifecycle**
+   - Cover vaccines, annual wellness exams, annual senior-lab panels, and bounded preventive screening such as heartworm testing.
+   - Extract source-linked candidates and distinguish `due`, `scheduled`, `completed`, and `unknown` state.
+   - Deduplicate repeated source entries and require one grouped human review before activating care actions.
+   - Reconcile later completion evidence, reminders, dashboard state, grounded answers, and Google Calendar through the existing governed boundaries.
+   - Never treat a future reminder as proof of administration or completion.
+   - Track senior-lab lifecycle state without interpreting results, analytes, units, reference ranges, or medical significance.
 
 5. **Verified weight-trend visualization**
    - Plot verified measurements only.
@@ -192,9 +193,9 @@ No new agent should be added merely to wrap a module or API. A specialist must m
 
 This work is part of the core governed-AI thesis and has higher portfolio priority than decorative polish.
 
-## Vaccine boundary for portfolio v1
+## Preventive-care boundary for portfolio v1
 
-Portfolio v1 should capture and explain the vaccine-status section of the invoice, but it does not need a complete vaccine lifecycle.
+Portfolio v1 should demonstrate a bounded preventive-care lifecycle for vaccines, annual wellness, annual senior-lab tracking, and a small allowlist of preventive screening. The lifecycle may track due, scheduled, and completed state, but it does not interpret lab results or infer that a future reminder proves completed care.
 
 Allowed claim:
 
@@ -204,13 +205,12 @@ Disallowed claim without a separate trusted administration event:
 
 > Momo received her rabies vaccine.
 
-No reminder should be created automatically unless the date meaning and source state have been verified and the applicable reminder contract has been approved in a later slice.
+No preventive-care reminder becomes active unless its date meaning and source state have been verified and Rosa approves the applicable Phase 3E.7 care-action contract.
 
 ## Deferred until after portfolio v1
 
 - Medication refill or prescription-renewal lifecycle, unless a trustworthy and very small source rule is identified
-- Complete vaccine reminder and administration lifecycle
-- Annual laboratory, urinalysis, imaging, and broad medical-document intelligence
+- Lab-result interpretation, longitudinal analyte comparison, urinalysis, imaging, and broad medical-document intelligence
 - Current-health inference, diagnosis, urgency judgment, or treatment recommendation
 - Broad durable relationship memory
 - Generic feedback controls that do not lead to source review or a concrete product-learning loop

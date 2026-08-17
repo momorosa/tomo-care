@@ -1,3 +1,19 @@
+export const VERIFICATION_INTELLIGENCE_SCHEMA_VERSION =
+    "verification_intelligence_v1"
+
+export function isLegacyVerificationReview({
+    triageResult,
+    isVerified = false,
+} = {}) {
+    return Boolean(
+        isVerified &&
+            Array.isArray(triageResult?.fields) &&
+            triageResult.fields.length > 0 &&
+            triageResult.schema_version !==
+                VERIFICATION_INTELLIGENCE_SCHEMA_VERSION
+    )
+}
+
 export function getTriageReviewState({
     triageResult,
     acceptedPaths = new Set(),
@@ -12,6 +28,10 @@ export function getTriageReviewState({
             : new Set(acceptedPaths || [])
     const flaggedFields = fields.filter(
         (field) =>
+            field.blocks_approval === true ||
+            field.outcome === "changed_from_pattern" ||
+            field.outcome === "conflict_or_uncertainty" ||
+            field.outcome === "manual_review" ||
             field.state === "needs-confirmation" ||
             field.state === "unreadable-source"
     )
@@ -25,6 +45,9 @@ export function getTriageReviewState({
         (triageResult &&
             triageResult.overall_confidence === "low" &&
             fields.length === 0)
+    const currentAssessment = triageResult?.schema_version
+        ? triageResult.status === "ready"
+        : fields.length > 0
 
     return {
         flaggedTotal: flaggedFields.length,
@@ -34,11 +57,10 @@ export function getTriageReviewState({
         unresolvedPaths,
         unreviewedCount: unresolvedPaths.length,
         hasTriage: fields.length > 0,
+        currentAssessment,
         failSafe,
         blocksApprove:
             !isVerified &&
-            fields.length > 0 &&
-            !failSafe &&
-            unresolvedPaths.length > 0,
+            (!currentAssessment || unresolvedPaths.length > 0),
     }
 }

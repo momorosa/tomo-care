@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { validateExtracted } from "../validation.js"
 
 // Owns the editable draft of a document's extracted fields: the working copy,
@@ -16,12 +16,12 @@ export function useDraftEditor(detail, isVerified) {
         setValidationErrors((prev) => (Object.keys(prev).length ? {} : prev))
     }
 
-    function reset() {
+    const reset = useCallback(() => {
         setEditMode(false)
         setDraftExtracted(null)
         setDirty(false)
         setValidationErrors({})
-    }
+    }, [])
 
     function startEdit() {
         if (isVerified) return

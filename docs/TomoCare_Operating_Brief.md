@@ -344,7 +344,7 @@ The next bounded slice is **3E.5 — Verification Intelligence Agent**:
 
 After Phase 3E.5, **3E.6 — Tomo Multi-Agent Orchestration Foundation** makes Tomo the explicit manager, exposes Verification Intelligence through a typed read-only handoff, and wraps existing reminder and care-action reconciliation as the Care Operations Agent. It reuses durable orchestration and action state, adds specialist permissions and traces, and keeps materialization and provider calls deterministic and approval-gated.
 
-Near-term work then proceeds through bounded vaccine-status capture, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and the final synthetic-invoice Gmail path and end-to-end polish. This order lets verification, orchestration, vaccine, weight, and recovery improvements benefit the real product before the demo environment inherits them. Annual-health intelligence remains part of the real-care north star rather than portfolio v1 scope.
+Near-term work then proceeds through **3E.7 — Preventive Care Lifecycle**, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and the final synthetic-invoice Gmail path and end-to-end polish. Phase 3E.7 covers vaccines, annual wellness, annual senior-lab lifecycle state, and bounded preventive screening while leaving lab-result interpretation outside portfolio v1. This order lets verification, orchestration, preventive care, weight, and recovery improvements benefit the real product before the demo environment inherits them.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
@@ -377,6 +377,14 @@ TomoCare will become a small governed manager-style multi-agent system. Tomo own
 The foundation must provide typed inputs and outputs, allowlisted tools, bounded context, specialist permissions, durable run state, concise traces, stale-state protection, timeouts, retries, and separate evals. `orchestration_runs` remains the durable run record and `care_actions` remains the governed action ledger. Calendar, Messages, database materialization, date calculations, arithmetic, validation, and idempotency remain restricted deterministic tools.
 
 **Phase thesis:** Tomo may coordinate specialist reasoning without allowing agents to become an alternate path around trusted truth, deterministic rules, or human approval.
+
+### Phase 3E.7 — Preventive Care Lifecycle
+
+TomoCare will turn clinic-reported future-care information into governed, source-linked candidates for vaccines, annual wellness exams, annual senior-lab panels, and bounded preventive screening such as heartworm testing. The lifecycle distinguishes due, scheduled, completed, and unknown state; deduplicates repeated source entries; requires grouped human review; and reconciles approved actions with reminders, the dashboard, grounded answers, and Google Calendar.
+
+A future reminder is not evidence of administration or completion. Senior-lab tracking covers lifecycle state only; result values, analyte trends, reference ranges, and medical interpretation remain outside the phase.
+
+**Phase thesis:** Important preventive care should become an accountable lifecycle without turning clinic reminders into completed medical facts.
 
 ### Phase 4 — Governed specialist expansion
 

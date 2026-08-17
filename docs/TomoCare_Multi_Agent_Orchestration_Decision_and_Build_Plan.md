@@ -121,6 +121,7 @@ The outcomes are categories, not pseudo-precise risk scores. The decision combin
 The agent should direct attention to changes that matter rather than ask Rosa to approve every repeated field individually.
 
 - Medication or service identity, administration date, dose when actually stated, weight, totals, and any field that can change scheduling or trusted care state receive deliberate treatment when uncertain or changed.
+- Consequence affects escalation when evidence is uncertain or changed; it does not make otherwise clear source evidence uncertain or force a field-level human confirmation.
 - Matching invoice and line-item dates should become one deterministic date-consistency result, not repeated per-field approvals.
 - An unchanged administrative charge such as a nurse office visit may be grouped when the current source is clear and recent trusted history establishes the same pattern.
 - A repeated Librela product description such as `10 mg/ml solution vial` may be grouped as a consistent product pattern. Product concentration must not be relabeled as the administered dose.
@@ -133,7 +134,7 @@ The agent should direct attention to changes that matter rather than ask Rosa to
 - Contradictions show both pieces of evidence and do not choose silently.
 - Unreadable content remains explicit.
 - Prominent vaccine, annual-checkup, reminder, or lab sections must be acknowledged even when the current schema cannot capture them.
-- Phase 3E.5 does not materialize vaccine facts or lab results. Vaccine-status capture is the next bounded data slice; labs remain post-demo work.
+- Phase 3E.5 does not materialize vaccine facts, preventive-care actions, or lab results. Phase 3E.7 owns the Preventive Care Lifecycle; lab-result interpretation remains post-demo work.
 - The agent may say that a value changed, is missing, or differs from recent verified records. It may not diagnose, judge clinical urgency, or recommend treatment changes.
 
 ### Correction and verification boundary
@@ -203,7 +204,7 @@ The aligned near-term order is:
 
 1. **Phase 3E.5 — Verification Intelligence Agent**
 2. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent**
-3. **Bounded vaccine-status capture**
+3. **Phase 3E.7 — Preventive Care Lifecycle**
 4. **Verified weight-trend visualization**
 5. **Animate Tomo reliability and recovery**
 6. **Separate demo environment and resettable synthetic dataset**
@@ -211,7 +212,7 @@ The aligned near-term order is:
 8. **Final Voice, animation, and end-to-end UI polish**
 9. **Demo evidence, case study, and portfolio freeze**
 
-Annual labs, urinalysis, imaging, and broad clinical-document interpretation remain after the portfolio checkpoint. They require a dedicated source, comparison, unit, reference-range, and medical-safety contract rather than extension of the invoice path.
+Phase 3E.7 may track that an annual senior-lab panel is due, scheduled, or completed. Lab results, analytes, units, reference ranges, urinalysis, imaging, and broad clinical-document interpretation remain after the portfolio checkpoint and require their own medical-safety contract.
 
 ## Portfolio demonstration
 

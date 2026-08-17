@@ -26,6 +26,20 @@ function normalizeEventDetails(eventType, details, { verifiedAt, verifiedBy }) {
     return normalized
 }
 
+export function isMaterializableVerifiedEvent(event) {
+    const eventType = String(event?.event_type || "").toLowerCase()
+    const details = event?.details_json || {}
+    const description = String(details.description || "").toLowerCase()
+    const subtype = String(details.subtype || "").toLowerCase()
+    const combined = `${eventType} ${description} ${subtype}`
+
+    // Phase 3E.5 may acknowledge vaccine content, but vaccine extraction and
+    // trusted materialization require the next bounded data-capture contract.
+    return !/\b(vaccine|vaccination|rabies|bordetella|dhpp|distemper)\b/.test(
+        combined
+    )
+}
+
 export function buildVerifiedDocumentMaterialization({
     document,
     extracted = document?.text_extracted,
@@ -70,7 +84,8 @@ export function buildVerifiedDocumentMaterialization({
                 event &&
                 typeof event === "object" &&
                 event.event_type &&
-                event.event_date
+                event.event_date &&
+                isMaterializableVerifiedEvent(event)
         )
         .map((event) => ({
             pet_id: document.pet_id,
