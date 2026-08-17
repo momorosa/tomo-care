@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.4, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; and governed Profile grounding. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.5: the Verification Intelligence Agent. Phase 3E.6 will then formalize Tomo as the manager and introduce the Care Operations Agent.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.5, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding; and risk-weighted Verification Intelligence. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.6: the Tomo Multi-Agent Orchestration Foundation and Care Operations Agent.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.4 closeout and Phase 3E.5 handover](./docs/Phase3E4_Closeout_and_Phase3E5_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.5 closeout and Phase 3E.6 handover](./docs/Phase3E5_Closeout_and_Phase3E6_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -118,15 +118,19 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Deterministic today, tomorrow, this-week, and this-month attention windows with natural Chat and Voice responses
 * Typed navigation to the governing reminder, action, review document, or allowlisted Google Calendar destination without granting write authority
 * Governed Profile answers from the current `pets` record, deterministic age calculation, honest missing-data behavior, warm relationship context, and typed read-only Profile navigation
+* Risk-weighted Verification Intelligence that combines current-source comparison, deterministic checks, and up to five comparable trusted records
+* Consolidated date and invoice checks, established-pattern grouping, meaningful change detection, stale-assessment protection, and explicit unsupported-content disclosure
+* Backend enforcement that only the current reviewed candidate can be promoted, with fail-safe manual review and no vaccine or preventive-care materialization
+* Collapsed historical labeling for verified documents reviewed under older triage rules and consistent two-decimal currency presentation
 
-The accepted next architecture is a small manager-style hybrid multi-agent system:
+The accepted architecture is a small manager-style hybrid multi-agent system:
 
 * **Tomo manager:** owns conversation, specialist selection, synthesis, approval guidance, and recovery language
-* **Verification Intelligence Agent:** compares a current document with deterministic checks and recent comparable trusted history, then returns a structured summary, differences, and review exceptions
+* **Verification Intelligence Agent:** shipped in Phase 3E.5 as a bounded document-review specialist that returns a structured summary, differences, and review exceptions
 * **Care Operations Agent:** reconciles trusted events, reminders, and actions, then prepares the next governed step
 * **Deterministic services:** continue to own calculations, validation, fingerprints, materialization, idempotency, and provider execution
 
-Specialists do not directly promote candidate truth or execute consequential actions. Rosa retains the existing verification and action approvals. Until Phase 3E.6 is shipped and validated, this remains the accepted architecture direction rather than a current product claim.
+Specialists do not directly promote candidate truth or execute consequential actions. Rosa retains the existing verification and action approvals. Phase 3E.5 shipped the first specialist boundary, but Tomo does not become a shipped multi-agent manager until Phase 3E.6 routing, handoffs, traces, permissions, recovery, and system-level evals are implemented and validated.
 
 ### Phase 3F — Native Apple Messages Handoff
 
@@ -148,14 +152,13 @@ TomoCare now follows one product roadmap with two release tracks:
 
 The agreed near-term sequence is:
 
-1. Build Phase 3E.5 as the first formal specialist: compare the current invoice with deterministic checks and up to five comparable trusted records, surface meaningful changes and conflicts, group established low-risk patterns, and preserve Rosa's final verification.
-2. Build Phase 3E.6: make Tomo the explicit manager, expose Verification Intelligence through a typed read-only handoff, and introduce the Care Operations Agent over existing reminder and action state.
-3. Build Phase 3E.7 as a governed Preventive Care Lifecycle for vaccines, annual wellness exams, annual senior-lab panels, and preventive screening such as heartworm testing. Track due, scheduled, and completed state without treating a future reminder as proof of completed care or interpreting lab results.
-4. Add a source-linked visualization of verified weight measurements.
-5. Make Animate Tomo failure visible and recoverable while preserving local Voice.
-6. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
-7. Finalize a clearly labeled synthetic Librela invoice and pass it through a demo-safe Gmail intake.
-8. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
+1. Build Phase 3E.6: make Tomo the explicit manager, expose the shipped Verification Intelligence specialist through a typed read-only handoff, and introduce the Care Operations Agent over existing reminder and action state.
+2. Build Phase 3E.7 as a governed Preventive Care Lifecycle for vaccines, annual wellness exams, annual senior-lab panels, and preventive screening such as heartworm testing. Track due, scheduled, and completed state without treating a future reminder as proof of completed care or interpreting lab results.
+3. Add a source-linked visualization of verified weight measurements.
+4. Make Animate Tomo failure visible and recoverable while preserving local Voice.
+5. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
+6. Finalize a clearly labeled synthetic Librela invoice and pass it through a demo-safe Gmail intake.
+7. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
 
 Medication refill or renewal, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. Phase 3E.7 may track that a senior-lab panel is due, scheduled, or completed; it does not interpret the results. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 

@@ -87,7 +87,7 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Keep governed identity separate from harmless relationship context.
    - Open the existing Profile panel through typed, read-only navigation.
 
-2. **Phase 3E.5 — Verification Intelligence Agent**
+2. **Phase 3E.5 — Verification Intelligence Agent · Shipped**
    - Establish TomoCare's first formal specialist-agent contract.
    - Compare the current source and candidate with deterministic checks and up to five recent comparable trusted records.
    - Establish a repeated pattern only after at least three consecutive comparable verified records.
@@ -170,7 +170,7 @@ Supabase's documented environment and seed workflows support this direction:
 
 Human verification remains central, but the interface should become more selective and useful. TomoCare should not equate governance with asking the user to manually confirm every extracted value.
 
-Phase 3E.5 verification improvements will:
+Phase 3E.5 verification improvements now:
 
 - Allocate human attention according to uncertainty and consequence
 - Group internally consistent, low-risk administrative fields
@@ -235,7 +235,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Phase 3E.5 — Verification Intelligence Agent** using the accepted historical-comparison, outcome, governance, fixture, and test contract in the current handover and orchestration decision. Do not begin Phase 3E.6 routing or Care Operations implementation until Phase 3E.5 is shipped and accepted.
+Begin **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent** using the bounded manager, specialist, tool, permission, trace, recovery, and evaluation contract in the current handover and orchestration decision. Reuse the shipped Verification Intelligence capability, `orchestration_runs`, `care_actions`, and existing deterministic lifecycle services rather than creating a parallel action or persistence system.
 
 ## Maintenance rule
 

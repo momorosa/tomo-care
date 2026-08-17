@@ -4,7 +4,7 @@
 
 **Owner:** Rosa Choi
 
-**Status:** Accepted architecture direction; implementation begins with Phase 3E.5
+**Status:** Accepted architecture direction; Verification Intelligence shipped in Phase 3E.5 and manager orchestration begins with Phase 3E.6
 
 ## Decision
 
@@ -84,9 +84,9 @@ The diagram describes responsibility, not unrestricted call access. Specialists 
 | **Deterministic services** | Calculate dates and totals, validate schemas and fingerprints, enforce idempotency, materialize verified records, and call providers | Explicit typed inputs | Only within existing server-side contracts and authorization gates |
 | **Rosa** | Correct candidate facts, approve trusted promotion, and approve consequential external action | Source evidence, explanations, proposed payloads, and status | Final human authorization at the established boundaries |
 
-## Phase 3E.5: first formal specialist agent
+## Phase 3E.5: first formal specialist agent · Shipped
 
-Phase 3E.5 will implement the **Verification Intelligence Agent** as TomoCare's first formal specialist. The slice remains a document-review capability, not broad orchestration.
+Phase 3E.5 implemented the **Verification Intelligence Agent** as TomoCare's first formal specialist. The shipped slice remains a document-review capability, not broad orchestration. It combines bounded model-based source comparison with deterministic history retrieval, date and invoice checks, weight comparison, review classification, stale-fingerprint enforcement, and human-controlled promotion.
 
 ### Historical comparison contract
 
@@ -148,7 +148,7 @@ The agent should direct attention to changes that matter rather than ask Rosa to
 
 ### Fixture boundary
 
-Phase 3E.5 will add one wholly fictional fixture designed for historical comparison, changed values, deterministic consistency checks, and prominent unsupported sections. The existing August 3 fixture remains a regression fixture and is not expanded into the new contract. No private clinic, invoice, recipient, insurance, or care identifier belongs in the fixture, logs, package, or demo evidence.
+Phase 3E.5 added one wholly fictional fixture designed for historical comparison, changed values, deterministic consistency checks, and prominent unsupported sections. The existing August 3 fixture remains a regression fixture and was not expanded into the new contract. No private clinic, invoice, recipient, insurance, or care identifier belongs in the fixture, logs, package, or demo evidence.
 
 ### Phase 3E.5 test plan
 
@@ -165,7 +165,7 @@ The implementation contract requires:
 
 ## Phase 3E.6: orchestration foundation
 
-After Phase 3E.5 is accepted, Phase 3E.6 will formalize **Tomo Multi-Agent Orchestration** and introduce the **Care Operations Agent** around existing lifecycle capabilities.
+With Phase 3E.5 shipped and accepted, Phase 3E.6 will formalize **Tomo Multi-Agent Orchestration** and introduce the **Care Operations Agent** around existing lifecycle capabilities.
 
 ### Minimum build scope
 
@@ -202,7 +202,7 @@ After Phase 3E.5 is accepted, Phase 3E.6 will formalize **Tomo Multi-Agent Orche
 
 The aligned near-term order is:
 
-1. **Phase 3E.5 — Verification Intelligence Agent**
+1. **Phase 3E.5 — Verification Intelligence Agent · Shipped**
 2. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent**
 3. **Phase 3E.7 — Preventive Care Lifecycle**
 4. **Verified weight-trend visualization**
