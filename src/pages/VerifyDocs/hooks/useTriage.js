@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import * as api from "../api.js"
 import { getTriageReviewState } from "../triageReviewState.js"
 
@@ -10,21 +10,24 @@ export function useTriage(isVerified) {
     const [triageLoading, setTriageLoading] = useState(false)
     const [acceptedPaths, setAcceptedPaths] = useState(new Set())
 
-    async function runTriage(id) {
+    const runTriage = useCallback(async (id, { force = false } = {}) => {
         if (!id) return
 
         setTriageLoading(true)
 
         try {
-            const j = await api.runTriage(id, { force: false })
+            const j = await api.runTriage(id, { force })
             setTriageResult(j.triage_result)
+            setAcceptedPaths(new Set())
+            return j.triage_result
         } catch (e) {
             console.error("[triage]", e.message)
             setTriageResult(null)
+            throw e
         } finally {
             setTriageLoading(false)
         }
-    }
+    }, [])
 
     function acceptField(path) {
         if (isVerified) return
@@ -36,17 +39,21 @@ export function useTriage(isVerified) {
         if (!triageResult?.fields) return
 
         const confirmed = triageResult.fields
-            .filter((f) => f.state === "auto-confirmed")
+            .filter(
+                (f) =>
+                    f.state === "auto-confirmed" ||
+                    f.outcome === "consistent_pattern"
+            )
             .map((f) => f.path)
 
         setAcceptedPaths((prev) => new Set([...prev, ...confirmed]))
     }
 
-    function reset() {
+    const reset = useCallback(() => {
         setTriageResult(null)
         setTriageLoading(false)
         setAcceptedPaths(new Set())
-    }
+    }, [])
 
     const reviewState = useMemo(
         () =>
@@ -70,5 +77,6 @@ export function useTriage(isVerified) {
         reset,
         unreviewedCount: reviewState.unreviewedCount,
         triageBlocksApprove: reviewState.blocksApprove,
+        hasCurrentAssessment: reviewState.currentAssessment,
     }
 }

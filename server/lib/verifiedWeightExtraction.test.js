@@ -4,6 +4,14 @@ import test from "node:test"
 
 const extractionUrl = new URL("../../agent/tomo/tools/extract.py", import.meta.url)
 const triageUrl = new URL("../routes/triage.js", import.meta.url)
+const verificationUrl = new URL(
+    "../verification/verificationIntelligence.js",
+    import.meta.url
+)
+const sourceReviewUrl = new URL(
+    "../verification/sourceReviewContract.js",
+    import.meta.url
+)
 
 test("extractor has a deterministic, bounded weight candidate contract", async () => {
     const source = await readFile(extractionUrl, "utf8")
@@ -16,11 +24,18 @@ test("extractor has a deterministic, bounded weight candidate contract", async (
     assert.match(source, /patient_header_weight/)
 })
 
-test("triage exposes weight value, unit, and date to human confirmation", async () => {
-    const source = await readFile(triageUrl, "utf8")
+test("verification intelligence compares weight value, unit, and date before risk grouping", async () => {
+    const [triageSource, verificationSource, sourceReviewSource] = await Promise.all([
+        readFile(triageUrl, "utf8"),
+        readFile(verificationUrl, "utf8"),
+        readFile(sourceReviewUrl, "utf8"),
+    ])
 
-    assert.match(source, /Weight value, unit, and measurement date.*ALWAYS require human confirmation/)
-    assert.match(source, /weight_measurement\.value/)
-    assert.match(source, /weight_measurement\.unit/)
-    assert.match(source, /weight_measurement\.measured_date/)
+    assert.match(triageSource, /buildSourceReviewSystemPrompt/)
+    assert.match(sourceReviewSource, /source-comparison tool/)
+    assert.match(verificationSource, /weight_measurement\.value/)
+    assert.match(verificationSource, /weight_measurement\.unit/)
+    assert.match(verificationSource, /weight_measurement\.measured_date/)
+    assert.match(verificationSource, /WEIGHT_ATTENTION_PERCENT = 5/)
+    assert.match(verificationSource, /not a medical conclusion/)
 })

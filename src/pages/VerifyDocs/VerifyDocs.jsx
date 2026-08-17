@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import VerifyHeader from "./VerifyHeader.jsx"
 import ReviewQueuePanel from "./ReviewQueuePanel.jsx"
@@ -13,6 +13,7 @@ import { useTriage } from "./hooks/useTriage.js"
 import { useDraftEditor } from "./hooks/useDraftEditor.js"
 import { usePostVerifyActions } from "./hooks/usePostVerifyActions.js"
 import { getPostVerifyRecommendations } from "./recommendations.js"
+import { getTriageReviewState } from "./triageReviewState.js"
 
 export default function VerifyDocs() {
     const { docId } = useParams()
@@ -52,16 +53,21 @@ export default function VerifyDocs() {
         setError,
         onReconciled: refreshSelectedDoc,
     })
+    const resetTriage = triage.reset
+    const runTriage = triage.runTriage
+    const setTriageResult = triage.setTriageResult
+    const resetDraft = draft.reset
+    const setShowPostVerifyActions = postVerify.setShowPostVerifyActions
 
-    function resetSelectedDocumentState() {
+    const resetSelectedDocumentState = useCallback(() => {
         setSelectedId(null)
         setDetail(null)
         setCounts(EMPTY_COUNTS)
         setViewUrl(null)
         setError("")
-        triage.reset()
-        draft.reset()
-    }
+        resetTriage()
+        resetDraft()
+    }, [resetDraft, resetTriage])
 
     useEffect(() => {
         if (!docId) {
@@ -70,13 +76,13 @@ export default function VerifyDocs() {
         }
 
         setSelectedId(docId)
-    }, [docId])
+    }, [docId, resetSelectedDocumentState])
 
     useEffect(() => {
-        draft.reset()
-        triage.reset()
+        resetDraft()
+        resetTriage()
         setTab("fields")
-    }, [selectedId])
+    }, [selectedId, resetDraft, resetTriage])
 
     async function refreshSelectedDoc() {
         if (!selectedId) return
@@ -87,7 +93,7 @@ export default function VerifyDocs() {
         setCounts(nextCounts)
 
         if (doc?.triage_result) {
-            triage.setTriageResult(doc.triage_result)
+            setTriageResult(doc.triage_result)
         }
     }
 
@@ -125,7 +131,7 @@ export default function VerifyDocs() {
             setDetail(null)
             setCounts(EMPTY_COUNTS)
             setViewUrl(null)
-            triage.setTriageResult(null)
+            setTriageResult(null)
             return
         }
 
@@ -144,14 +150,17 @@ export default function VerifyDocs() {
                 setCounts(nextCounts)
                 setViewUrl(url)
 
-                if (doc.triage_result) {
-                    triage.setTriageResult(doc.triage_result)
+                if (
+                    doc.status === "verified" ||
+                    doc.triage_result?.status === "ready"
+                ) {
+                    setTriageResult(doc.triage_result)
                 } else if (
                     doc.text_extracted &&
                     doc.raw_text &&
                     doc.status !== "verified"
                 ) {
-                    triage.runTriage(doc.id)
+                    runTriage(doc.id).catch((e) => setError(e.message))
                 }
             })
             .catch((e) => {
@@ -161,7 +170,7 @@ export default function VerifyDocs() {
         return () => {
             ignore = true
         }
-    }, [selectedId])
+    }, [selectedId, runTriage, setTriageResult])
 
     // Temporary visual QA helper:
     // Open the post-verification action modal with ?previewPostVerify=1
@@ -170,18 +179,24 @@ export default function VerifyDocs() {
 
         const params = new URLSearchParams(window.location.search)
         if (params.get("previewPostVerify") === "1") {
-            postVerify.setShowPostVerifyActions(true)
+            setShowPostVerifyActions(true)
         }
-    }, [detail])
+    }, [detail, setShowPostVerifyActions])
 
-    async function approveDoc() {
+    async function approveDoc({
+        assessment = triage.triageResult,
+        acceptedPaths = triage.acceptedPaths,
+    } = {}) {
         if (!selectedId || isVerified) return
 
         setApproving(true)
         setError("")
 
         try {
-            const j = await api.approveDocument(selectedId)
+            const j = await api.approveDocument(selectedId, {
+                candidateFingerprint: assessment?.candidate_fingerprint,
+                acceptedPaths: [...acceptedPaths],
+            })
 
             setCounts(j.materialized || counts)
 
@@ -245,7 +260,7 @@ export default function VerifyDocs() {
 
             triage.setTriageResult(null)
             triage.setAcceptedPaths(new Set())
-            triage.runTriage(selectedId)
+            await triage.runTriage(selectedId, { force: true })
 
             showToast("Saved draft")
         } catch (e) {
@@ -262,8 +277,38 @@ export default function VerifyDocs() {
 
         try {
             await api.patchExtracted(selectedId, draft.draftExtracted)
-            await approveDoc()
+
+            const assessment = await triage.runTriage(selectedId, {
+                force: true,
+            })
+            const nextReviewState = getTriageReviewState({
+                triageResult: assessment,
+                acceptedPaths: new Set(),
+                isVerified: false,
+            })
+
+            setDetail((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          text_extracted: draft.draftExtracted,
+                          triage_result: assessment,
+                          status: "needs_review",
+                      }
+                    : prev
+            )
             draft.reset()
+
+            if (nextReviewState.blocksApprove) {
+                showToast(
+                    `Saved and rechecked · review ${nextReviewState.unreviewedCount} attention item${
+                        nextReviewState.unreviewedCount === 1 ? "" : "s"
+                    } before verifying`
+                )
+                return
+            }
+
+            await approveDoc({ assessment, acceptedPaths: new Set() })
         } catch (e) {
             setError(e.message)
         }
@@ -276,13 +321,15 @@ export default function VerifyDocs() {
         !!selectedId &&
         !isVerified &&
         !triage.triageLoading &&
+        triage.hasCurrentAssessment &&
         !triage.triageBlocksApprove
 
     const flaggedFields =
         triage.triageResult?.fields?.filter(
             (f) =>
                 f.state === "needs-confirmation" ||
-                f.state === "unreadable-source"
+                f.state === "unreadable-source" ||
+                f.blocks_approval === true
         ) || []
     const flaggedTotal = flaggedFields.length
     const flaggedResolved = isVerified

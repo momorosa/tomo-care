@@ -39,11 +39,24 @@ export async function runTriage(id, { force = false } = {}) {
     return jsonOrThrow(r, "Triage failed")
 }
 
-export async function approveDocument(id, { verifiedBy = "rosa", notes = "" } = {}) {
+export async function approveDocument(
+    id,
+    {
+        verifiedBy = "rosa",
+        notes = "",
+        candidateFingerprint = null,
+        acceptedPaths = [],
+    } = {}
+) {
     const r = await fetch(`/api/documents/${id}/approve`, {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify({ verifiedBy, notes }),
+        body: JSON.stringify({
+            verifiedBy,
+            notes,
+            candidateFingerprint,
+            acceptedPaths,
+        }),
     })
 
     return jsonOrThrow(r, "Approve failed")

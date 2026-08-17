@@ -1,6 +1,6 @@
 # TomoCare Product Roadmap and Portfolio Checkpoint
 
-**Decision date:** August 14, 2026
+**Decision date:** August 16, 2026
 
 **Owner:** Rosa Choi
 
@@ -40,6 +40,10 @@ Both tracks retain the same TomoCare principles and architecture:
 - Medical interpretation and consequential action remain bounded.
 - Evals express the product's promises and protect them as coverage grows.
 - Voice and animation remain presentation layers over the same grounded assistant.
+- Agents reason over ambiguity; deterministic services calculate, validate, persist, and execute.
+- Tomo remains the user-facing manager; specialists receive bounded context and permissions and return structured handoffs.
+
+The accepted agent architecture and build gates are recorded in [TomoCare Multi-Agent Orchestration Decision and Build Plan](./TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md).
 
 ## Long-term real-care north star
 
@@ -75,7 +79,7 @@ Tomo prepares a Librela appointment request from trusted state, Rosa reviews it,
 
 ## Portfolio-readiness sequence
 
-The sequence was refined after Phase 3E.4 shipped. Product improvements that benefit both real care and the portfolio should land before the separate demo environment is finalized. A representative synthetic or sanitized document fixture may be introduced early for safe testing, while the polished invoice and Gmail demonstration remain later work.
+The sequence was refined after Phase 3E.4 shipped. Product improvements that benefit both real care and the portfolio should land before the separate demo environment is finalized. A wholly fictional document fixture will be introduced early for safe testing, while the polished invoice and Gmail demonstration remain later work.
 
 1. **Phase 3E.4 — Governed Profile Grounding · Shipped**
    - Answer bounded Profile questions from the current `pets` row.
@@ -83,32 +87,42 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Keep governed identity separate from harmless relationship context.
    - Open the existing Profile panel through typed, read-only navigation.
 
-2. **Phase 3E.5 — Risk-weighted verification intelligence**
-   - Improve review around consequence and uncertainty rather than asking Rosa to confirm every field equally.
-   - Explain why a reviewed field matters when it affects scheduling, costs, or trusted care state.
-   - Detect missing, contradictory, or ignored content and check internally consistent administrative values where possible.
-   - Preserve human-controlled promotion to trusted truth.
-   - Use a representative synthetic or sanitized fixture for safe tests without completing the demo Gmail workflow.
+2. **Phase 3E.5 — Verification Intelligence Agent**
+   - Establish TomoCare's first formal specialist-agent contract.
+   - Compare the current source and candidate with deterministic checks and up to five recent comparable trusted records.
+   - Establish a repeated pattern only after at least three consecutive comparable verified records.
+   - Group consistent low-risk fields, surface meaningful changes and conflicts, and acknowledge prominent unsupported content.
+   - Preserve human-controlled promotion to trusted truth and enforce current-assessment fingerprints on the backend.
+   - Use a wholly fictional fixture for safe tests without completing the demo Gmail workflow.
 
-3. **Bounded vaccine-status capture**
-   - Detect the vaccine section instead of silently ignoring prominent source content.
-   - Preserve vaccine name, clinic-reported status, due date, and record-as-of date as candidate information.
-   - Require review before materialization.
-   - Treat the result as a verified clinic-reported status snapshot, not proof that a vaccine was administered.
-   - Defer the complete vaccine reminder and administration lifecycle unless a later bounded slice is justified.
+3. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent**
+   - Make Tomo the explicit manager that selects specialists and synthesizes their evidence.
+   - Expose Verification Intelligence through a typed, read-only specialist handoff.
+   - Wrap existing reminder and care-action reconciliation as the Care Operations Agent.
+   - Reuse `orchestration_runs` and `care_actions` for durable run and action state.
+   - Add permission enforcement, concise traces, timeouts, retries, stale-state handling, and specialist-specific evals.
+   - Keep trusted materialization and Calendar or Messages execution behind deterministic server contracts and human approval.
 
-4. **Verified weight-trend visualization**
+4. **Phase 3E.7 — Preventive Care Lifecycle**
+   - Cover vaccines, annual wellness exams, annual senior-lab panels, and bounded preventive screening such as heartworm testing.
+   - Extract source-linked candidates and distinguish `due`, `scheduled`, `completed`, and `unknown` state.
+   - Deduplicate repeated source entries and require one grouped human review before activating care actions.
+   - Reconcile later completion evidence, reminders, dashboard state, grounded answers, and Google Calendar through the existing governed boundaries.
+   - Never treat a future reminder as proof of administration or completion.
+   - Track senior-lab lifecycle state without interpreting results, analytes, units, reference ranges, or medical significance.
+
+5. **Verified weight-trend visualization**
    - Plot verified measurements only.
    - Preserve source access and trust state for each point.
    - Keep Tomo's explanation consistent with the chart's deterministic data.
    - Avoid medical conclusions about the trend.
 
-5. **Animate Tomo reliability and recovery**
+6. **Animate Tomo reliability and recovery**
    - Make Runway/LiveKit fallback visible and non-blocking.
    - Offer a safe retry while preserving uninterrupted local voice.
    - Retain a typed failure reason for diagnosis.
 
-6. **Demo environment and resettable synthetic dataset**
+7. **Demo environment and resettable synthetic dataset**
    - Keep one application codebase.
    - Use separate demo configuration and data from Momo's live care records.
    - Prefer a separate hosted Supabase demo project for interview reliability.
@@ -117,17 +131,17 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Keep Google Calendar and Apple Messages destinations demo-safe.
    - Display a clear Demo indicator so synthetic and real state cannot be confused.
 
-7. **Synthetic invoice and demo Gmail ingestion**
+8. **Synthetic invoice and demo Gmail ingestion**
    - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
    - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
    - Send it through a dedicated demo-safe inbox and exercise the completed verification path.
    - Prevent the workflow from affecting Momo's live records or external destinations.
 
-8. **Final Voice, animation, and UI polish**
+9. **Final Voice, animation, and UI polish**
    - Refine listening, thinking, speaking, playback, and idle transitions.
    - Resolve visual inconsistencies, dead ends, and unclear state changes across the end-to-end demo.
 
-9. **Demo evidence and portfolio freeze**
+10. **Demo evidence and portfolio freeze**
    - Rehearse one deterministic end-to-end path.
    - Capture screenshots and video evidence.
    - Prepare a recorded fallback for provider-dependent moments.
@@ -152,11 +166,11 @@ Supabase's documented environment and seed workflows support this direction:
 - [Managing environments](https://supabase.com/docs/guides/deployment/managing-environments)
 - [Seeding a database](https://supabase.com/docs/guides/local-development/seeding-your-database)
 
-## Verification-intelligence decision
+## Verification-intelligence and orchestration decision
 
 Human verification remains central, but the interface should become more selective and useful. TomoCare should not equate governance with asking the user to manually confirm every extracted value.
 
-Future verification improvements should:
+Phase 3E.5 verification improvements will:
 
 - Allocate human attention according to uncertainty and consequence
 - Group internally consistent, low-risk administrative fields
@@ -165,11 +179,23 @@ Future verification improvements should:
 - Surface contradictions, omissions, and unsupported source sections
 - Preserve corrections as structured feedback for extraction and normalization improvement
 
+This verification capability is the first justified specialist agent because it has a distinct evidence context, read-only authority, comparison responsibility, failure modes, and eval contract. Phase 3E.6 then makes the handoff explicit and adds a second justified specialist around care-state reconciliation.
+
+The chosen pattern is a small manager-style hybrid system:
+
+- Tomo owns conversation, routing, synthesis, approval guidance, and recovery language.
+- The Verification Intelligence Agent owns document comparison and review assessment.
+- The Care Operations Agent owns trusted lifecycle reconciliation and proposed next steps.
+- Deterministic modules own date math, invoice arithmetic, schema validation, fingerprints, materialization, idempotency, and provider calls.
+- Rosa retains promotion and consequential-action approval.
+
+No new agent should be added merely to wrap a module or API. A specialist must make context, responsibility, permission, recovery, and evaluation clearer than the existing architecture.
+
 This work is part of the core governed-AI thesis and has higher portfolio priority than decorative polish.
 
-## Vaccine boundary for portfolio v1
+## Preventive-care boundary for portfolio v1
 
-Portfolio v1 should capture and explain the vaccine-status section of the invoice, but it does not need a complete vaccine lifecycle.
+Portfolio v1 should demonstrate a bounded preventive-care lifecycle for vaccines, annual wellness, annual senior-lab tracking, and a small allowlist of preventive screening. The lifecycle may track due, scheduled, and completed state, but it does not interpret lab results or infer that a future reminder proves completed care.
 
 Allowed claim:
 
@@ -179,17 +205,17 @@ Disallowed claim without a separate trusted administration event:
 
 > Momo received her rabies vaccine.
 
-No reminder should be created automatically unless the date meaning and source state have been verified and the applicable reminder contract has been approved in a later slice.
+No preventive-care reminder becomes active unless its date meaning and source state have been verified and Rosa approves the applicable Phase 3E.7 care-action contract.
 
 ## Deferred until after portfolio v1
 
 - Medication refill or prescription-renewal lifecycle, unless a trustworthy and very small source rule is identified
-- Complete vaccine reminder and administration lifecycle
-- Annual laboratory, urinalysis, imaging, and broad medical-document intelligence
+- Lab-result interpretation, longitudinal analyte comparison, urinalysis, imaging, and broad medical-document intelligence
 - Current-health inference, diagnosis, urgency judgment, or treatment recommendation
 - Broad durable relationship memory
 - Generic feedback controls that do not lead to source review or a concrete product-learning loop
-- Multi-agent orchestration without a demonstrated permission, responsibility, or recovery boundary
+- Decentralized agent swarms, recursive delegation, or an agent for every module
+- Agent-to-Agent protocol inside the current single application unless independently deployed or externally owned agents create a real interoperability need
 
 ## Portfolio v1 definition of done
 
@@ -198,6 +224,7 @@ The portfolio checkpoint is ready when:
 - The three demo stories work end to end from a resettable synthetic starting state.
 - No demo action can affect Momo's live records, clinic contact, Calendar, or inbox.
 - Verification directs attention to meaningful uncertainty and does not silently ignore the vaccine section.
+- The manager-to-specialist trace makes evidence, approval, and deterministic execution boundaries legible without exposing private content or hidden reasoning.
 - Profile, weight, attention, reminders, and the Librela request agree across UI, Chat, and Voice.
 - Every factual answer or operational calculation has a governing record or trusted source.
 - The Messages experience remains an approved draft handoff and makes no delivery or booking claim.
@@ -208,7 +235,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Phase 3E.5 — Risk-Weighted Verification Intelligence** with a contract-first inspection of the current extraction, AI triage, VerifyDocs presentation, user correction, verification, and trusted-materialization path. Confirm the decision categories, consequence model, missing-data behavior, explanation language, fixture boundary, and test plan before changing code.
+Begin **Phase 3E.5 — Verification Intelligence Agent** using the accepted historical-comparison, outcome, governance, fixture, and test contract in the current handover and orchestration decision. Do not begin Phase 3E.6 routing or Care Operations implementation until Phase 3E.5 is shipped and accepted.
 
 ## Maintenance rule
 

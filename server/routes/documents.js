@@ -7,6 +7,10 @@ import {
     buildWeightMaterializationRecommendation,
 } from "../lib/verifiedWeight.js"
 import { buildVerifiedDocumentMaterialization } from "../documents/verifiedDocumentMaterialization.js"
+import {
+    buildStaleAssessment,
+    validateVerificationApproval,
+} from "../verification/verificationIntelligence.js"
 
 const router = express.Router()
 
@@ -212,13 +216,18 @@ function getStoragePathFromFileUrl(fileUrl) {
 // - keep calendar sync as a separate explicit action (not triggered here)
 router.post("/documents/:docId/approve", async (req, res) => {
     const { docId } = req.params
-    const { verifiedBy = "rosa", notes = "" } = req.body || {}
+    const {
+        verifiedBy = "rosa",
+        notes = "",
+        candidateFingerprint = null,
+        acceptedPaths = [],
+    } = req.body || {}
 
     try {
         // 1) Load doc + extracted JSON
         const { data: doc, error } = await sbAdmin
             .from("documents")
-            .select("id, pet_id, doc_type, doc_date, source_org, title, status, text_extracted")
+            .select("id, pet_id, doc_type, doc_date, source_org, title, status, text_extracted, triage_result, updated_at")
             .eq("id", docId)
             .single()
 
@@ -237,6 +246,17 @@ router.post("/documents/:docId/approve", async (req, res) => {
             return res.status(400).json({ error: "No text_extracted found for this document." })
         }
 
+        const approval = validateVerificationApproval({
+            assessment: doc.triage_result,
+            extracted,
+            candidateFingerprint,
+            acceptedPaths,
+        })
+
+        if (!approval.ok) {
+            return res.status(409).json(approval)
+        }
+
         const nowIso = new Date().toISOString()
 
         const materialization = buildVerifiedDocumentMaterialization({
@@ -249,13 +269,37 @@ router.post("/documents/:docId/approve", async (req, res) => {
 
         // 2) Mark doc verified (doc-level gate)
         const { documentUpdate: docUpdate } = materialization
+        docUpdate.triage_result = {
+            ...doc.triage_result,
+            review: {
+                accepted_paths: approval.accepted_paths,
+                accepted_at: nowIso,
+                accepted_by: verifiedBy,
+                candidate_fingerprint: approval.candidate_fingerprint,
+            },
+        }
+        docUpdate.updated_at = nowIso
 
-        const { error: upErr } = await sbAdmin
+        let verifyUpdate = sbAdmin
             .from("documents")
             .update(docUpdate)
             .eq("id", docId)
 
+        verifyUpdate = doc.updated_at
+            ? verifyUpdate.eq("updated_at", doc.updated_at)
+            : verifyUpdate.is("updated_at", null)
+
+        const { data: verifiedDoc, error: upErr } = await verifyUpdate
+            .select("id")
+            .maybeSingle()
+
         if (upErr) return res.status(500).json({ error: upErr.message })
+        if (!verifiedDoc) {
+            return res.status(409).json({
+                error: "The document changed while it was being verified. Run the review again.",
+                reason: "stale_candidate",
+            })
+        }
 
         // 3) Materialize outputs (MVP: delete then insert for this doc_id)
         // Keeps iteration idempotent and avoids duplicate rows during PoC.
@@ -351,17 +395,43 @@ router.patch("/documents/:docId/text-extracted", async (req, res) => {
     const allowed = new Set(["ingested", "needs_review", "verified", "rejected"])
     const nextStatus = allowed.has(status) ? status : "needs_review"
 
+    const { data: currentDoc, error: currentError } = await sbAdmin
+        .from("documents")
+        .select("id, status, text_extracted, triage_result")
+        .eq("id", docId)
+        .single()
+
+    if (currentError || !currentDoc) {
+        return res.status(404).json({
+            error: currentError?.message || "Document not found",
+        })
+    }
+
+    if (currentDoc.status === "verified") {
+        return res.status(409).json({
+            error: "Verified records must use the governed repair workflow.",
+            reason: "already_verified",
+        })
+    }
+
     const nextDocDate = firstValidDate(
         text_extracted.doc_date,
         text_extracted.events?.[0]?.event_date,
         text_extracted.cost_items?.[0]?.service_date
     )
 
+    const changedAt = new Date().toISOString()
     const updatePayload = {
         text_extracted,
         remarks,
         status: nextStatus,
-        updated_at: new Date().toISOString(),
+        updated_at: changedAt,
+        triage_result: buildStaleAssessment({
+            previousAssessment: currentDoc.triage_result,
+            previousExtracted: currentDoc.text_extracted,
+            nextExtracted: text_extracted,
+            changedAt,
+        }),
     }
 
     if (nextDocDate) {

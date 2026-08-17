@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** August 14, 2026
+**Last updated:** August 16, 2026
 
 ---
 
@@ -73,6 +73,12 @@ A second operating rule defines the division of responsibility:
 > LLM interprets; database calculates; citations prove.
 
 The language model may interpret intent and compose a useful response. Structured records and deterministic logic establish core facts, schedules, and state. Citations make provenance visible at the moment a user needs to trust the result.
+
+As TomoCare introduces specialist agents, a third rule governs the architecture:
+
+> Agents reason over ambiguity; deterministic systems calculate, validate, persist, and execute.
+
+Tomo remains the one user-facing manager. Specialists receive only the evidence and tools required by a bounded contract, return structured handoffs, and never gain trusted-state or external-action authority merely because they are agents.
 
 ---
 
@@ -326,16 +332,19 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.3 shipped:** governed attention across qualifying reminders, pending or recoverable actions, and documents awaiting review; deterministic ranking and time windows; natural Chat and Voice summaries; and typed navigation to the governing TomoCare or Google Calendar destination
 - **3E.4 shipped:** governed Profile answers from the current `pets` row; deterministic age calculation; honest missing-data behavior; warm but clearly separated relationship context; question-aware clarification for broad wellbeing language; and typed read-only navigation to the Profile panel
 
-The next bounded slice is **3E.5 — Risk-Weighted Verification Intelligence**:
+The next bounded slice is **3E.5 — Verification Intelligence Agent**:
 
-- Inspect the existing extraction, triage, VerifyDocs, correction, and materialization boundaries before changing behavior
-- Direct human attention according to uncertainty and downstream consequence instead of treating every extracted field equally
-- Explain why a field needs review when it can affect trusted care state, scheduling, costs, or a later governed workflow
-- Surface missing, contradictory, unreadable, or prominent unsupported source content without promoting it to trusted truth
+- Compare the current source and candidate with deterministic checks and up to five comparable trusted records
+- Establish a repeated pattern only after at least three consecutive comparable verified records
+- Direct attention to meaningful changes, conflicts, uncertainty, and unsupported content instead of treating every field equally
+- Group consistent low-risk administrative values without labeling them trusted or bypassing Rosa's final verification
+- Invalidate stale assessment after edits and enforce the current candidate fingerprint at backend verification
 - Preserve source-side review, editable candidate truth, explicit verification, and human-controlled materialization
-- Use a representative synthetic or sanitized fixture for tests without yet building the complete demo Gmail path
+- Use a wholly fictional fixture for tests without yet building the complete demo Gmail path
 
-After Phase 3E.5, near-term work proceeds through bounded vaccine-status capture, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and then the final synthetic-invoice Gmail path and end-to-end polish. This order lets verification, vaccine, weight, and recovery improvements benefit the real product before the demo environment inherits them. Annual-health intelligence remains part of the real-care north star rather than portfolio v1 scope.
+After Phase 3E.5, **3E.6 — Tomo Multi-Agent Orchestration Foundation** makes Tomo the explicit manager, exposes Verification Intelligence through a typed read-only handoff, and wraps existing reminder and care-action reconciliation as the Care Operations Agent. It reuses durable orchestration and action state, adds specialist permissions and traces, and keeps materialization and provider calls deterministic and approval-gated.
+
+Near-term work then proceeds through **3E.7 — Preventive Care Lifecycle**, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and the final synthetic-invoice Gmail path and end-to-end polish. Phase 3E.7 covers vaccines, annual wellness, annual senior-lab lifecycle state, and bounded preventive screening while leaving lab-result interpretation outside portfolio v1. This order lets verification, orchestration, preventive care, weight, and recovery improvements benefit the real product before the demo environment inherits them.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
@@ -361,13 +370,29 @@ Live Twilio delivery is no longer planned for the current product. Reconsider a 
 
 **Phase thesis:** The smallest truthful external handoff is better than provider complexity the product does not need.
 
-### Phase 4 — Generalized multi-agent care operations
+### Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation
 
-TomoCare is being built toward a governed multi-agent system, but specialized agents and orchestration should be introduced only when the product needs genuine role separation, independent tool boundaries, or coordination across workflows.
+TomoCare will become a small governed manager-style multi-agent system. Tomo owns conversation, specialist selection, synthesis, approval guidance, and recovery language. The first two specialist roles are Verification Intelligence and Care Operations.
 
-Possible future roles include record processing, care planning, communication preparation, and evaluation. A role should not become a separate agent merely to make the architecture appear more advanced.
+The foundation must provide typed inputs and outputs, allowlisted tools, bounded context, specialist permissions, durable run state, concise traces, stale-state protection, timeouts, retries, and separate evals. `orchestration_runs` remains the durable run record and `care_actions` remains the governed action ledger. Calendar, Messages, database materialization, date calculations, arithmetic, validation, and idempotency remain restricted deterministic tools.
 
-**Decision gate:** Add each specialist role when it makes responsibility, context, permission, or recovery clearer than the current modular architecture.
+**Phase thesis:** Tomo may coordinate specialist reasoning without allowing agents to become an alternate path around trusted truth, deterministic rules, or human approval.
+
+### Phase 3E.7 — Preventive Care Lifecycle
+
+TomoCare will turn clinic-reported future-care information into governed, source-linked candidates for vaccines, annual wellness exams, annual senior-lab panels, and bounded preventive screening such as heartworm testing. The lifecycle distinguishes due, scheduled, completed, and unknown state; deduplicates repeated source entries; requires grouped human review; and reconciles approved actions with reminders, the dashboard, grounded answers, and Google Calendar.
+
+A future reminder is not evidence of administration or completion. Senior-lab tracking covers lifecycle state only; result values, analyte trends, reference ranges, and medical interpretation remain outside the phase.
+
+**Phase thesis:** Important preventive care should become an accountable lifecycle without turning clinic reminders into completed medical facts.
+
+### Phase 4 — Governed specialist expansion
+
+After the portfolio checkpoint, additional specialists may be considered for genuinely distinct domains such as annual-health document comparison or care-plan preparation. A role should not become a separate agent merely to make the architecture appear more advanced.
+
+**Decision gate:** Add a specialist only when its context, reasoning responsibility, permission set, failure modes, and eval contract are meaningfully distinct from both deterministic modules and the existing agents.
+
+The complete decision and phased build plan is maintained in [TomoCare Multi-Agent Orchestration Decision and Build Plan](./TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md).
 
 ---
 
@@ -465,7 +490,7 @@ TomoCare is Rosa’s flagship example of designing at the architecture layer of 
 
 The portfolio narrative should remain personal first and technical second. It should open with Momo and the real care problem, then reveal the transferable system patterns.
 
-Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded chat and voice, a native Apple Messages draft handoff, and optional live character animation. The handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Inbound reply interpretation and broader assistant coverage remain unfinished. Describe TomoCare as a governed AI assistant; multi-agent orchestration is a future design direction, not a current capability.
+Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded chat and voice, a native Apple Messages draft handoff, and optional live character animation. The handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Inbound reply interpretation and broader assistant coverage remain unfinished. Until Phase 3E.6 is shipped and validated, describe TomoCare as a governed AI assistant with an accepted manager-style multi-agent roadmap, not as a shipped multi-agent system.
 
 Portfolio demonstrations should use the separate resettable synthetic environment by default. Real Momo records remain appropriate for private product use and validation, but screenshots, recordings, and interviews should not depend on live clinic, insurance, recipient, or medical data. The portfolio story should demonstrate the same governance rules as the real product rather than relaxing them for convenience.
 

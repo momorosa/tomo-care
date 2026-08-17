@@ -36,7 +36,7 @@ export default function VerifyHeader({
                   : "text-tomo-text"
               }`}
             >
-              {flaggedResolved} / {flaggedTotal} flags resolved
+              {flaggedResolved} / {flaggedTotal} attention items reviewed
             </span>
           )}
 
@@ -55,8 +55,8 @@ export default function VerifyHeader({
 
         {showHint && (
           <p className="text-[11px] text-tomo-warning">
-            Review {unreviewedCount} flagged field
-            {unreviewedCount > 1 ? "s" : ""} to approve
+            Review {unreviewedCount} attention item
+            {unreviewedCount > 1 ? "s" : ""} to save
           </p>
         )}
 

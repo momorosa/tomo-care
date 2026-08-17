@@ -1,6 +1,8 @@
 import { useMemo } from "react"
 import { formatDisplayDate } from "../../lib/displayDate.js"
+import { formatDisplayMoney } from "./formatDisplayMoney.js"
 import { stopWheelIfScrollable } from "./stopWheelIfScrollable.js"
+import { isLegacyVerificationReview } from "./triageReviewState.js"
 
 // ─────────────────────────────────────────────
 // Triage helpers
@@ -22,6 +24,13 @@ const STATE_LABELS = {
     "auto-confirmed": "Confirmed",
     "needs-confirmation": "Needs review",
     "unreadable-source": "Unreadable source",
+    consistent_pattern: "Consistent",
+    new_or_limited_history: "Limited history",
+    changed_from_pattern: "Changed",
+    conflict_or_uncertainty: "Check this",
+    not_captured: "Not captured",
+    manual_review: "Manual review",
+    historical_review: "Historical review",
     accepted: "Accepted",
     verified: "Verified",
 }
@@ -30,6 +39,13 @@ const STATE_BADGE = {
     "auto-confirmed": "tomo-badge--success",
     "needs-confirmation": "tomo-badge--warning",
     "unreadable-source": "tomo-badge--danger",
+    consistent_pattern: "tomo-badge--success",
+    new_or_limited_history: "tomo-badge--neutral",
+    changed_from_pattern: "tomo-badge--warning",
+    conflict_or_uncertainty: "tomo-badge--danger",
+    not_captured: "tomo-badge--neutral",
+    manual_review: "tomo-badge--warning",
+    historical_review: "tomo-badge--neutral",
     accepted: "tomo-badge--success",
     verified: "tomo-badge--success",
 }
@@ -39,7 +55,111 @@ const STATE_BADGE = {
 const STATE_CARD_CLASS = {
     "needs-confirmation": "tomo-review-card--needs-review",
     "unreadable-source": "tomo-review-card--unreadable",
+    changed_from_pattern: "tomo-review-card--needs-review",
+    conflict_or_uncertainty: "tomo-review-card--unreadable",
+    manual_review: "tomo-review-card--needs-review",
     accepted: "tomo-review-card--accepted",
+}
+
+function reviewState(field) {
+    return field?.outcome || field?.state || null
+}
+
+function isAttentionField(field) {
+    return (
+        field?.blocks_approval === true ||
+        field?.outcome === "changed_from_pattern" ||
+        field?.outcome === "conflict_or_uncertainty" ||
+        field?.outcome === "manual_review" ||
+        field?.state === "needs-confirmation" ||
+        field?.state === "unreadable-source"
+    )
+}
+
+function isContextField(field) {
+    return (
+        field?.outcome === "consistent_pattern" ||
+        field?.outcome === "new_or_limited_history" ||
+        field?.state === "auto-confirmed"
+    )
+}
+
+function displayReviewValue(value) {
+    if (value == null || value === "") return "—"
+    if (Array.isArray(value)) return value.join(", ") || "—"
+    if (typeof value !== "object") return String(value)
+    if (value.label && value.amount != null) {
+        return `${value.label} · $${Number(value.amount).toFixed(2)}`
+    }
+    if (value.value != null && value.unit) {
+        return `${value.value} ${value.unit}`
+    }
+    if (value.calculated_line_total != null) {
+        return `Calculated $${Number(value.calculated_line_total).toFixed(2)}${
+            value.source_paid_total != null
+                ? ` · source $${Number(value.source_paid_total).toFixed(2)}`
+                : " · source total missing"
+        }`
+    }
+    return JSON.stringify(value)
+}
+
+function displayReviewLabel(path) {
+    const labels = {
+        "checks.date_consistency": "Visit and line-item dates",
+        "checks.invoice_arithmetic": "Invoice total",
+        "checks.weight_comparison": "Weight comparison",
+        invoice_id: "Invoice number",
+        doc_date: "Document date",
+        source_org: "Clinic",
+        summary: "Visit summary",
+        "totals.paid": "Paid total",
+    }
+    if (labels[path]) return labels[path]
+
+    const costMatch = path.match(
+        /cost_items\[(\d+)\]\.(label|amount|service_date)/
+    )
+    if (costMatch) {
+        const suffix = {
+            label: "description",
+            amount: "amount",
+            service_date: "date",
+        }[costMatch[2]]
+        return `Line item ${Number(costMatch[1]) + 1} ${
+            suffix
+        }`
+    }
+
+    const patternMatch = path.match(/patterns\.cost_items\[(\d+)\]/)
+    if (patternMatch) {
+        return `Repeated line item ${Number(patternMatch[1]) + 1}`
+    }
+
+    if (path === "weight_measurement.value") return "Weight value"
+    if (path === "weight_measurement.unit") return "Weight unit"
+    if (path === "weight_measurement.measured_date") return "Weight date"
+    const eventMatch = path.match(
+        /events\[(\d+)\]\.(event_type|event_date|description)/
+    )
+    if (eventMatch) {
+        const suffix = {
+            event_type: "type",
+            event_date: "date",
+            description: "description",
+        }[eventMatch[2]]
+        return `Care event ${Number(eventMatch[1]) + 1} ${suffix}`
+    }
+    return "Review item"
+}
+
+function getValueAtPath(value, path) {
+    const parts = String(path || "")
+        .replace(/\[(\d+)\]/g, ".$1")
+        .split(".")
+        .filter(Boolean)
+
+    return parts.reduce((current, part) => current?.[part], value)
 }
 
 function TriageBadge({ state }) {
@@ -120,30 +240,27 @@ export default function WorkingPanel({
             triageResult.overall_confidence === "low" &&
             triageResult.fields?.length === 0)
 
+    const isLegacyReview = isLegacyVerificationReview({
+        triageResult,
+        isVerified,
+    })
+
     const flaggedCount = useMemo(() => {
         if (!hasTriage) return 0
         if (isVerified) return 0
 
-        return triageResult.fields.filter(
-            (f) =>
-                f.state === "needs-confirmation" ||
-                f.state === "unreadable-source"
-        ).length
+        return triageResult.fields.filter(isAttentionField).length
     }, [triageResult, hasTriage, isVerified])
 
     const rawFlaggedCount = useMemo(() => {
         if (!hasTriage) return 0
 
-        return triageResult.fields.filter(
-            (f) =>
-                f.state === "needs-confirmation" ||
-                f.state === "unreadable-source"
-        ).length
+        return triageResult.fields.filter(isAttentionField).length
     }, [triageResult, hasTriage])
 
     const confirmedCount = useMemo(() => {
         if (!hasTriage) return 0
-        return triageResult.fields.filter((f) => f.state === "auto-confirmed").length
+        return triageResult.fields.filter(isContextField).length
     }, [triageResult, hasTriage])
 
     const reviewedFieldCount = hasTriage ? triageResult.fields.length : 0
@@ -170,13 +287,25 @@ export default function WorkingPanel({
 
                 {hasTriage && !triageLoading && isVerified && (
                     <div className="mt-3 flex items-center gap-3 rounded-lg border border-tomo-border px-3 py-2.5 bg-[rgba(255,255,255,0.025)]">
-                        <TriageBadge state="verified" />
+                        <TriageBadge
+                            state={
+                                isLegacyReview
+                                    ? "historical_review"
+                                    : "verified"
+                            }
+                        />
                         <p className="text-[11px] text-tomo-text">
-                            {reviewedFieldCount} field
-                            {reviewedFieldCount === 1 ? "" : "s"} accepted
-                            {rawFlaggedCount > 0
-                                ? ` · ${rawFlaggedCount} originally flagged`
-                                : ""}
+                            {isLegacyReview
+                                ? `${reviewedFieldCount} legacy review item${
+                                      reviewedFieldCount === 1 ? "" : "s"
+                                  } preserved`
+                                : `${reviewedFieldCount} review item${
+                                      reviewedFieldCount === 1 ? "" : "s"
+                                  } recorded${
+                                      rawFlaggedCount > 0
+                                          ? ` · ${rawFlaggedCount} originally flagged`
+                                          : ""
+                                  }`}
                         </p>
                     </div>
                 )}
@@ -185,17 +314,17 @@ export default function WorkingPanel({
                     <div className="mt-2 flex items-center gap-3">
                         <TriageBadge
                             state={
-                                triageResult.overall_confidence === "high"
-                                    ? "auto-confirmed"
-                                    : "needs-confirmation"
+                                flaggedCount > 0
+                                    ? "needs-confirmation"
+                                    : "consistent_pattern"
                             }
                         />
                         <p className="text-[11px] text-tomo-text">
                             {flaggedCount > 0
-                                ? `${flaggedCount} field${
+                                ? `${flaggedCount} item${
                                       flaggedCount > 1 ? "s" : ""
-                                  } flagged · ${confirmedCount} confirmed`
-                                : `All ${confirmedCount} fields confirmed`}
+                                  } need attention · ${confirmedCount} grouped`
+                                : `${confirmedCount} review items grouped`}
                         </p>
                     </div>
                 )}
@@ -207,6 +336,15 @@ export default function WorkingPanel({
                         </p>
                     </div>
                 )}
+
+                {triageResult?.history?.unavailable &&
+                    !triageLoading &&
+                    !isVerified && (
+                        <p className="mt-2 text-[11px] text-tomo-warning">
+                            Recent verified history is unavailable. No repeated
+                            pattern was assumed.
+                        </p>
+                    )}
 
                 <div
                     className="flex gap-6 mt-4 border-b border-tomo-border"
@@ -237,7 +375,9 @@ export default function WorkingPanel({
                         {isVerified && !editMode ? (
                             <div className="rounded-lg border           border-tomo-border px-3 py-2 bg-[rgba(255,255,255,0.025)]">
                                 <p className="text-[11px] text-tomo-text">
-                                    Verified record · read-only audit view
+                                    {isLegacyReview
+                                        ? "Verified record · historical review used legacy rules"
+                                        : "Verified record · read-only audit view"}
                                 </p>
                             </div>
                         ) : !editMode ? (
@@ -273,7 +413,7 @@ export default function WorkingPanel({
                                         onClick={onSaveAndVerify || undefined}
                                         disabled={!onSaveAndVerify || !dirty}
                                     >
-                                        Save &amp; verify
+                                        Save &amp; recheck
                                     </button>
                                 </div>
 
@@ -304,7 +444,7 @@ export default function WorkingPanel({
                         isVerified={isVerified}
                         triageMap={triageMap}
                         hasTriage={hasTriage}
-                        isFailSafe={isFailSafe}
+                        isLegacyReview={isLegacyReview}
                         acceptedPaths={acceptedPaths}
                         onAcceptField={onAcceptField}
                         onAcceptAllConfirmed={onAcceptAllConfirmed}
@@ -346,7 +486,7 @@ function FieldsView({
     isVerified,
     triageMap,
     hasTriage,
-    isFailSafe,
+    isLegacyReview,
     acceptedPaths,
     onAcceptField,
     onAcceptAllConfirmed,
@@ -360,7 +500,7 @@ function FieldsView({
     onAddCostItem,
     onRemoveCostItem,
 }) {
-    if (hasTriage && !editMode && !isFailSafe) {
+    if (hasTriage && !editMode && !isLegacyReview) {
         return (
             <div className="space-y-5 pb-6">
                 <FlaggedFieldsSection
@@ -370,6 +510,8 @@ function FieldsView({
                     onAcceptField={onAcceptField}
                     isVerified={isVerified}
                 />
+
+                <NotCapturedSection triageMap={triageMap} />
 
                 <ConfirmedFieldsSection
                     data={data}
@@ -385,11 +527,17 @@ function FieldsView({
 
     return (
         <div className="space-y-5 pb-6">
+            {isLegacyReview && (
+                <LegacyReviewSection data={data} triageMap={triageMap} />
+            )}
+
             {!editMode ? (
                 <Field
                     label="Invoice"
                     value={data?.invoice_id}
-                    triage={triageMap["invoice_id"]}
+                    triage={
+                        isLegacyReview ? null : triageMap["invoice_id"]
+                    }
                     isVerified={isVerified}
                 />
             ) : (
@@ -406,12 +554,13 @@ function FieldsView({
                 label="Paid"
                 value={
                     data?.totals?.paid != null
-                        ? `${data.totals.paid} ${
-                              data?.totals?.currency || ""
-                          }`.trim()
+                        ? formatDisplayMoney(
+                              data.totals.paid,
+                              data?.totals?.currency
+                          )
                         : null
                 }
-                triage={triageMap["totals.paid"]}
+                triage={isLegacyReview ? null : triageMap["totals.paid"]}
                 isVerified={isVerified}
             />
 
@@ -419,7 +568,7 @@ function FieldsView({
                 measurement={data?.weight_measurement || null}
                 editMode={editMode}
                 isVerified={isVerified}
-                triageMap={triageMap}
+                triageMap={isLegacyReview ? {} : triageMap}
                 errors={validationErrors}
                 fallbackDate={data?.doc_date || ""}
                 onUpdate={onUpdateWeightMeasurement}
@@ -428,7 +577,7 @@ function FieldsView({
             <Field
                 label="Summary"
                 value={data?.summary}
-                triage={triageMap["summary"]}
+                triage={isLegacyReview ? null : triageMap["summary"]}
                 isVerified={isVerified}
             />
 
@@ -437,7 +586,7 @@ function FieldsView({
                 isVerified={isVerified}
                 events={data?.events || []}
                 errors={validationErrors}
-                triageMap={triageMap}
+                triageMap={isLegacyReview ? {} : triageMap}
                 onAdd={onAddEvent}
                 onRemove={onRemoveEvent}
                 onUpdate={onUpdateEvent}
@@ -448,11 +597,93 @@ function FieldsView({
                 isVerified={isVerified}
                 costItems={data?.cost_items || []}
                 errors={validationErrors}
-                triageMap={triageMap}
+                triageMap={isLegacyReview ? {} : triageMap}
                 onAdd={onAddCostItem}
                 onRemove={onRemoveCostItem}
                 onUpdate={onUpdateCostItem}
             />
+        </div>
+    )
+}
+
+function LegacyReviewSection({ data, triageMap }) {
+    const items = Object.values(triageMap)
+
+    if (!items.length) return null
+
+    return (
+        <details className="group">
+            <summary className="cursor-pointer list-none">
+                <div className="p-3 rounded-lg border border-tomo-border hover:border-tomo-border/80 transition-colors">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-tomo-text group-open:rotate-90 transition-transform">
+                            ▶
+                        </span>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-tomo-text">
+                            Historical review details · {items.length}
+                        </p>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-tomo-text">
+                        Preserved from the rules used when this document was
+                        verified. This is not a current risk-weighted assessment.
+                    </p>
+                </div>
+            </summary>
+
+            <div className="mt-2 space-y-1">
+                {items.map((field) => (
+                    <div
+                        key={field.path}
+                        className="px-3 py-2 rounded-lg tomo-subtle-row"
+                    >
+                        <div className="flex items-center gap-2">
+                            <p className="text-xs font-mono text-tomo-text break-all">
+                                {displayReviewLabel(field.path)}
+                            </p>
+                            <TriageBadge state="accepted" />
+                        </div>
+                        <p className="text-sm text-tomo-text-h break-words">
+                            {displayReviewValue(
+                                field.extracted_value ??
+                                    getValueAtPath(data, field.path)
+                            )}
+                        </p>
+                        <TriageReason reason={field.reason} />
+                    </div>
+                ))}
+            </div>
+        </details>
+    )
+}
+
+function NotCapturedSection({ triageMap }) {
+    const items = Object.values(triageMap).filter(
+        (field) => field.outcome === "not_captured"
+    )
+
+    if (!items.length) return null
+
+    return (
+        <div>
+            <p className="tomo-section-label mb-3">
+                Seen in source · not captured
+            </p>
+            <div className="space-y-2">
+                {items.map((field) => (
+                    <div
+                        key={field.path}
+                        className="tomo-review-card border-tomo-border"
+                    >
+                        <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium text-tomo-text-h">
+                                {displayReviewValue(field.extracted_value)}
+                            </p>
+                            <TriageBadge state="not_captured" />
+                        </div>
+                        <TriageReason reason={field.reason} />
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }
@@ -467,11 +698,7 @@ function FlaggedFieldsSection({
     onAcceptField,
     isVerified,
 }) {
-    const flagged = Object.values(triageMap).filter(
-        (f) =>
-            f.state === "needs-confirmation" ||
-            f.state === "unreadable-source"
-    )
+    const flagged = Object.values(triageMap).filter(isAttentionField)
 
     if (flagged.length === 0) {
         return (
@@ -503,7 +730,8 @@ function FlaggedFieldsSection({
 
                     const cardClass = accepted
                         ? STATE_CARD_CLASS.accepted
-                        : STATE_CARD_CLASS[f.state] || STATE_CARD_CLASS["needs-confirmation"]
+                        : STATE_CARD_CLASS[reviewState(f)] ||
+                          STATE_CARD_CLASS["needs-confirmation"]
 
                     return (
                         <div
@@ -514,20 +742,18 @@ function FlaggedFieldsSection({
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                         <p className="text-xs font-mono text-tomo-accent break-all">
-                                            {f.path}
+                                            {displayReviewLabel(f.path)}
                                         </p>
 
                                         <ReviewStatusBadge
-                                            state={f.state}
+                                            state={reviewState(f)}
                                             accepted={accepted}
                                             isVerified={isVerified}
                                         />
                                     </div>
 
                                     <p className="text-sm font-medium text-tomo-text-h break-words">
-                                        {f.extracted_value != null
-                                            ? String(f.extracted_value)
-                                            : "—"}
+                                        {displayReviewValue(f.extracted_value)}
                                     </p>
 
                                     <TriageReason reason={f.reason} />
@@ -551,7 +777,7 @@ function FlaggedFieldsSection({
 }
 
 // ─────────────────────────────────────────────
-// Confirmed fields
+// Grouped nonblocking review context
 // ─────────────────────────────────────────────
 
 function ConfirmedFieldsSection({
@@ -561,14 +787,17 @@ function ConfirmedFieldsSection({
     onAcceptAllConfirmed,
     isVerified,
 }) {
-    const confirmed = Object.values(triageMap).filter(
-        (f) => f.state === "auto-confirmed"
-    )
+    const confirmed = Object.values(triageMap).filter(isContextField)
 
     if (confirmed.length === 0) return null
 
+    const legacyConfirmed = confirmed.filter(
+        (field) => field.state === "auto-confirmed" && !field.outcome
+    )
     const allAccepted =
-        isVerified || confirmed.every((f) => acceptedPaths.has(f.path))
+        isVerified ||
+        legacyConfirmed.length === 0 ||
+        legacyConfirmed.every((field) => acceptedPaths.has(field.path))
 
     return (
         <details className="group">
@@ -580,20 +809,20 @@ function ConfirmedFieldsSection({
                         </span>
                         <p className="text-[11px] uppercase tracking-[0.12em] text-tomo-text">
                             {isVerified
-                                ? `Accepted auto-confirmed fields · ${confirmed.length}`
-                                : `Auto-confirmed · ${confirmed.length} field${
-                                      confirmed.length > 1 ? "s" : ""
-                                  }`}
+                                ? `Accepted review context · ${confirmed.length}`
+                                : `Grouped review context · ${confirmed.length}`}
                         </p>
 
                         {allAccepted && (
                             <span className="text-[10px] text-tomo-success">
-                                All accepted
+                                {legacyConfirmed.length > 0
+                                    ? "All accepted"
+                                    : "No action needed"}
                             </span>
                         )}
                     </div>
 
-                    {!isVerified && !allAccepted && (
+                    {!isVerified && !allAccepted && legacyConfirmed.length > 0 && (
                         <button
                             className="text-xs px-3 py-1 rounded-full border transition-colors border-[color:var(--tomo-success-border)] text-tomo-success hover:bg-[var(--tomo-success-bg)]"
                             onClick={(e) => {
@@ -609,7 +838,12 @@ function ConfirmedFieldsSection({
 
             <div className="mt-2 space-y-1">
                 {confirmed.map((f) => {
-                    const accepted = isVerified || acceptedPaths.has(f.path)
+                    const requiresAcceptance =
+                        f.state === "auto-confirmed" && !f.outcome
+                    const accepted =
+                        isVerified ||
+                        !requiresAcceptance ||
+                        acceptedPaths.has(f.path)
 
                     return (
                         <div
@@ -619,23 +853,18 @@ function ConfirmedFieldsSection({
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                     <p className="text-xs font-mono text-tomo-text break-all">
-                                        {f.path}
+                                        {displayReviewLabel(f.path)}
                                     </p>
-                                    {accepted && (
-                                        <span className="text-[10px] text-tomo-success">
-                                            Accepted
-                                        </span>
-                                    )}
+                                    <TriageBadge state={reviewState(f)} />
                                 </div>
 
                                 <p className="text-sm text-tomo-text-h truncate">
-                                    {f.extracted_value != null
-                                        ? String(f.extracted_value)
-                                        : "—"}
+                                    {displayReviewValue(f.extracted_value)}
                                 </p>
+                                <TriageReason reason={f.reason} />
                             </div>
 
-                            {!accepted && (
+                            {!accepted && requiresAcceptance && (
                                 <button
                                     className="shrink-0 text-[11px] px-2 py-1 rounded-full border border-tomo-border text-tomo-text hover:text-tomo-text-h transition-colors"
                                     onClick={() => onAcceptField?.(f.path)}
@@ -662,7 +891,7 @@ function Field({ label, value, triage, isVerified = false }) {
                 <p className="text-xs text-tomo-text">{label}</p>
                 {triage && (
                     <ReviewStatusBadge
-                        state={triage.state}
+                        state={reviewState(triage)}
                         accepted={isVerified}
                         isVerified={isVerified}
                     />
@@ -742,7 +971,7 @@ function WeightMeasurementBlock({
                     </p>
                     {triage && (
                         <ReviewStatusBadge
-                            state={triage.state}
+                            state={reviewState(triage)}
                             accepted={isVerified}
                             isVerified={isVerified}
                         />
@@ -891,7 +1120,7 @@ function EventsBlock({
 
                                         {triage && (
                                             <ReviewStatusBadge
-                                                state={triage.state}
+                                                state={reviewState(triage)}
                                                 accepted={isVerified}
                                                 isVerified={isVerified}
                                             />
@@ -1092,7 +1321,7 @@ function CostItemsBlock({
 
                                         {triage && (
                                             <ReviewStatusBadge
-                                                state={triage.state}
+                                                state={reviewState(triage)}
                                                 accepted={isVerified}
                                                 isVerified={isVerified}
                                             />
@@ -1102,7 +1331,10 @@ function CostItemsBlock({
                                     <p className="text-xs text-tomo-text">
                                         {formatDisplayDate(ci?.service_date)} ·{" "}
                                         {ci?.category || "—"} ·{" "}
-                                        {ci?.amount ?? "—"} {ci?.currency || ""}
+                                        {formatDisplayMoney(
+                                            ci?.amount,
+                                            ci?.currency
+                                        )}
                                     </p>
 
                                     {triage && (
