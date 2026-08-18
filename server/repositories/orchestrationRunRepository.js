@@ -45,6 +45,25 @@ export const orchestrationRunRepository = {
         return data?.[0] || null
     },
 
+    async findReusableRun({
+        petId,
+        workflowType,
+        contextFingerprint,
+    }) {
+        const { data, error } = await sbAdmin
+            .from("orchestration_runs")
+            .select(ORCHESTRATION_RUN_RETURN_COLUMNS)
+            .eq("pet_id", petId)
+            .eq("workflow_type", workflowType)
+            .eq("context_fingerprint", contextFingerprint)
+            .eq("status", "complete_no_action")
+            .order("created_at", { ascending: false })
+            .limit(1)
+
+        if (error) throw error
+        return data?.[0] || null
+    },
+
     async findRunById(runId) {
         const { data, error } = await sbAdmin
             .from("orchestration_runs")
