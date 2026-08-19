@@ -7,6 +7,7 @@ import { getTriageReviewState } from "../triageReviewState.js"
 // whether the document can be approved.
 export function useTriage(isVerified) {
     const [triageResult, setTriageResult] = useState(null)
+    const [orchestrationTrace, setOrchestrationTrace] = useState(null)
     const [triageLoading, setTriageLoading] = useState(false)
     const [acceptedPaths, setAcceptedPaths] = useState(new Set())
 
@@ -14,15 +15,18 @@ export function useTriage(isVerified) {
         if (!id) return
 
         setTriageLoading(true)
+        setOrchestrationTrace(null)
 
         try {
             const j = await api.runTriage(id, { force })
             setTriageResult(j.triage_result)
+            setOrchestrationTrace(j.orchestration_trace || null)
             setAcceptedPaths(new Set())
             return j.triage_result
         } catch (e) {
             console.error("[triage]", e.message)
             setTriageResult(null)
+            setOrchestrationTrace(e.orchestrationTrace || null)
             throw e
         } finally {
             setTriageLoading(false)
@@ -51,6 +55,7 @@ export function useTriage(isVerified) {
 
     const reset = useCallback(() => {
         setTriageResult(null)
+        setOrchestrationTrace(null)
         setTriageLoading(false)
         setAcceptedPaths(new Set())
     }, [])
@@ -67,6 +72,7 @@ export function useTriage(isVerified) {
 
     return {
         triageResult,
+        orchestrationTrace,
         triageLoading,
         acceptedPaths,
         setTriageResult,
