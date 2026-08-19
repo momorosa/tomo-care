@@ -177,6 +177,13 @@ function getExplicitMonth(question) {
     ]
 
     for (const [index, aliases] of months.entries()) {
+        if (
+            aliases[0] === "may" &&
+            !looksLikeCalendarMay(question)
+        ) {
+            continue
+        }
+
         if (new RegExp(`\\b(?:${aliases.join("|")})\\b`).test(question)) {
             return {
                 index,
@@ -188,4 +195,20 @@ function getExplicitMonth(question) {
     }
 
     return null
+}
+
+function looksLikeCalendarMay(question) {
+    if (!/\bmay\b/.test(question)) return false
+
+    return (
+        /^may[?.!]*$/.test(question.trim()) ||
+        /\bmay\s+20\d{2}\b/.test(question) ||
+        /\b20\d{2}\s+may\b/.test(question) ||
+        /\b(?:in|during|for|from|through|until|since|before|after)\s+may\b/.test(
+            question
+        ) ||
+        /\b(?:calendar|schedule|timeline|records?|events?|appointments?)\b[^.!?]*\bmay\b/.test(
+            question
+        )
+    )
 }

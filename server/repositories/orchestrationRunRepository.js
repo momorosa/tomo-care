@@ -56,7 +56,10 @@ export const orchestrationRunRepository = {
             .eq("pet_id", petId)
             .eq("workflow_type", workflowType)
             .eq("context_fingerprint", contextFingerprint)
-            .eq("status", "complete_no_action")
+            .in("status", [
+                "complete_no_action",
+                "awaiting_human_review",
+            ])
             .order("created_at", { ascending: false })
             .limit(1)
 

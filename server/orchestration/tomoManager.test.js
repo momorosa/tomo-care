@@ -141,6 +141,39 @@ test("checkpoints a successful specialist handoff and a safe trace", async () =>
     assert.doesNotMatch(persisted, /prompt/i)
 })
 
+test("keeps a proposed governed action awaiting human review without persisting its payload", async () => {
+    const repository = buildRepository()
+    const registry = buildRegistry(async () => ({
+        result_status: "assessment_ready",
+        run_disposition: "awaiting_human_review",
+        governed_action: {
+            id: "action-1",
+            status: "proposed",
+            action_type: "mark_home_medication_given",
+            payload_json: {
+                private_note: "DO NOT PERSIST",
+            },
+        },
+        evidence_ids: ["reminder-1"],
+        pending_human_decision: "review_proposed_care_action",
+        human_control_boundary:
+            "Rosa must review before trusted care state changes.",
+    }))
+    const result = await coordinate({ repository, registry })
+    const patch = repository.calls.updateRun[0].patch
+
+    assert.equal(result.status, "completed")
+    assert.equal(patch.status, "awaiting_human_review")
+    assert.equal(patch.current_step, "human_review")
+    assert.equal(patch.completed_at, null)
+    assert.deepEqual(patch.result_json.governed_action, {
+        id: "action-1",
+        status: "proposed",
+        action_type: "mark_home_medication_given",
+    })
+    assert.doesNotMatch(JSON.stringify(patch), /DO NOT PERSIST/)
+})
+
 test("recovers a matching completed run without repeating specialist work", async () => {
     let specialistCalls = 0
     const reusableTrace = {

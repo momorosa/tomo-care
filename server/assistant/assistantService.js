@@ -1,7 +1,7 @@
 import { buildQueryPlan } from "./queryPlanner.js"
 import { composeGroundedAnswer } from "./answerComposer.js"
-import { prepareAssistantHomeMedicationAction } from "./homeMedicationAction.js"
 import { coordinatePersistedLibrelaAppointmentRequest } from "../orchestration/persistedLibrelaAppointmentWorkflow.js"
+import { coordinateCareOperationsHandoff } from "../orchestration/careOperationsHandoff.js"
 import { isReadOnlyEvaluationBlocked } from "./evalAssertions.js"
 import { getCareDate } from "../lib/careDates.js"
 import {
@@ -41,7 +41,7 @@ export async function answerAssistantQuestion({
     const {
         buildPlan = buildQueryPlan,
         composeAnswer = composeGroundedAnswer,
-        prepareMedicationAction = prepareAssistantHomeMedicationAction,
+        coordinateCareOperations = coordinateCareOperationsHandoff,
         coordinateAppointmentRequest =
             coordinatePersistedLibrelaAppointmentRequest,
         currentCareDate = getCareDate(),
@@ -123,29 +123,37 @@ export async function answerAssistantQuestion({
               currentCareDate,
           })
         : null
+    const isCareOperationsIntent = [
+        "home_medication_status",
+        "home_medication_due",
+        "home_medication_given_action",
+    ].includes(queryPlan.intent)
     const actionRepository =
-        queryPlan.intent === "home_medication_given_action"
+        isCareOperationsIntent
             ? dependencies.actionRepository ||
               (await import("../repositories/careActionRepository.js"))
                   .careActionRepository
             : null
     const orchestrationRepository =
-        queryPlan.intent === "librela_appointment_message"
+        queryPlan.intent === "librela_appointment_message" ||
+        isCareOperationsIntent
             ? dependencies.orchestrationRepository ||
               (await import("../repositories/orchestrationRunRepository.js"))
                   .orchestrationRunRepository
             : null
+    const careOperations = isCareOperationsIntent
+        ? await coordinateCareOperations({
+              petId,
+              queryPlan,
+              context,
+              currentCareDate,
+              requestedBy: ASSISTANT_CARE_ACTOR,
+              actionRepository,
+              orchestrationRepository,
+          })
+        : null
     const actionPreparation =
-        queryPlan.intent === "home_medication_given_action"
-            ? await prepareMedicationAction({
-                  repository: actionRepository,
-                  petId,
-                  queryPlan,
-                  context,
-                  requestedBy: ASSISTANT_CARE_ACTOR,
-                  currentCareDate,
-              })
-            : null
+        careOperations?.actionPreparation || null
     const messageDraftPreparation =
         queryPlan.intent === "librela_appointment_message"
             ? await coordinateAppointmentRequest({
@@ -178,6 +186,10 @@ export async function answerAssistantQuestion({
 
     return {
         ...personalizedResponse,
+        orchestration_trace:
+            careOperations?.orchestrationTrace ||
+            personalizedResponse.orchestration_trace ||
+            null,
         semantic_interpretation: semanticInterpretation,
         conversation_context: getNextConversationContext({
             queryPlan,

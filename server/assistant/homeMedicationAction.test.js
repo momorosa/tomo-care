@@ -125,6 +125,47 @@ test("requires clarification for uncertain wording", () => {
     assert.equal(action.issue, "uncertain_statement")
 })
 
+test("routes may-have-given wording to clarification instead of treating it as a fact", () => {
+    const action = parseHomeMedicationActionRequest(
+        "I may have given Momo Adequan yesterday.",
+        { currentCareDate: CURRENT_CARE_DATE }
+    )
+
+    assert.equal(action.kind, "record_home_medication_given")
+    assert.equal(action.medication_subject, "adequan")
+    assert.equal(action.administered_date, "2026-07-25")
+    assert.equal(action.issue, "uncertain_statement")
+})
+
+test("fills only the requested date from a bounded clarification follow-up", () => {
+    const action = parseHomeMedicationActionRequest("Yesterday.", {
+        currentCareDate: CURRENT_CARE_DATE,
+        conversationContext: {
+            intent: "home_medication_given_action",
+            subject: "adequan",
+            pending_detail: "administration_date",
+        },
+    })
+
+    assert.equal(action.kind, "record_home_medication_given")
+    assert.equal(action.medication_subject, "adequan")
+    assert.equal(action.administered_date, "2026-07-25")
+    assert.equal(action.issue, null)
+})
+
+test("does not treat an unrelated reply as a missing action detail", () => {
+    const action = parseHomeMedicationActionRequest("Thank you.", {
+        currentCareDate: CURRENT_CARE_DATE,
+        conversationContext: {
+            intent: "home_medication_given_action",
+            subject: "adequan",
+            pending_detail: "administration_date",
+        },
+    })
+
+    assert.equal(action, null)
+})
+
 test("requires a date before preparing", () => {
     const action = parseHomeMedicationActionRequest(
         "I gave Simparica.",

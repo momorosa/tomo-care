@@ -92,6 +92,43 @@ test("does not request generated language for a governed action", async () => {
     assert.equal(semanticCalls, 0)
 })
 
+test("passes bounded clarification context into deterministic planning", async () => {
+    const seen = []
+    const context = {
+        intent: "home_medication_given_action",
+        subject: "adequan",
+        pending_detail: "administration_date",
+    }
+    const result = await resolveAssistantPlan({
+        question: "Yesterday.",
+        currentCareDate: "2026-07-26",
+        conversationContext: context,
+        buildPlan(question, options) {
+            seen.push({ question, options })
+            return {
+                intent: "home_medication_given_action",
+                subject: "adequan",
+                requires_action: true,
+                action: {
+                    medication_subject: "adequan",
+                    administered_date: "2026-07-25",
+                    issue: null,
+                },
+            }
+        },
+        semanticProvider: {
+            async interpret() {
+                throw new Error("must not use semantic fallback")
+            },
+        },
+    })
+
+    assert.equal(seen[0].question, "Yesterday.")
+    assert.equal(seen[0].options.conversationContext, context)
+    assert.equal(result.queryPlan.action.issue, null)
+    assert.equal(result.semanticInterpretation, null)
+})
+
 test("maps a natural paraphrase into a supported trusted query", async () => {
     const result = await resolveAssistantPlan({
         question: "What have her arthritis shots cost me?",

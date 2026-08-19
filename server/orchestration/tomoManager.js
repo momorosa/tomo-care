@@ -183,6 +183,9 @@ export async function coordinateTomoSpecialist({
         tools,
     })
     const succeeded = handoff.status === "completed"
+    const runDisposition = succeeded
+        ? getRunDisposition(handoff.result)
+        : null
     const evidenceIds = succeeded
         ? handoff.result.evidence_ids
         : initialEvidenceIds
@@ -208,8 +211,10 @@ export async function coordinateTomoSpecialist({
         runId: run.id,
         expectedUpdatedAt: run.updated_at,
         patch: {
-            status: succeeded ? "complete_no_action" : "blocked",
-            current_step: succeeded ? "complete" : "records",
+            status: succeeded ? runDisposition.status : "blocked",
+            current_step: succeeded
+                ? runDisposition.currentStep
+                : "records",
             completed_roles: succeeded ? [contract.name] : [],
             pending_decision: trace.pending_human_decision,
             blocked_reason: succeeded ? null : handoff.failure.type,
@@ -218,9 +223,19 @@ export async function coordinateTomoSpecialist({
                 document_id: specialistInput?.document_id || null,
                 candidate_fingerprint:
                     specialistInput?.candidate_fingerprint || null,
+                specialist_result_status: succeeded
+                    ? handoff.result.result_status
+                    : null,
+                governed_action: succeeded
+                    ? safeGovernedAction(handoff.result.governed_action)
+                    : null,
                 safe_trace: trace,
             },
-            completed_at: completedAt,
+            completed_at: succeeded
+                ? runDisposition.completed
+                    ? completedAt
+                    : null
+                : completedAt,
         },
     })
 
@@ -248,6 +263,43 @@ export async function coordinateTomoSpecialist({
         handoff,
         run: updatedRun,
         trace,
+    }
+}
+
+function getRunDisposition(result) {
+    if (result?.run_disposition === "awaiting_human_review") {
+        return {
+            status: "awaiting_human_review",
+            currentStep: "human_review",
+            completed: false,
+        }
+    }
+
+    return {
+        status: "complete_no_action",
+        currentStep: "complete",
+        completed: true,
+    }
+}
+
+function safeGovernedAction(action) {
+    if (
+        !action ||
+        typeof action.id !== "string" ||
+        !action.id.trim() ||
+        typeof action.status !== "string" ||
+        !action.status.trim()
+    ) {
+        return null
+    }
+
+    return {
+        id: action.id,
+        status: action.status,
+        action_type:
+            typeof action.action_type === "string"
+                ? action.action_type
+                : null,
     }
 }
 

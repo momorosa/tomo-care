@@ -48,18 +48,22 @@ test("prepares a governed action without approving or executing it", async () =>
         dependencies: {
             currentCareDate: "2026-07-30",
             actionRepository: {},
+            orchestrationRepository: {},
             buildPlan: () => ({
                 intent: "home_medication_given_action",
             }),
             buildContext: async () => ({ reminders: [] }),
-            prepareMedicationAction: async () => {
+            coordinateCareOperations: async () => {
                 prepareCalls += 1
                 return {
-                    answerType: "action_prepared",
-                    proposedAction: {
-                        id: "action-1",
-                        status: "proposed",
+                    actionPreparation: {
+                        answerType: "action_prepared",
+                        proposedAction: {
+                            id: "action-1",
+                            status: "proposed",
+                        },
                     },
+                    orchestrationTrace: { run_id: "run-1" },
                 }
             },
             composeAnswer: ({ actionPreparation }) => ({
@@ -74,6 +78,154 @@ test("prepares a governed action without approving or executing it", async () =>
     assert.equal(result.proposed_action.status, "proposed")
     assert.equal("approval" in result, false)
     assert.equal("execution" in result, false)
+})
+
+test("carries an Adequan clarification through medication and date follow-ups", async () => {
+    const reminder = {
+        id: "adequan-reminder",
+        doc_id: null,
+        event_date: "2026-08-17",
+        status: "planned",
+    }
+    const dependencies = {
+        currentCareDate: "2026-08-18",
+        semanticProvider: null,
+        actionRepository: {},
+        orchestrationRepository: {},
+        buildContext: async () => ({
+            homeMedicationAdministrationEvents: [],
+            homeMedicationReminders: [reminder],
+            verifiedEvents: [],
+            plannedReminders: [reminder],
+            documents: [],
+        }),
+        coordinateCareOperations: async ({ queryPlan }) => {
+            if (queryPlan.action.issue) {
+                return {
+                    actionPreparation: {
+                        status: queryPlan.action.issue,
+                        displayName:
+                            queryPlan.subject === "adequan"
+                                ? "Adequan"
+                                : "home medication",
+                    },
+                    orchestrationTrace: { run_id: "clarification-run" },
+                }
+            }
+
+            return {
+                actionPreparation: {
+                    status: "prepared",
+                    displayName: "Adequan",
+                    administeredDate:
+                        queryPlan.action.administered_date,
+                    disposition: "created",
+                    action: {
+                        id: "adequan-action",
+                        status: "proposed",
+                    },
+                    reminder,
+                },
+                orchestrationTrace: { run_id: "prepared-run" },
+            }
+        },
+    }
+
+    const uncertain = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "I may have given Momo Adequan yesterday.",
+        dependencies,
+    })
+    const medication = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "I gave Momo Adequan.",
+        conversationContext: uncertain.conversation_context,
+        dependencies,
+    })
+    const date = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Yesterday.",
+        conversationContext: medication.conversation_context,
+        dependencies,
+    })
+
+    assert.equal(uncertain.answer_type, "clarification_needed")
+    assert.match(
+        uncertain.answer,
+        /not completely sure whether Momo received Adequan on August 17, 2026/
+    )
+    assert.match(
+        uncertain.answer,
+        /I won’t prepare an update while you’re uncertain/
+    )
+    assert.equal(uncertain.conversation_context, null)
+    assert.equal(medication.answer_type, "clarification_needed")
+    assert.match(
+        medication.answer,
+        /Got it—what day did you give Momo Adequan/
+    )
+    assert.deepEqual(medication.conversation_context, {
+        intent: "home_medication_given_action",
+        subject: "adequan",
+        pending_detail: "administration_date",
+    })
+    assert.equal(date.query_plan.intent, "home_medication_given_action")
+    assert.equal(date.query_plan.action.administered_date, "2026-08-17")
+    assert.equal(date.answer_type, "action_prepared")
+    assert.equal(date.proposed_action.id, "adequan-action")
+    assert.equal(date.conversation_context, null)
+})
+
+test("keeps clarification specific when orchestration returns no preparation metadata", async () => {
+    const dependencies = {
+        currentCareDate: "2026-08-18",
+        semanticProvider: null,
+        actionRepository: {},
+        orchestrationRepository: {},
+        buildContext: async () => ({
+            homeMedicationAdministrationEvents: [],
+            homeMedicationReminders: [],
+            verifiedEvents: [],
+            plannedReminders: [],
+            documents: [],
+        }),
+        coordinateCareOperations: async () => ({
+            status: "recovered",
+            actionPreparation: null,
+            orchestrationTrace: {
+                result_status: "clarification_required",
+                recovered: true,
+            },
+        }),
+    }
+
+    const uncertain = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "Hey Tomo, I may have given Momo Adequan yesterday.",
+        dependencies,
+    })
+    const missingDate = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "I gave Momo Adequan.",
+        dependencies,
+    })
+
+    assert.match(
+        uncertain.answer,
+        /not completely sure whether Momo received Adequan on August 17, 2026/
+    )
+    assert.doesNotMatch(
+        uncertain.answer,
+        /couldn’t safely prepare/
+    )
+    assert.match(
+        missingDate.answer,
+        /Got it—what day did you give Momo Adequan/
+    )
+    assert.doesNotMatch(
+        missingDate.answer,
+        /couldn’t safely prepare/
+    )
 })
 
 test("preserves the read-only evaluation action boundary", async () => {
@@ -343,6 +495,8 @@ test("answers the observed last-Simparica question from verified history without
         dependencies: {
             currentCareDate: "2026-07-31",
             semanticProvider: null,
+            actionRepository: {},
+            orchestrationRepository: {},
             buildContext: async () => ({
                 homeMedicationAdministrationEvents: [administration],
                 homeMedicationReminders: [],
@@ -353,6 +507,10 @@ test("answers the observed last-Simparica question from verified history without
             prepareMedicationAction: async () => {
                 prepareCalls += 1
             },
+            coordinateCareOperations: async () => ({
+                actionPreparation: null,
+                orchestrationTrace: { run_id: "run-status" },
+            }),
         },
     })
 
@@ -382,12 +540,18 @@ test("answers the observed Adequan calendar wording from the planned reminder", 
         dependencies: {
             currentCareDate: "2026-07-31",
             semanticProvider: null,
+            actionRepository: {},
+            orchestrationRepository: {},
             buildContext: async () => ({
                 homeMedicationAdministrationEvents: [],
                 homeMedicationReminders: [reminder],
                 verifiedEvents: [],
                 plannedReminders: [reminder],
                 documents: [],
+            }),
+            coordinateCareOperations: async () => ({
+                actionPreparation: null,
+                orchestrationTrace: { run_id: "run-due" },
             }),
         },
     })
