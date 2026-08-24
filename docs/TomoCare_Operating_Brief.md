@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** August 16, 2026
+**Last updated:** August 24, 2026
 
 ---
 
@@ -332,8 +332,9 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.3 shipped:** governed attention across qualifying reminders, pending or recoverable actions, and documents awaiting review; deterministic ranking and time windows; natural Chat and Voice summaries; and typed navigation to the governing TomoCare or Google Calendar destination
 - **3E.4 shipped:** governed Profile answers from the current `pets` row; deterministic age calculation; honest missing-data behavior; warm but clearly separated relationship context; question-aware clarification for broad wellbeing language; and typed read-only navigation to the Profile panel
 - **3E.5 shipped:** risk-weighted Verification Intelligence using current-source comparison, deterministic date, arithmetic, and weight checks, and up to five comparable trusted records; grouped consistent patterns; explicit changes, conflicts, and unsupported content; stale-candidate enforcement; fail-safe manual review; legacy-review labeling; and consistent currency presentation
+- **3E.6 shipped:** Tomo as the explicit manager over versioned Verification Intelligence and Care Operations contracts; allowlisted routing and tools; bounded evidence; typed permissions, failures, recovery, and stale-state handling; durable `orchestration_runs` and governed `care_actions`; and one product-visible manager-to-specialist trace shared across VerifyDocs, Chat, and Voice
 
-The next bounded slice is **3E.6 — Tomo Multi-Agent Orchestration Foundation**. It makes Tomo the explicit manager, exposes the shipped Verification Intelligence capability through a typed read-only specialist handoff, and wraps a bounded existing reminder and care-action reconciliation path as the Care Operations Agent. It reuses durable orchestration and action state, adds specialist permissions and concise traces, and keeps materialization and provider calls deterministic and approval-gated.
+The next bounded slice is **3E.7a — Verified Preventive Status Capture**. It begins with clinic-reported rabies status, preserves item, lifecycle state, date meaning, and source provenance as candidate truth, requires grouped human review, and materializes only a verified preventive-status fact. It must not infer administration, activate a reminder, create a care action, or sync Calendar from a clinic due-date statement.
 
 Near-term work then proceeds through **3E.7 — Preventive Care Lifecycle**, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and the final synthetic-invoice Gmail path and end-to-end polish. Phase 3E.7 covers vaccines, annual wellness, annual senior-lab lifecycle state, and bounded preventive screening while leaving lab-result interpretation outside portfolio v1. This order lets verification, orchestration, preventive care, weight, and recovery improvements benefit the real product before the demo environment inherits them.
 
@@ -361,11 +362,11 @@ Live Twilio delivery is no longer planned for the current product. Reconsider a 
 
 **Phase thesis:** The smallest truthful external handoff is better than provider complexity the product does not need.
 
-### Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation
+### Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation · Shipped
 
-TomoCare will become a small governed manager-style multi-agent system. Tomo owns conversation, specialist selection, synthesis, approval guidance, and recovery language. The first two specialist roles are Verification Intelligence and Care Operations.
+TomoCare is now a small governed manager-style multi-agent system. Tomo owns conversation, specialist selection, synthesis, approval guidance, and recovery language. The first two specialist roles are Verification Intelligence and Care Operations.
 
-The foundation must provide typed inputs and outputs, allowlisted tools, bounded context, specialist permissions, durable run state, concise traces, stale-state protection, timeouts, retries, and separate evals. `orchestration_runs` remains the durable run record and `care_actions` remains the governed action ledger. Calendar, Messages, database materialization, date calculations, arithmetic, validation, and idempotency remain restricted deterministic tools.
+The foundation provides typed inputs and outputs, allowlisted tools, bounded context, specialist permissions, durable run state, concise product-visible traces, stale-state protection, timeouts, retries, recovery, and separate evals. `orchestration_runs` remains the durable run record and `care_actions` remains the governed action ledger. Calendar, Messages, database materialization, date calculations, arithmetic, validation, and idempotency remain restricted deterministic tools.
 
 **Phase thesis:** Tomo may coordinate specialist reasoning without allowing agents to become an alternate path around trusted truth, deterministic rules, or human approval.
 
@@ -481,7 +482,7 @@ TomoCare is Rosa’s flagship example of designing at the architecture layer of 
 
 The portfolio narrative should remain personal first and technical second. It should open with Momo and the real care problem, then reveal the transferable system patterns.
 
-Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded chat and voice, a native Apple Messages draft handoff, optional live character animation, and a shipped bounded Verification Intelligence specialist. The handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Inbound reply interpretation and broader assistant coverage remain unfinished. Until Phase 3E.6 is shipped and validated, describe TomoCare as a governed AI assistant with one specialist boundary and an accepted manager-style multi-agent roadmap, not as a shipped multi-agent system.
+Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded Chat and Voice, a native Apple Messages draft handoff, optional live character animation, and a shipped governed manager with Verification Intelligence and Care Operations specialists. The product-visible trace shows manager, specialist, bounded evidence, result, recovery, and human-control state without exposing hidden reasoning. The Messages handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Inbound reply interpretation, preventive-care lifecycle execution, and broader assistant coverage remain unfinished.
 
 Portfolio demonstrations should use the separate resettable synthetic environment by default. Real Momo records remain appropriate for private product use and validation, but screenshots, recordings, and interviews should not depend on live clinic, insurance, recipient, or medical data. The portfolio story should demonstrate the same governance rules as the real product rather than relaxing them for convenience.
 

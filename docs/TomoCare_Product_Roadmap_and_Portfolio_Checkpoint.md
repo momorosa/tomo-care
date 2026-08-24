@@ -95,7 +95,7 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Preserve human-controlled promotion to trusted truth and enforce current-assessment fingerprints on the backend.
    - Use a wholly fictional fixture for safe tests without completing the demo Gmail workflow.
 
-3. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent**
+3. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent · Shipped**
    - Make Tomo the explicit manager that selects specialists and synthesizes their evidence.
    - Expose Verification Intelligence through a typed, read-only specialist handoff.
    - Wrap existing reminder and care-action reconciliation as the Care Operations Agent.
@@ -179,7 +179,7 @@ Phase 3E.5 verification improvements now:
 - Surface contradictions, omissions, and unsupported source sections
 - Preserve corrections as structured feedback for extraction and normalization improvement
 
-This verification capability is the first justified specialist agent because it has a distinct evidence context, read-only authority, comparison responsibility, failure modes, and eval contract. Phase 3E.6 then makes the handoff explicit and adds a second justified specialist around care-state reconciliation.
+This verification capability is the first justified specialist agent because it has a distinct evidence context, read-only authority, comparison responsibility, failure modes, and eval contract. Phase 3E.6 made the handoff explicit and added a second justified specialist around care-state reconciliation.
 
 The chosen pattern is a small manager-style hybrid system:
 
@@ -235,7 +235,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent** using the bounded manager, specialist, tool, permission, trace, recovery, and evaluation contract in the current handover and orchestration decision. Reuse the shipped Verification Intelligence capability, `orchestration_runs`, `care_actions`, and existing deterministic lifecycle services rather than creating a parallel action or persistence system.
+Begin **Phase 3E.7a — Verified Preventive Status Capture** with a bounded rabies-status pilot. Capture clinic-reported item, lifecycle state, date meaning, target date, and source provenance as candidate truth; require Verification Intelligence and grouped human review; then materialize only a source-linked preventive-status fact. Do not treat a due date or clinic status section as proof of administration, and do not activate a reminder, care action, or Calendar entry in this first slice.
 
 ## Maintenance rule
 
