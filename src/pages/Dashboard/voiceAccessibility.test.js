@@ -51,6 +51,21 @@ test("explains automatic stopping and makes transcript interpretation visible", 
     assert.match(source, /conversationContextRef/)
 })
 
+test("carries a bounded pending action detail across Voice turns", async () => {
+    const [apiSource, routeSource] = await Promise.all([
+        readFile(new URL("./api.js", import.meta.url), "utf8"),
+        readFile(
+            new URL("../../../server/routes/voice.js", import.meta.url),
+            "utf8"
+        ),
+    ])
+
+    assert.match(apiSource, /X-Tomo-Pending-Detail/)
+    assert.match(apiSource, /conversationContext\.pending_detail/)
+    assert.match(routeSource, /X-Tomo-Pending-Detail/)
+    assert.match(routeSource, /pending_detail/)
+})
+
 test("keeps Runway animation behind an explicit user-controlled start", async () => {
     const source = await readFile(
         new URL("./RunwayAvatarMedia.jsx", import.meta.url),

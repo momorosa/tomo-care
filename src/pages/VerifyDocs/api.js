@@ -4,7 +4,12 @@ const JSON_HEADERS = { "Content-Type": "application/json" }
 
 async function jsonOrThrow(res, fallbackMessage) {
     const j = await res.json()
-    if (!res.ok || j.error) throw new Error(j.error || fallbackMessage)
+    if (!res.ok || j.error) {
+        const error = new Error(j.error || fallbackMessage)
+        error.reason = j.reason || null
+        error.orchestrationTrace = j.orchestration_trace || null
+        throw error
+    }
     return j
 }
 

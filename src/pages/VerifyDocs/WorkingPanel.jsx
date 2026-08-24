@@ -3,6 +3,7 @@ import { formatDisplayDate } from "../../lib/displayDate.js"
 import { formatDisplayMoney } from "./formatDisplayMoney.js"
 import { stopWheelIfScrollable } from "./stopWheelIfScrollable.js"
 import { isLegacyVerificationReview } from "./triageReviewState.js"
+import OrchestrationTrace from "../../components/OrchestrationTrace.jsx"
 
 // ─────────────────────────────────────────────
 // Triage helpers
@@ -220,6 +221,7 @@ export default function WorkingPanel({
     onAddCostItem = null,
     onRemoveCostItem = null,
     triageResult = null,
+    orchestrationTrace = null,
     triageLoading = false,
     acceptedPaths = new Set(),
     onAcceptField = null,
@@ -345,6 +347,8 @@ export default function WorkingPanel({
                             pattern was assumed.
                         </p>
                     )}
+
+                <OrchestrationTrace trace={orchestrationTrace} />
 
                 <div
                     className="flex gap-6 mt-4 border-b border-tomo-border"

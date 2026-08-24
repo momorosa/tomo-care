@@ -30,6 +30,7 @@ import {
     mergeAvatarLatency,
     reportVoiceLatency,
 } from "./voiceLatency.js"
+import OrchestrationTrace from "../../components/OrchestrationTrace.jsx"
 
 const MAX_RECORDING_MS = 30_000
 
@@ -1167,6 +1168,8 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
                     </div>
                 </details>
             )}
+
+            <OrchestrationTrace trace={answer.orchestration_trace} />
 
             {answer.limitations?.length > 0 && (
                 <div className="mt-4 rounded-xl border border-tomo-border bg-white/[0.02] px-4 py-3">

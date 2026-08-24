@@ -36,6 +36,7 @@ function createState(rule) {
             clone(LIBRELA_SENTINEL),
         ],
         careActions: [],
+        orchestrationRuns: [],
         calendarEvents: new Map(),
         calendarCalls: { inserts: 0, updates: 0 },
         transactionCalls: 0,
@@ -44,6 +45,7 @@ function createState(rule) {
 
 function createRepository(state, rule) {
     let actionRevision = 0
+    let orchestrationRevision = 0
 
     function nextActionRevision() {
         actionRevision += 1
@@ -53,6 +55,19 @@ function createRepository(state, rule) {
     }
 
     return {
+        async findPendingActionsByPetId(petId) {
+            return state.careActions.filter(
+                (action) =>
+                    action.pet_id === petId &&
+                    [
+                        "proposed",
+                        "approved",
+                        "executing",
+                        "outcome_unknown",
+                    ].includes(action.status)
+            )
+        },
+
         async findReminder({ petId, reminderId }) {
             return (
                 state.events.find(
@@ -92,6 +107,76 @@ function createRepository(state, rule) {
                     (action) => action.id === actionId
                 ) || null
             )
+        },
+
+        async findReusableRun({
+            petId,
+            workflowType,
+            contextFingerprint,
+        }) {
+            return (
+                state.orchestrationRuns.find(
+                    (run) =>
+                        run.pet_id === petId &&
+                        run.workflow_type === workflowType &&
+                        run.context_fingerprint ===
+                            contextFingerprint &&
+                        [
+                            "complete_no_action",
+                            "awaiting_human_review",
+                        ].includes(run.status)
+                ) || null
+            )
+        },
+
+        async findActiveRun({ petId, workflowType }) {
+            return (
+                state.orchestrationRuns.find(
+                    (run) =>
+                        run.pet_id === petId &&
+                        run.workflow_type === workflowType &&
+                        [
+                            "in_progress",
+                            "awaiting_human_review",
+                            "action_succeeded",
+                            "action_failed",
+                            "action_outcome_unknown",
+                        ].includes(run.status)
+                ) || null
+            )
+        },
+
+        async insertRun(input) {
+            orchestrationRevision += 1
+            const run = {
+                id: `${rule.actionId}-run-${orchestrationRevision}`,
+                ...clone(input),
+                updated_at: new Date(
+                    Date.parse(rule.initialNow) +
+                        orchestrationRevision * 1000
+                ).toISOString(),
+            }
+            state.orchestrationRuns.push(run)
+            return run
+        },
+
+        async updateRun({ runId, expectedUpdatedAt, patch }) {
+            const run = state.orchestrationRuns.find(
+                (candidate) => candidate.id === runId
+            )
+
+            if (!run || run.updated_at !== expectedUpdatedAt) {
+                return null
+            }
+
+            orchestrationRevision += 1
+            Object.assign(run, clone(patch), {
+                updated_at: new Date(
+                    Date.parse(rule.initialNow) +
+                        orchestrationRevision * 1000
+                ).toISOString(),
+            })
+            return run
         },
 
         async approveProposedAction({
@@ -305,6 +390,7 @@ function askTomo(state, question, repository) {
             currentCareDate: state.careDate,
             buildContext: async () => buildContext(state),
             actionRepository: repository,
+            orchestrationRepository: repository,
             personalizeAnswer: ({ response }) => response,
         },
     })

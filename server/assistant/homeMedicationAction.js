@@ -36,35 +36,100 @@ const MONTH_INDEX = {
 
 export function parseHomeMedicationActionRequest(
     question,
-    { currentCareDate = getCareDate() } = {}
+    {
+        currentCareDate = getCareDate(),
+        conversationContext = null,
+    } = {}
 ) {
     const text = String(question || "").trim()
 
+    if (looksLikeAdministrationQuestion(text)) {
+        return null
+    }
+
+    if (looksLikeAdministrationStatement(text)) {
+        if (UNCERTAINTY_PATTERN.test(text)) {
+            const parsedDetails = buildActionRequest({
+                text,
+                currentCareDate,
+            })
+
+            return {
+                ...parsedDetails,
+                issue: "uncertain_statement",
+            }
+        }
+
+        return buildActionRequest({ text, currentCareDate })
+    }
+
+    return parseActionClarificationFollowUp({
+        text,
+        currentCareDate,
+        conversationContext,
+    })
+}
+
+function buildActionRequest({
+    text,
+    currentCareDate,
+    fallbackMedicationSubject = null,
+}) {
+    const medicationResult = resolveMedication(text)
+    const resolvedMedication =
+        medicationResult.issue === "missing_medication" &&
+        fallbackMedicationSubject
+            ? {
+                  subject: fallbackMedicationSubject,
+                  issue: null,
+              }
+            : medicationResult
+    const dateResult = resolveAdministrationDate(
+        text,
+        currentCareDate
+    )
+
+    return {
+        kind: "record_home_medication_given",
+        medication_subject: resolvedMedication.subject,
+        administered_date: dateResult.date,
+        issue: resolvedMedication.issue || dateResult.issue || null,
+    }
+}
+
+function parseActionClarificationFollowUp({
+    text,
+    currentCareDate,
+    conversationContext,
+}) {
     if (
-        looksLikeAdministrationQuestion(text) ||
-        !looksLikeAdministrationStatement(text)
+        conversationContext?.intent !==
+            "home_medication_given_action" ||
+        ![
+            "medication_and_date",
+            "administration_date",
+        ].includes(conversationContext.pending_detail)
     ) {
         return null
     }
 
-    if (UNCERTAINTY_PATTERN.test(text)) {
-        return {
-            kind: "record_home_medication_given",
-            medication_subject: null,
-            administered_date: null,
-            issue: "uncertain_statement",
-        }
-    }
-
+    const dateResult = resolveAdministrationDate(
+        text,
+        currentCareDate
+    )
     const medicationResult = resolveMedication(text)
-    const dateResult = resolveAdministrationDate(text, currentCareDate)
+    const hasDateDetail = dateResult.issue !== "missing_date"
+    const hasMedicationDetail =
+        medicationResult.issue !== "missing_medication"
 
-    return {
-        kind: "record_home_medication_given",
-        medication_subject: medicationResult.subject,
-        administered_date: dateResult.date,
-        issue: medicationResult.issue || dateResult.issue || null,
-    }
+    if (!hasDateDetail && !hasMedicationDetail) return null
+
+    return buildActionRequest({
+        text,
+        currentCareDate,
+        fallbackMedicationSubject:
+            conversationContext.subject || null,
+    })
 }
 
 export async function prepareAssistantHomeMedicationAction({
@@ -155,6 +220,9 @@ export function getHomeMedicationDisplayName(subject) {
 function looksLikeAdministrationStatement(text) {
     return (
         /\b(?:i|we)\s+(?:just\s+)?(?:gave|administered)\b/i.test(text) ||
+        /\b(?:i|we)\s+(?:may|might|possibly|probably)\s+have\s+(?:given|administered)\b/i.test(
+            text
+        ) ||
         /\b(?:momo|she)\s+(?:just\s+)?(?:got|received)\b/i.test(text) ||
         /\b(?:record|mark)\b.*\b(?:gave|given|administered)\b/i.test(text)
     )

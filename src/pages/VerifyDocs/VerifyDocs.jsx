@@ -433,6 +433,7 @@ export default function VerifyDocs() {
                         onAddCostItem={draft.onAddCostItem}
                         onRemoveCostItem={draft.onRemoveCostItem}
                         triageResult={triage.triageResult}
+                        orchestrationTrace={triage.orchestrationTrace}
                         triageLoading={triage.triageLoading}
                         acceptedPaths={triage.acceptedPaths}
                         onAcceptField={triage.acceptField}

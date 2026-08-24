@@ -37,6 +37,35 @@ test("routes a definite medication administration statement to preparation", () 
     assert.equal(plan.action.administered_date, "2026-07-26")
 })
 
+test("routes uncertain may-have-given wording to governed clarification", () => {
+    const plan = buildQueryPlan(
+        "I may have given Momo Adequan yesterday.",
+        { currentCareDate: "2026-07-26" }
+    )
+
+    assert.equal(plan.intent, "home_medication_given_action")
+    assert.equal(plan.action.issue, "uncertain_statement")
+    assert.equal(plan.action.medication_subject, "adequan")
+    assert.equal(plan.action.administered_date, "2026-07-25")
+    assert.equal(plan.date_range.type, "all_time")
+})
+
+test("completes a missing Adequan date from bounded conversation context", () => {
+    const plan = buildQueryPlan("Yesterday.", {
+        currentCareDate: "2026-07-26",
+        conversationContext: {
+            intent: "home_medication_given_action",
+            subject: "adequan",
+            pending_detail: "administration_date",
+        },
+    })
+
+    assert.equal(plan.intent, "home_medication_given_action")
+    assert.equal(plan.subject, "adequan")
+    assert.equal(plan.action.administered_date, "2026-07-25")
+    assert.equal(plan.action.issue, null)
+})
+
 test("keeps Did I give Adequan as a factual status question", () => {
     const plan = buildQueryPlan("Did I give Adequan yesterday?", {
         currentCareDate: "2026-07-26",

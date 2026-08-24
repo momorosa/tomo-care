@@ -267,6 +267,11 @@ export async function askAssistantByVoice(
             conversationContext.subject
     }
 
+    if (conversationContext?.pending_detail) {
+        headers["X-Tomo-Pending-Detail"] =
+            conversationContext.pending_detail
+    }
+
     const response = await fetch(`/api/pets/${petId}/assistant/voice`, {
         method: "POST",
         headers,

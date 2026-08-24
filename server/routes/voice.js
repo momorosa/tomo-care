@@ -39,6 +39,9 @@ router.post(
                 conversationContext: sanitizeConversationContext({
                     intent: req.get("X-Tomo-Previous-Intent"),
                     subject: req.get("X-Tomo-Previous-Subject"),
+                    pending_detail: req.get(
+                        "X-Tomo-Pending-Detail"
+                    ),
                 }),
                 dependencies: {
                     answerQuestion: answerAssistantQuestion,

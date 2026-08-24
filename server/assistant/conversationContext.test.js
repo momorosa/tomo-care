@@ -20,7 +20,21 @@ test("accepts only one bounded supported care context", () => {
     )
 })
 
-test("rejects unsupported or action-bearing context", () => {
+test("allows only a bounded missing-detail context for a governed action", () => {
+    assert.deepEqual(
+        sanitizeConversationContext({
+            intent: "home_medication_given_action",
+            subject: "simparica_trio",
+            pending_detail: "administration_date",
+            administered_date: "must-not-be-carried",
+            action: { id: "must-not-be-carried" },
+        }),
+        {
+            intent: "home_medication_given_action",
+            subject: "simparica_trio",
+            pending_detail: "administration_date",
+        }
+    )
     assert.equal(
         sanitizeConversationContext({
             intent: "home_medication_given_action",
@@ -32,6 +46,49 @@ test("rejects unsupported or action-bearing context", () => {
         sanitizeConversationContext({
             intent: "last_librela",
             subject: "unknown_medication",
+        }),
+        null
+    )
+})
+
+test("replaces a stale schedule context while an administration date is unresolved", () => {
+    assert.deepEqual(
+        getNextConversationContext({
+            queryPlan: {
+                intent: "home_medication_given_action",
+                subject: "adequan",
+                action: {
+                    issue: "missing_date",
+                },
+            },
+            previousContext: {
+                intent: "home_medication_due",
+                subject: "adequan",
+            },
+        }),
+        {
+            intent: "home_medication_given_action",
+            subject: "adequan",
+            pending_detail: "administration_date",
+        }
+    )
+})
+
+test("clears the clarification context once every action detail is explicit", () => {
+    assert.equal(
+        getNextConversationContext({
+            queryPlan: {
+                intent: "home_medication_given_action",
+                subject: "adequan",
+                action: {
+                    issue: null,
+                },
+            },
+            previousContext: {
+                intent: "home_medication_given_action",
+                subject: "adequan",
+                pending_detail: "administration_date",
+            },
         }),
         null
     )

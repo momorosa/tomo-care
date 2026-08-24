@@ -31,6 +31,13 @@ const CONTEXTUAL_SUBJECTS = new Set([
     "weight",
 ])
 
+const ACTION_CLARIFICATION_INTENT =
+    "home_medication_given_action"
+const ACTION_PENDING_DETAILS = new Set([
+    "medication_and_date",
+    "administration_date",
+])
+
 export function sanitizeConversationContext(value) {
     if (!value || typeof value !== "object") return null
 
@@ -38,6 +45,21 @@ export function sanitizeConversationContext(value) {
         typeof value.intent === "string" ? value.intent.trim() : ""
     const subject =
         typeof value.subject === "string" ? value.subject.trim() : ""
+    const pendingDetail =
+        typeof value.pending_detail === "string"
+            ? value.pending_detail.trim()
+            : ""
+
+    if (intent === ACTION_CLARIFICATION_INTENT) {
+        if (subject && !CONTEXTUAL_SUBJECTS.has(subject)) return null
+        if (!ACTION_PENDING_DETAILS.has(pendingDetail)) return null
+
+        return {
+            intent,
+            subject: subject || null,
+            pending_detail: pendingDetail,
+        }
+    }
 
     if (!CONTEXTUAL_INTENTS.has(intent)) return null
     if (subject && !CONTEXTUAL_SUBJECTS.has(subject)) return null
@@ -52,6 +74,22 @@ export function getNextConversationContext({
     queryPlan,
     previousContext,
 }) {
+    if (queryPlan?.intent === ACTION_CLARIFICATION_INTENT) {
+        const issue = queryPlan?.action?.issue
+
+        if (!issue || issue === "uncertain_statement") return null
+
+        return sanitizeConversationContext({
+            intent: ACTION_CLARIFICATION_INTENT,
+            subject: queryPlan?.subject,
+            pending_detail:
+                issue === "missing_date" ||
+                issue === "ambiguous_date"
+                    ? "administration_date"
+                    : "medication_and_date",
+        })
+    }
+
     const current = sanitizeConversationContext({
         intent: queryPlan?.intent,
         subject: queryPlan?.subject,

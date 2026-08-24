@@ -38,6 +38,34 @@ test("uses an explicit year with a named month", () => {
     })
 })
 
+test("does not interpret modal may as the calendar month May", () => {
+    const range = resolveDateRange(
+        "I may have given Momo Adequan yesterday.",
+        "2026-08-18"
+    )
+
+    assert.deepEqual(range, {
+        type: "all_time",
+        label: "all time",
+        start: null,
+        end: null,
+    })
+})
+
+test("still resolves May when it is used as a calendar month", () => {
+    const range = resolveDateRange(
+        "Is anything on my calendar for May?",
+        "2026-04-30"
+    )
+
+    assert.deepEqual(range, {
+        type: "calendar_month",
+        label: "May 2026",
+        start: "2026-05-01",
+        end: "2026-05-31",
+    })
+})
+
 test("resolves bounded forward-looking attention windows", () => {
     const cases = [
         ["Do I need to do anything today?", "care_day", "2026-08-14", "2026-08-14"],

@@ -1673,8 +1673,10 @@ function answerHomeMedicationGivenAction(queryPlan, preparation) {
     const displayName =
         preparation?.displayName ||
         getHomeMedicationDisplayName(queryPlan.subject)
+    const preparationStatus =
+        preparation?.status || queryPlan?.action?.issue || null
 
-    if (preparation?.status === "prepared") {
+    if (preparationStatus === "prepared") {
         return {
             answer:
                 `I prepared ${displayName} as given on ` +
@@ -1695,50 +1697,85 @@ function answerHomeMedicationGivenAction(queryPlan, preparation) {
         }
     }
 
-    if (preparation?.status === "uncertain_statement") {
+    if (preparationStatus === "uncertain_statement") {
+        const medicationSubject =
+            queryPlan?.action?.medication_subject || null
+        const administeredDate =
+            queryPlan?.action?.administered_date || null
+
+        if (medicationSubject && administeredDate) {
+            const medicationName = getHomeMedicationDisplayName(
+                medicationSubject
+            )
+
+            return actionClarificationAnswer(
+                `It sounds like you’re not completely sure whether Momo received ` +
+                    `${medicationName} on ${formatDate(administeredDate)}. That’s ` +
+                    `okay—I won’t prepare an update while you’re uncertain. If you ` +
+                    `confirm she did, tell me, “I gave Momo ${medicationName} on ` +
+                    `${administeredDate}.”`
+            )
+        }
+
+        if (medicationSubject) {
+            const medicationName = getHomeMedicationDisplayName(
+                medicationSubject
+            )
+
+            return actionClarificationAnswer(
+                `It sounds like you’re not completely sure whether Momo received ` +
+                    `${medicationName}. That’s okay—I won’t prepare an update while ` +
+                    "you’re uncertain. If you confirm she did, tell me when."
+            )
+        }
+
         return actionClarificationAnswer(
-            "I’m not certain whether you meant to confirm a dose. When you’re sure, tell me which medication you gave and the date. Nothing has been changed."
+            "It sounds like you’re not completely sure a home medication was " +
+                "given. That’s okay—I won’t prepare an update while you’re " +
+                "uncertain. Once you confirm, tell me which medication Momo " +
+                "received and when."
         )
     }
 
     if (
-        preparation?.status === "missing_medication" ||
-        preparation?.status === "multiple_medications"
+        preparationStatus === "missing_medication" ||
+        preparationStatus === "multiple_medications"
     ) {
         return actionClarificationAnswer(
             "Which home medication did you give—Simparica Trio or Adequan? Please confirm one medication at a time. Nothing has been changed."
         )
     }
 
-    if (preparation?.status === "unsupported_medication") {
+    if (preparationStatus === "unsupported_medication") {
         return actionClarificationAnswer(
             "I can only prepare this at-home update for Simparica Trio or Adequan. Nothing has been changed."
         )
     }
 
     if (
-        preparation?.status === "missing_date" ||
-        preparation?.status === "ambiguous_date"
+        preparationStatus === "missing_date" ||
+        preparationStatus === "ambiguous_date"
     ) {
         return actionClarificationAnswer(
-            `What date did you give ${displayName}? You can say today, yesterday, ` +
-            "or use a date such as 2026-07-26. Nothing has been changed."
+            `Got it—what day did you give Momo ${displayName}? You can say today, ` +
+                "yesterday, or use a date such as 2026-07-26. I won’t prepare " +
+                "anything until we have the date."
         )
     }
 
-    if (preparation?.status === "reminder_not_found") {
+    if (preparationStatus === "reminder_not_found") {
         return actionClarificationAnswer(
             `I couldn’t find an active ${displayName} reminder to update, so nothing was prepared.`
         )
     }
 
-    if (preparation?.status === "multiple_reminders") {
+    if (preparationStatus === "multiple_reminders") {
         return actionClarificationAnswer(
             `I found more than one active ${displayName} reminder. Please review the reminders before recording this dose. Nothing has been changed.`
         )
     }
 
-    if (preparation?.status === "not_eligible") {
+    if (preparationStatus === "not_eligible") {
         return actionClarificationAnswer(
             `I couldn’t prepare that update: ${preparation.message} Nothing has been changed.`
         )

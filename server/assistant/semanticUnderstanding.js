@@ -339,7 +339,10 @@ export async function resolveAssistantPlan({
     buildPlan = buildQueryPlan,
     semanticProvider = null,
 }) {
-    const deterministicPlan = buildPlan(question, { currentCareDate })
+    const deterministicPlan = buildPlan(question, {
+        currentCareDate,
+        conversationContext,
+    })
 
     if (deterministicPlan.intent !== "unknown") {
         if (
