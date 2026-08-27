@@ -1,5 +1,7 @@
 import "dotenv/config";
 import crypto from "node:crypto";
+import { Buffer } from "node:buffer";
+import process from "node:process";
 import { google } from "googleapis";
 
 const {
@@ -145,7 +147,7 @@ function resolveSenders({ fromHeader, subject, textBody }) {
 }
 
 export function classifyAttachment(file) {
-  const filename = file.filename.toLowerCase();
+  const filename = String(file.filename || "attachment.pdf").toLowerCase();
 
   if (!filename.endsWith(".pdf")) {
     return {
@@ -168,9 +170,31 @@ export function classifyAttachment(file) {
     };
   }
 
+  if (filename.includes("invoice")) {
+    return {
+      action: "ingest",
+      reason: "candidate_invoice_pdf",
+    };
+  }
+
+  if (
+    filename.includes("certificate") ||
+    filename.includes("rabies") ||
+    filename.includes("vaccination") ||
+    filename.includes("vaccine") ||
+    filename.includes("immunization")
+  ) {
+    return {
+      action: "ingest",
+      reason: "candidate_vaccine_evidence_pdf",
+    };
+  }
+
+  // This is a dedicated veterinary intake mailbox. Unknown PDFs can enter
+  // candidate review, but cannot become trusted without human approval.
   return {
-    action: "skip",
-    reason: "unknown_pdf_type",
+    action: "ingest",
+    reason: "candidate_veterinary_pdf",
   };
 }
 

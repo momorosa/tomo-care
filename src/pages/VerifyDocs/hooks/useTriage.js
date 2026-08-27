@@ -9,6 +9,7 @@ export function useTriage(isVerified) {
     const [triageResult, setTriageResult] = useState(null)
     const [orchestrationTrace, setOrchestrationTrace] = useState(null)
     const [triageLoading, setTriageLoading] = useState(false)
+    const [triageFailure, setTriageFailure] = useState(null)
     const [acceptedPaths, setAcceptedPaths] = useState(new Set())
 
     const runTriage = useCallback(async (id, { force = false } = {}) => {
@@ -16,17 +17,22 @@ export function useTriage(isVerified) {
 
         setTriageLoading(true)
         setOrchestrationTrace(null)
+        setTriageFailure(null)
 
         try {
             const j = await api.runTriage(id, { force })
             setTriageResult(j.triage_result)
             setOrchestrationTrace(j.orchestration_trace || null)
+            setTriageFailure(null)
             setAcceptedPaths(new Set())
             return j.triage_result
         } catch (e) {
             console.error("[triage]", e.message)
-            setTriageResult(null)
             setOrchestrationTrace(e.orchestrationTrace || null)
+            setTriageFailure({
+                reason: e.reason || "unavailable",
+                retryable: e.retryable !== false,
+            })
             throw e
         } finally {
             setTriageLoading(false)
@@ -57,6 +63,7 @@ export function useTriage(isVerified) {
         setTriageResult(null)
         setOrchestrationTrace(null)
         setTriageLoading(false)
+        setTriageFailure(null)
         setAcceptedPaths(new Set())
     }, [])
 
@@ -74,6 +81,7 @@ export function useTriage(isVerified) {
         triageResult,
         orchestrationTrace,
         triageLoading,
+        triageFailure,
         acceptedPaths,
         setTriageResult,
         setAcceptedPaths,

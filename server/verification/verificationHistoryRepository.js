@@ -32,8 +32,19 @@ export async function loadComparableVerificationHistory({
         .order("doc_date", { ascending: false })
         .limit(Math.min(Number(limit) || 5, 5))
 
-    if (document.doc_type) query = query.eq("doc_type", document.doc_type)
-    if (document.source_org) query = query.eq("source_org", document.source_org)
+    const hasVaccineEvidence = Array.isArray(
+        document.text_extracted?.vaccine_evidence
+    ) && document.text_extracted.vaccine_evidence.length > 0
+
+    // Rabies provenance may be split across a certificate and a receipt. For
+    // that bounded contract, compare trusted documents across source types so
+    // matching dates can dedupe and conflicts are visible before approval.
+    if (!hasVaccineEvidence && document.doc_type) {
+        query = query.eq("doc_type", document.doc_type)
+    }
+    if (!hasVaccineEvidence && document.source_org) {
+        query = query.eq("source_org", document.source_org)
+    }
 
     const { data: documents, error } = await query
     if (error) throw new Error(error.message)

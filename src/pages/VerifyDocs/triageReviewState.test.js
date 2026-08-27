@@ -5,6 +5,7 @@ import test from "node:test"
 import {
     getTriageReviewState,
     isLegacyVerificationReview,
+    preserveUnchangedAcceptedPaths,
 } from "./triageReviewState.js"
 
 const workingPanelUrl = new URL("./WorkingPanel.jsx", import.meta.url)
@@ -110,6 +111,73 @@ test("only identifies a verified pre-3E.5 assessment as a legacy review", () => 
         }),
         false
     )
+})
+
+test("preserves accepted fields whose value and review state did not change", () => {
+    const shared = {
+        path: "summary",
+        extracted_value: "Synthetic visit summary",
+        outcome: "manual_review",
+        blocks_approval: true,
+    }
+    const previousAssessment = {
+        fields: [
+            shared,
+            {
+                path: "source_org",
+                extracted_value: "Incorrect sender",
+                outcome: "manual_review",
+                blocks_approval: true,
+            },
+        ],
+    }
+    const nextAssessment = {
+        fields: [
+            shared,
+            {
+                path: "source_org",
+                extracted_value: "Fictional Veterinary Center",
+                outcome: "manual_review",
+                blocks_approval: true,
+            },
+        ],
+    }
+
+    const preserved = preserveUnchangedAcceptedPaths({
+        previousAssessment,
+        nextAssessment,
+        acceptedPaths: new Set(["summary", "source_org"]),
+    })
+
+    assert.deepEqual([...preserved], ["summary"])
+})
+
+test("does not preserve acceptance when a field risk state changes", () => {
+    const preserved = preserveUnchangedAcceptedPaths({
+        previousAssessment: {
+            fields: [
+                {
+                    path: "summary",
+                    extracted_value: "Synthetic visit summary",
+                    outcome: "consistent_pattern",
+                    blocks_approval: false,
+                },
+            ],
+        },
+        nextAssessment: {
+            fields: [
+                {
+                    path: "summary",
+                    extracted_value: "Synthetic visit summary",
+                    outcome: "conflict_or_uncertainty",
+                    blocks_approval: true,
+                },
+            ],
+        },
+        acceptedPaths: new Set(["summary"]),
+    })
+
+    assert.equal(preserved.size, 0)
 })
 
 test("presents a verified legacy assessment as collapsed historical context", async () => {

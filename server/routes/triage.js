@@ -32,6 +32,7 @@ router.post("/documents/:docId/triage", async (req, res) => {
             return res.status(error.status).json({
                 error: error.message,
                 reason: error.reason,
+                retryable: isRetryableReviewFailure(error.reason),
                 orchestration_trace: error.trace,
             })
         }
@@ -45,3 +46,14 @@ router.post("/documents/:docId/triage", async (req, res) => {
 })
 
 export default router
+
+function isRetryableReviewFailure(reason) {
+    return new Set([
+        "timeout",
+        "unavailable",
+        "stale_evidence",
+        "review_in_progress",
+        "orchestration_checkpoint_changed",
+        "verification_handoff_failed",
+    ]).has(reason)
+}

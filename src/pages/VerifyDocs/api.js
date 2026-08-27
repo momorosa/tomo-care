@@ -7,6 +7,7 @@ async function jsonOrThrow(res, fallbackMessage) {
     if (!res.ok || j.error) {
         const error = new Error(j.error || fallbackMessage)
         error.reason = j.reason || null
+        error.retryable = j.retryable !== false
         error.orchestrationTrace = j.orchestration_trace || null
         throw error
     }

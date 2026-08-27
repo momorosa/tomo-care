@@ -25,7 +25,9 @@ export const VERIFICATION_INTELLIGENCE_CONTRACT = defineSpecialistContract({
         "build_verification_assessment",
         "persist_review_assessment",
     ],
-    timeoutMs: 30000,
+    // Leave enough room for the source-review tool to stop at its own bounded
+    // deadline, build a manual-review assessment, and persist that assessment.
+    timeoutMs: 60000,
     validateInput: validateVerificationInput,
     validateOutput: validateVerificationOutput,
 })

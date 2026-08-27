@@ -83,6 +83,26 @@ test("presents Verification Intelligence recovery without exposing identifiers",
     assert.doesNotMatch(JSON.stringify(presentation), /private-document-id/)
 })
 
+test("presents a persisted manual-review recovery as review-only", () => {
+    const presentation = getOrchestrationTracePresentation(
+        buildTrace({
+            specialist: {
+                name: "verification_intelligence",
+                version: 1,
+                status: "completed",
+            },
+            evidence: { count: 1, ids: ["private-document-id"] },
+            result_status: "manual_review",
+            pending_human_decision: "review_verification_assessment",
+        })
+    )
+
+    assert.equal(presentation.resultLabel, "Manual review ready")
+    assert.equal(presentation.resultTone, "warning")
+    assert.match(presentation.humanControl, /You decide/i)
+    assert.doesNotMatch(JSON.stringify(presentation), /private-document-id/)
+})
+
 test("rejects malformed or unapproved trace shapes", () => {
     assert.equal(getOrchestrationTracePresentation(null), null)
     assert.equal(

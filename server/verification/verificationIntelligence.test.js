@@ -261,7 +261,7 @@ test("acknowledges vaccine, annual-wellness, and lab sections without capture", 
         .map((field) => field.path)
 
     assert.deepEqual(unsupported, [
-        "unsupported.vaccine_status",
+        "unsupported.rabies_evidence",
         "unsupported.annual_wellness",
         "unsupported.labs",
     ])
@@ -275,7 +275,15 @@ test("acknowledges vaccine, annual-wellness, and lab sections without capture", 
 
 test("source-review failure makes every candidate field a manual review", () => {
     const assessment = buildAssessment({
-        sourceReview: { failed: true, fields: [] },
+        sourceReview: {
+            failed: true,
+            fields: [],
+            failure: {
+                reason: "timeout",
+                retryable: true,
+                elapsed_ms: 45000,
+            },
+        },
         sourceReviewFailed: true,
     })
     const candidateFields = assessment.fields.filter(
@@ -283,6 +291,12 @@ test("source-review failure makes every candidate field a manual review", () => 
     )
 
     assert.equal(assessment.fail_safe, true)
+    assert.deepEqual(assessment.source_review, {
+        status: "manual_review",
+        reason: "timeout",
+        retryable: true,
+        elapsed_ms: 45000,
+    })
     assert.ok(candidateFields.length > 10)
     assert.equal(candidateFields.every((field) => field.blocks_approval), true)
 })

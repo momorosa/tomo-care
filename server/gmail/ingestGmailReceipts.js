@@ -1,6 +1,7 @@
 import process from "node:process"
 import { fetchCanonicalReceiptEmails } from "./gmailInbox.js"
 import { buildGmailStorageKey } from "./storageKey.js"
+import { buildGmailDocumentProvenance } from "./documentProvenance.js"
 
 const DEFAULT_PET_ID =
     process.env.TOMO_PET_ID || "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
@@ -8,6 +9,15 @@ const DEFAULT_PET_ID =
 function inferDocType(attachment) {
     const filename = attachment.filename.toLowerCase()
 
+    if (
+        filename.includes("certificate") ||
+        filename.includes("rabies") ||
+        filename.includes("vaccination") ||
+        filename.includes("vaccine") ||
+        filename.includes("immunization")
+    ) {
+        return "vaccination_certificate"
+    }
     if (filename.includes("receipt")) return "receipt"
     if (filename.includes("lab")) return "lab_report"
     if (filename.includes("invoice")) return "receipt"
@@ -96,6 +106,7 @@ async function createDocumentRow({
     storageKey,
 }) {
     const { sbAdmin } = await import("../supabase.js")
+    const provenance = buildGmailDocumentProvenance(email)
     const payload = {
         pet_id: petId,
         doc_type: inferDocType(attachment),
@@ -105,12 +116,9 @@ async function createDocumentRow({
         // The extractor/verification flow should determine the actual document date.
         doc_date: null,
 
-        source_org:
-            email.originalSender?.name ||
-            email.originalSender?.email ||
-            "Gmail",
+        source_org: provenance.source_org,
 
-        source_person: email.originalSender?.email || null,
+        source_person: provenance.source_person,
 
         // Stable Supabase Storage key, not a signed URL.
         file_url: storageKey,
@@ -131,8 +139,8 @@ async function createDocumentRow({
             content_sha256: attachment.contentSha256,
             received_at: email.receivedAt,
 
-            forwarded_by: email.forwardedBy,
-            original_sender: email.originalSender,
+            forwarded_by: provenance.transport.forwarded_by,
+            original_sender: provenance.transport.original_sender,
 
             intake_reason: attachment.intakeReason,
         },
@@ -174,6 +182,7 @@ export async function ingestGmailReceipts({
         emailsFound: emails.length,
         attachmentsFound: 0,
         documentsCreated: 0,
+        retryableDocuments: 0,
         skippedDuplicates: 0,
         uploadedObjects: 0,
         reusedStorageObjects: 0,
@@ -198,9 +207,18 @@ export async function ingestGmailReceipts({
             })
 
             if (existingDoc) {
-                summary.skippedDuplicates += 1
+                const retryable = existingDoc.status === "ingested"
+
+                if (retryable) {
+                    summary.retryableDocuments += 1
+                } else {
+                    summary.skippedDuplicates += 1
+                }
+
                 summary.items.push({
-                    action: "skip_duplicate_document",
+                    action: retryable
+                        ? "retry_existing_document"
+                        : "skip_duplicate_document",
                     gmailMsgId: email.gmailMsgId,
                     filename: attachment.filename,
                     contentSha256: attachment.contentSha256,

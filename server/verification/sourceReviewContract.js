@@ -135,10 +135,26 @@ export function parseSourceReview(text, requestedFields) {
     }
 }
 
-export function buildSourceReviewFailSafe(fields, reason, model = null) {
+export function buildSourceReviewFailSafe(
+    fields,
+    reason,
+    model = null,
+    {
+        reasonCode = "unavailable",
+        retryable = true,
+        elapsedMs = null,
+    } = {}
+) {
     return {
         model,
         failed: true,
+        failure: {
+            reason: reasonCode,
+            retryable: Boolean(retryable),
+            elapsed_ms: Number.isFinite(elapsedMs)
+                ? Math.max(0, Math.round(elapsedMs))
+                : null,
+        },
         fields: fields.map((field) => ({
             path: field.path,
             state: "uncertain",

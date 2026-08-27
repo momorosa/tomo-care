@@ -1,6 +1,16 @@
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const isIsoDate = (v) => typeof v === "string" && ISO_DATE_RE.test(v)
+const isRealIsoDate = (value) => {
+    if (!isIsoDate(value)) return false
+    const [year, month, day] = value.split("-").map(Number)
+    const parsed = new Date(Date.UTC(year, month - 1, day))
+    return (
+        parsed.getUTCFullYear() === year &&
+        parsed.getUTCMonth() === month - 1 &&
+        parsed.getUTCDate() === day
+    )
+}
 
 const isNumberLike = (v) => {
     if (typeof v === "number" && Number.isFinite(v)) return true
@@ -15,6 +25,11 @@ export function validateExtracted(ex) {
 
     if (ex?.invoice_id != null && typeof ex.invoice_id !== "string") {
         errs["invoice_id"] = "Invoice ID must be text."
+    }
+
+
+    if (ex?.source_org != null && typeof ex.source_org !== "string") {
+        errs["source_org"] = "Clinic must be text."
     }
 
     if (ex?.doc_date && !isIsoDate(ex.doc_date)) {
@@ -72,6 +87,79 @@ export function validateExtracted(ex) {
                 errs[`cost_items.${i}.amount`] = "Must be a number."
             }
             if (!ci?.currency) errs[`cost_items.${i}.currency`] = "Required."
+        })
+    }
+
+    if (Array.isArray(ex?.vaccine_evidence)) {
+        if (ex.vaccine_evidence.length > 1) {
+            errs["vaccine_evidence"] =
+                "Phase 3E.7a supports one Rabies evidence group per document."
+        }
+        ex.vaccine_evidence.forEach((candidate, candidateIndex) => {
+            const base = `vaccine_evidence.${candidateIndex}`
+            if (candidate?.schema_version !== 1) {
+                errs[`${base}.schema_version`] = "Schema version must be 1."
+            }
+            if (candidate?.care_kind !== "vaccine") {
+                errs[`${base}.care_kind`] = "Must be vaccine."
+            }
+            if (candidate?.care_item !== "rabies") {
+                errs[`${base}.care_item`] = "This phase supports Rabies only."
+            }
+            if (
+                !["vaccination_certificate", "receipt"].includes(
+                    candidate?.source_record_type
+                )
+            ) {
+                errs[`${base}.source_record_type`] = "Select a source type."
+            }
+            if (!candidate?.assertions?.length) {
+                errs[`${base}.assertions`] = "Add at least one source assertion."
+            }
+            const seen = new Set()
+            ;(candidate?.assertions || []).forEach((assertion, index) => {
+                const assertionBase = `${base}.assertions.${index}`
+                if (seen.has(assertion?.assertion_type)) {
+                    errs[`${assertionBase}.assertion_type`] =
+                        "Use each assertion type once."
+                }
+                seen.add(assertion?.assertion_type)
+                if (
+                    ["administration", "next_due"].includes(
+                        assertion?.assertion_type
+                    ) &&
+                    !isRealIsoDate(assertion?.date)
+                ) {
+                    errs[`${assertionBase}.date`] = "Use a real YYYY-MM-DD date."
+                }
+                if (
+                    assertion?.assertion_type === "administration" &&
+                    candidate.source_record_type !== "vaccination_certificate"
+                ) {
+                    errs[`${assertionBase}.date`] =
+                        "Only an official certificate can verify administration."
+                }
+            })
+            const administration = candidate?.assertions?.find(
+                (assertion) => assertion.assertion_type === "administration"
+            )
+            const nextDue = candidate?.assertions?.find(
+                (assertion) => assertion.assertion_type === "next_due"
+            )
+            if (
+                isRealIsoDate(administration?.date) &&
+                isRealIsoDate(nextDue?.date) &&
+                nextDue.date < administration.date
+            ) {
+                errs[`${base}.assertions`] =
+                    "Clinic-reported next due cannot predate administration."
+            }
+            const productExpiration =
+                candidate?.product_details?.product_expiration_date
+            if (productExpiration && !isRealIsoDate(productExpiration)) {
+                errs[`${base}.product_expiration_date`] =
+                    "Use a real YYYY-MM-DD product date."
+            }
         })
     }
 

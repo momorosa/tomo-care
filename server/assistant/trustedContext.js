@@ -30,6 +30,14 @@ export function buildTrustedContextFromRows({
         .filter((fact) => fact.fact_type === "weight")
         .filter((fact) => fact.fact_date)
         .filter((fact) => fact.value_json?.value_kg || fact.value_json?.value)
+    const verifiedPreventiveCareFacts = facts
+        .filter((fact) => fact.fact_type === "preventive_care_status")
+        .filter((fact) => fact.value_json?.care_item)
+    const verifiedVaccineDocuments = documents.filter((document) =>
+        ["vaccination_certificate", "vaccine_certificate"].includes(
+            String(document.doc_type || "").toLowerCase()
+        )
+    )
 
     return {
         petId,
@@ -38,6 +46,8 @@ export function buildTrustedContextFromRows({
         scheduledAppointments,
         documents,
         verifiedWeightFacts,
+        verifiedPreventiveCareFacts,
+        verifiedVaccineDocuments,
         homeMedicationReminders,
         homeMedicationAdministrationEvents,
         librelaInjectionEvents,

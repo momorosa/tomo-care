@@ -319,6 +319,38 @@ router.post("/documents/:docId/approve", async (req, res) => {
         const costItemsToInsert = materialization.costItems
         const labsToInsert = materialization.labs
 
+        // Vaccine evidence is the strictest contract in this slice. Run its
+        // server-only transaction before any other trusted output so a due-date
+        // conflict cannot leave partial events, costs, labs, or weight facts.
+        for (const vaccineEvidence of materialization.vaccineEvidence) {
+            const { error: vaccineErr } = await sbAdmin.rpc(
+                "materialize_verified_vaccine_evidence",
+                {
+                    p_doc_id: docId,
+                    p_evidence: vaccineEvidence,
+                    p_verified_by: verifiedBy,
+                }
+            )
+
+            if (vaccineErr) {
+                await sbAdmin
+                    .from("documents")
+                    .update({
+                        status: "needs_review",
+                        triage_result: doc.triage_result,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", docId)
+                    .eq("status", "verified")
+
+                return res.status(409).json({
+                    error:
+                        "The Rabies evidence conflicts with trusted data or could not be saved. The document remains in review.",
+                    reason: "vaccine_evidence_materialization_failed",
+                })
+            }
+        }
+
         // 5) Insert rows
         if (eventsToInsert.length) {
             const { error: evErr } = await sbAdmin.from("events").insert(eventsToInsert)
@@ -423,6 +455,11 @@ router.patch("/documents/:docId/text-extracted", async (req, res) => {
     const changedAt = new Date().toISOString()
     const updatePayload = {
         text_extracted,
+        source_org:
+            typeof text_extracted.source_org === "string" &&
+            text_extracted.source_org.trim()
+                ? text_extracted.source_org.trim()
+                : null,
         remarks,
         status: nextStatus,
         updated_at: changedAt,

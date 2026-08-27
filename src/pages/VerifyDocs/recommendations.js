@@ -1,11 +1,5 @@
 import { looksLikeLibrela } from "./utils.js"
 
-function asSearchText(value) {
-    return JSON.stringify(value || {})
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-}
-
 function hasCostItems(doc) {
     const extracted = doc?.text_extracted || {}
 
@@ -18,18 +12,12 @@ function hasCostItems(doc) {
 function looksLikeReceipt(doc) {
     const extracted = doc?.text_extracted || {}
 
-    const text = asSearchText({
-        title: doc?.title,
-        doc_type: doc?.doc_type,
-        source_org: doc?.source_org,
-        extracted,
-    })
+    if (doc?.doc_type === "vaccination_certificate") return false
 
     return (
         doc?.doc_type === "receipt" ||
         doc?.doc_type === "invoice" ||
-        text.includes("receipt") ||
-        text.includes("invoice") ||
+        Boolean(extracted.invoice_id) ||
         hasCostItems(doc)
     )
 }

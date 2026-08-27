@@ -36,12 +36,15 @@ test("dirty save reruns review before any promotion attempt", async () => {
     const forcedReviewIndex = page.indexOf(
         "await triage.runTriage(selectedId, {\n                force: true,"
     )
-    const approvalIndex = page.indexOf(
-        "await approveDoc({ assessment, acceptedPaths: new Set() })"
+    const preservationIndex = page.indexOf(
+        "preserveUnchangedAcceptedPaths({"
     )
+    const approvalIndex = page.indexOf("await approveDoc({")
 
     assert.ok(patchIndex >= 0)
     assert.ok(forcedReviewIndex > patchIndex)
+    assert.ok(preservationIndex > forcedReviewIndex)
     assert.ok(approvalIndex > forcedReviewIndex)
+    assert.match(page, /acceptedPaths: preservedAcceptedPaths/)
     assert.match(panel, /Save &amp; recheck/)
 })

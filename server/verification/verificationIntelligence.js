@@ -1,4 +1,9 @@
 import crypto from "node:crypto"
+import {
+    getVaccineAssertion,
+    summarizeVaccineEvidence,
+    validateVaccineEvidenceCandidate,
+} from "../lib/vaccineEvidence.js"
 
 export const VERIFICATION_SCHEMA_VERSION = "verification_intelligence_v1"
 
@@ -100,6 +105,65 @@ export function enumerateVerificationFields(extracted = {}) {
                 item?.service_date,
                 "care"
             )
+        })
+    }
+
+    if (Array.isArray(extracted.vaccine_evidence)) {
+        extracted.vaccine_evidence.forEach((candidate, candidateIndex) => {
+            const base = `vaccine_evidence[${candidateIndex}]`
+            add(`${base}.care_kind`, candidate?.care_kind, "preventive")
+            add(`${base}.care_item`, candidate?.care_item, "preventive")
+            add(
+                `${base}.source_record_type`,
+                candidate?.source_record_type,
+                "preventive"
+            )
+            ;(candidate?.assertions || []).forEach((assertion, assertionIndex) => {
+                const assertionBase = `${base}.assertions[${assertionIndex}]`
+                add(
+                    `${assertionBase}.assertion_type`,
+                    assertion?.assertion_type,
+                    "preventive"
+                )
+                if (assertion?.date != null) {
+                    add(`${assertionBase}.date`, assertion.date, "preventive")
+                }
+                if (assertion?.date_meaning != null) {
+                    add(
+                        `${assertionBase}.date_meaning`,
+                        assertion.date_meaning,
+                        "preventive"
+                    )
+                }
+                if (assertion?.status != null) {
+                    add(
+                        `${assertionBase}.status`,
+                        assertion.status,
+                        "preventive"
+                    )
+                }
+                if (assertion?.as_of_date != null) {
+                    add(
+                        `${assertionBase}.as_of_date`,
+                        assertion.as_of_date,
+                        "preventive"
+                    )
+                }
+            })
+            for (const key of [
+                "product_name",
+                "manufacturer",
+                "batch_number",
+                "product_expiration_date",
+            ]) {
+                if (candidate?.product_details?.[key] != null) {
+                    add(
+                        `${base}.product_details.${key}`,
+                        candidate.product_details[key],
+                        "preventive"
+                    )
+                }
+            }
         })
     }
 
@@ -549,7 +613,7 @@ function buildWeightAssessment(extracted, history, sourceReview) {
     })
 }
 
-function buildUnsupportedAssessments(rawText) {
+function buildUnsupportedAssessments(rawText, extracted = {}) {
     const text = String(rawText || "")
     const results = []
 
@@ -569,10 +633,26 @@ function buildUnsupportedAssessments(rawText) {
     }
 
     add(
-        "unsupported.vaccine_status",
-        "Vaccine information",
-        /\b(vaccine|vaccination|rabies|bordetella|dhpp|distemper)\b/i
+        "unsupported.other_vaccines",
+        "Non-Rabies vaccine information",
+        /\b(bordetella|dhpp|da2pp|distemper|leptospirosis|lepto)\b/i
     )
+    if (
+        /\b(rabies|vaccination certificate)\b/i.test(text) &&
+        !(extracted.vaccine_evidence || []).length
+    ) {
+        results.push(
+            fieldAssessment({
+                path: "unsupported.rabies_evidence",
+                value: "Rabies evidence",
+                outcome: REVIEW_OUTCOMES.NOT_CAPTURED,
+                reason:
+                    "Rabies information appears in the source, but no bounded Rabies evidence candidate was extracted. It was not added to trusted care records.",
+                group: "not_captured",
+                blocksApproval: false,
+            })
+        )
+    }
     add(
         "unsupported.annual_wellness",
         "Annual checkup or wellness reminder",
@@ -585,6 +665,100 @@ function buildUnsupportedAssessments(rawText) {
     )
 
     return results
+}
+
+function vaccineCandidatePaths(extracted, candidateIndex) {
+    const prefix = `vaccine_evidence[${candidateIndex}]`
+    return enumerateVerificationFields(extracted)
+        .filter((field) => field.path.startsWith(prefix))
+        .map((field) => field.path)
+}
+
+function historicalPreventiveDueDates(history, careItem) {
+    return history.flatMap((record) =>
+        (record.facts || [])
+            .filter(
+                (fact) =>
+                    fact.status === "verified" &&
+                    fact.fact_type === "preventive_care_status" &&
+                    fact.value_json?.care_item === careItem &&
+                    fact.value_json?.clinic_reported_next_due
+            )
+            .map((fact) => ({
+                document_id: record.document?.id || fact.doc_id || null,
+                document_date: record.document?.doc_date || null,
+                next_due: fact.value_json.clinic_reported_next_due,
+            }))
+    )
+}
+
+function buildVaccineEvidenceAssessments(extracted, history, sourceReview) {
+    const candidates = Array.isArray(extracted.vaccine_evidence)
+        ? extracted.vaccine_evidence
+        : []
+
+    return candidates.map((candidate, index) => {
+        const paths = vaccineCandidatePaths(extracted, index)
+        const validation = validateVaccineEvidenceCandidate(candidate)
+        const unclearPaths = paths.filter((path) =>
+            sourceNeedsReview(sourceReview, path)
+        )
+        const summary = summarizeVaccineEvidence(candidate)
+
+        if (!validation.ok || unclearPaths.length) {
+            const details = [
+                ...validation.errors,
+                ...(unclearPaths.length
+                    ? ["One or more vaccine fields are unclear in the source."]
+                    : []),
+            ]
+            return fieldAssessment({
+                path: `checks.vaccine_evidence[${index}]`,
+                value: summary,
+                outcome: REVIEW_OUTCOMES.CONFLICT,
+                reason: `Rabies evidence needs correction before approval. ${details.join(" ")}`,
+                evidence: unclearPaths.map((path) => ({ path })),
+                group: "vaccine_evidence",
+            })
+        }
+
+        const nextDue = getVaccineAssertion(candidate, "next_due")
+        const historical = historicalPreventiveDueDates(
+            history,
+            candidate.care_item
+        )
+        const conflicting = nextDue
+            ? historical.find((item) => item.next_due !== nextDue.date)
+            : null
+
+        if (conflicting) {
+            return fieldAssessment({
+                path: `checks.vaccine_evidence[${index}]`,
+                value: summary,
+                outcome: REVIEW_OUTCOMES.CONFLICT,
+                reason: `The source reports Rabies next due ${nextDue.date}, but trusted evidence reports ${conflicting.next_due}. Tomo did not choose between them.`,
+                evidence: historical.slice(0, 5),
+                group: "vaccine_evidence",
+            })
+        }
+
+        const matching = nextDue
+            ? historical.filter((item) => item.next_due === nextDue.date)
+            : []
+        return fieldAssessment({
+            path: `checks.vaccine_evidence[${index}]`,
+            value: summary,
+            outcome: matching.length
+                ? REVIEW_OUTCOMES.CONSISTENT
+                : REVIEW_OUTCOMES.LIMITED,
+            reason: matching.length
+                ? "The Rabies next-due date matches existing trusted evidence. This source will be added as supporting provenance."
+                : "The source supports this bounded Rabies evidence. Administration, clinic-reported next due, clinic status, and product expiration remain separate fields.",
+            evidence: matching.slice(0, 5),
+            group: "vaccine_evidence",
+            blocksApproval: false,
+        })
+    })
 }
 
 function buildManualSourceAssessments(extracted, sourceReview) {
@@ -671,17 +845,23 @@ export function buildVerificationAssessment({
     if (sourceReviewFailed) {
         fields = [
             ...buildManualSourceAssessments(extracted, sourceReview),
-            ...buildUnsupportedAssessments(rawText),
+            ...buildUnsupportedAssessments(rawText, extracted),
         ]
     } else {
         fields = []
         const date = buildDateAssessment(extracted, sourceReview)
         const arithmetic = buildArithmeticAssessment(extracted)
         const weight = buildWeightAssessment(extracted, boundedHistory, sourceReview)
+        const vaccineEvidence = buildVaccineEvidenceAssessments(
+            extracted,
+            boundedHistory,
+            sourceReview
+        )
 
         if (date) fields.push(date)
         if (arithmetic) fields.push(arithmetic)
         if (weight) fields.push(weight)
+        fields.push(...vaccineEvidence)
         fields.push(
             ...buildCostPatternAssessments(
                 extracted,
@@ -689,7 +869,7 @@ export function buildVerificationAssessment({
                 sourceReview
             )
         )
-        fields.push(...buildUnsupportedAssessments(rawText))
+        fields.push(...buildUnsupportedAssessments(rawText, extracted))
 
         const usedPaths = new Set(fields.map((field) => field.path))
         if (date) {
@@ -701,6 +881,11 @@ export function buildVerificationAssessment({
             usedPaths.add("weight_measurement.unit")
             usedPaths.add("weight_measurement.measured_date")
         }
+        extracted.vaccine_evidence?.forEach((_, index) => {
+            vaccineCandidatePaths(extracted, index).forEach((path) =>
+                usedPaths.add(path)
+            )
+        })
         fields.push(
             ...fallbackAdministrativeAssessments(
                 extracted,
@@ -731,6 +916,20 @@ export function buildVerificationAssessment({
         summary,
         correction_history: correctionHistory.slice(-MAX_CORRECTIONS),
         fail_safe: sourceReviewFailed,
+        source_review: {
+            status: sourceReviewFailed ? "manual_review" : "completed",
+            reason: sourceReviewFailed
+                ? sourceReview?.failure?.reason || "unavailable"
+                : null,
+            retryable: sourceReviewFailed
+                ? sourceReview?.failure?.retryable !== false
+                : false,
+            elapsed_ms: Number.isFinite(
+                sourceReview?.failure?.elapsed_ms
+            )
+                ? sourceReview.failure.elapsed_ms
+                : null,
+        },
         notes: sourceReviewFailed
             ? "Source comparison was unavailable. Manual review is required."
             : "Review outcomes combine current-source comparison, deterministic checks, and bounded trusted history.",
@@ -760,6 +959,27 @@ export function validateVerificationApproval({
     acceptedPaths = [],
 } = {}) {
     const currentFingerprint = getCandidateFingerprint(extracted)
+
+    if ((extracted?.vaccine_evidence || []).length > 1) {
+        return {
+            ok: false,
+            reason: "invalid_vaccine_evidence",
+            error:
+                "Phase 3E.7a supports one Rabies evidence group per document.",
+        }
+    }
+
+    const invalidVaccineEvidence = (extracted?.vaccine_evidence || [])
+        .map((candidate) => validateVaccineEvidenceCandidate(candidate))
+        .find((result) => !result.ok)
+
+    if (invalidVaccineEvidence) {
+        return {
+            ok: false,
+            reason: "invalid_vaccine_evidence",
+            error: `Correct the Rabies evidence before approval. ${invalidVaccineEvidence.errors.join(" ")}`,
+        }
+    }
 
     if (!isCurrentVerificationAssessment(assessment, extracted)) {
         return {

@@ -119,7 +119,8 @@ export function buildQueryPlan(question, options = {}) {
         return basePlan({
             intent: "vaccine_record_lookup",
             subject: q.includes("rabies") ? "rabies_vaccine" : "vaccine",
-            scope: "verified_events",
+            scope: "verified_vaccine_evidence",
+            vaccine_focus: getVaccineFocus(q),
             dateRange,
         })
     }
@@ -281,6 +282,7 @@ function basePlan({
     requires_action = false,
     action = null,
     profile_focus = null,
+    vaccine_focus = null,
 }) {
     return {
         intent,
@@ -291,6 +293,7 @@ function basePlan({
         requires_action,
         action,
         ...(profile_focus ? { profile_focus } : {}),
+        ...(vaccine_focus ? { vaccine_focus } : {}),
     }
 }
 
@@ -636,6 +639,19 @@ function isVaccineRecordQuestion(q) {
         q.includes("rabies") ||
         q.includes("vax")
     )
+}
+
+function getVaccineFocus(q) {
+    if (/\b(open|view|certificate|document|pdf|proof|copy)\b/.test(q)) {
+        return "certificate"
+    }
+    if (/\b(due|next|expires|expire|expiration|valid until)\b/.test(q)) {
+        return "next_due"
+    }
+    if (/\b(status|current|up to date|up-to-date)\b/.test(q)) {
+        return "clinic_reported_status"
+    }
+    return "administration"
 }
 
 function isCareTimelineQuestion(q) {

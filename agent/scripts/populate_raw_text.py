@@ -51,9 +51,14 @@ if __name__ == "__main__":
     if not doc_ids:
         raise SystemExit("Usage: python scripts/populate_raw_text.py <doc_id1> [doc_id2 ...]")
 
+    failed = False
     for doc_id in doc_ids:
         try:
             out = populate_raw_text(doc_id)
             print(out)
         except Exception as e:
+            failed = True
             print({"doc_id": doc_id, "error": str(e)})
+
+    if failed:
+        raise SystemExit(1)
