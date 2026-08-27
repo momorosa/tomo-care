@@ -609,8 +609,73 @@ function InboxContext({ documents, result, error, checking, onCheck }) {
                     <p className="font-medium text-tomo-text-h">Latest inbox check</p>
                     <p className="mt-2">
                         {result.processedToReview || 0} ready for review ·{" "}
+                        {result.documentsRetried || 0} retried ·{" "}
                         {result.skippedDuplicates || 0} duplicates skipped
                     </p>
+                    {(result.needsManualReview || 0) > 0 && (
+                        <div className="mt-3 space-y-2">
+                            {(result.manualReviewDocuments || []).map((item) => (
+                                <div
+                                    key={item.documentId}
+                                    className="rounded-lg border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] p-3 text-tomo-warning"
+                                >
+                                    <p className="font-medium">
+                                        {item.warning?.title ||
+                                            "Receipt saved for manual review"}
+                                    </p>
+                                    <p className="mt-1 leading-5">
+                                        {item.warning?.message}
+                                    </p>
+                                    <Link
+                                        to={`/review/${item.documentId}`}
+                                        className="mt-3 inline-flex rounded-full border border-[color:var(--tomo-warning-border)] px-3 py-1.5 font-medium text-tomo-text-h"
+                                    >
+                                        Open saved document
+                                    </Link>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {(result.failed || 0) > 0 && (
+                        <div className="mt-3 rounded-lg border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] p-2 text-tomo-warning">
+                            {(result.failedDocuments || []).map((doc) => (
+                                <div key={doc.documentId}>
+                                    <p className="font-medium">
+                                        {doc.presentation?.title ||
+                                            "This PDF needs another processing attempt"}
+                                    </p>
+                                    <p className="mt-1">
+                                        {doc.filename || "Attached PDF"}
+                                    </p>
+                                    <p className="mt-2 leading-5">
+                                        {doc.presentation?.message ||
+                                            "The PDF is saved. Retry it, and open the source if the same message returns."}
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            className="rounded-full border border-[color:var(--tomo-warning-border)] px-3 py-1.5 font-medium text-tomo-text-h"
+                                            onClick={onCheck}
+                                            disabled={checking}
+                                        >
+                                            Retry processing
+                                        </button>
+                                        <Link
+                                            to={`/review/${doc.documentId}`}
+                                            className="rounded-full border border-tomo-border px-3 py-1.5 font-medium text-tomo-text-h"
+                                        >
+                                            Open saved PDF
+                                        </Link>
+                                    </div>
+                                    {doc.failedStep && (
+                                        <p className="mt-2 text-[11px] text-tomo-text">
+                                            Processing stage: {doc.failedStep}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 

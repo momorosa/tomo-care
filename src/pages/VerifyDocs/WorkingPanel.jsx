@@ -1,9 +1,14 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { formatDisplayDate } from "../../lib/displayDate.js"
 import { formatDisplayMoney } from "./formatDisplayMoney.js"
 import { stopWheelIfScrollable } from "./stopWheelIfScrollable.js"
 import { isLegacyVerificationReview } from "./triageReviewState.js"
+import {
+    getVerificationRecoveryPresentation,
+    shouldOfferVerificationRecheck,
+} from "./verificationRecoveryPresentation.js"
 import OrchestrationTrace from "../../components/OrchestrationTrace.jsx"
+import VaccineEvidenceBlock from "./VaccineEvidenceBlock.jsx"
 
 // ─────────────────────────────────────────────
 // Triage helpers
@@ -206,6 +211,7 @@ export default function WorkingPanel({
     isVerified = false,
     editMode = false,
     draftExtracted = null,
+    editTargetPath = null,
     dirty = false,
     validationErrors = {},
     onStartEdit = null,
@@ -213,7 +219,12 @@ export default function WorkingPanel({
     onSaveDraft = null,
     onSaveAndVerify = null,
     onUpdateInvoiceId = null,
+    onUpdateSourceOrg = null,
+    onUpdateDocDate = null,
     onUpdateWeightMeasurement = null,
+    onUpdateVaccineEvidence = null,
+    onAddRabiesEvidence = null,
+    onRemoveVaccineEvidence = null,
     onUpdateEvent = null,
     onAddEvent = null,
     onRemoveEvent = null,
@@ -223,11 +234,15 @@ export default function WorkingPanel({
     triageResult = null,
     orchestrationTrace = null,
     triageLoading = false,
+    triageFailure = null,
     acceptedPaths = new Set(),
     onAcceptField = null,
     onAcceptAllConfirmed = null,
+    onRetryReview = null,
+    onReviewLater = null,
 }) {
     const data = editMode ? draftExtracted || {} : extracted || {}
+    const reviewBodyRef = useRef(null)
 
     const triageMap = useMemo(() => buildTriageMap(triageResult), [triageResult])
 
@@ -235,12 +250,6 @@ export default function WorkingPanel({
         triageResult &&
         Array.isArray(triageResult.fields) &&
         triageResult.fields.length > 0
-
-    const isFailSafe =
-        triageResult?.fail_safe === true ||
-        (triageResult &&
-            triageResult.overall_confidence === "low" &&
-            triageResult.fields?.length === 0)
 
     const isLegacyReview = isLegacyVerificationReview({
         triageResult,
@@ -266,6 +275,28 @@ export default function WorkingPanel({
     }, [triageResult, hasTriage])
 
     const reviewedFieldCount = hasTriage ? triageResult.fields.length : 0
+    const recovery = useMemo(
+        () =>
+            getVerificationRecoveryPresentation({
+                triageResult,
+                triageFailure,
+            }),
+        [triageResult, triageFailure]
+    )
+    const showVerificationRecheck = shouldOfferVerificationRecheck({
+        isVerified,
+        editMode,
+        hasCandidateData: Object.keys(data).length > 0,
+        recovery,
+    })
+
+    function continueManualReview() {
+        setTab("fields")
+        window.requestAnimationFrame(() => {
+            reviewBodyRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+            reviewBodyRef.current?.focus()
+        })
+    }
 
     return (
         <div className="col-span-12 md:col-span-3 min-h-0 rounded-xl tomo-surface flex flex-col">
@@ -331,14 +362,6 @@ export default function WorkingPanel({
                     </div>
                 )}
 
-                {isFailSafe && !triageLoading && !isVerified && (
-                    <div className="mt-2">
-                        <p className="text-[11px] text-tomo-warning">
-                            Triage unavailable — all fields shown for manual review.
-                        </p>
-                    </div>
-                )}
-
                 {triageResult?.history?.unavailable &&
                     !triageLoading &&
                     !isVerified && (
@@ -349,6 +372,54 @@ export default function WorkingPanel({
                     )}
 
                 <OrchestrationTrace trace={orchestrationTrace} />
+
+                {recovery && !triageLoading && !isVerified && (
+                    <section
+                        className="mt-3 rounded-lg border border-tomo-warning/50 bg-tomo-warning/10 px-3 py-3"
+                        aria-live="polite"
+                    >
+                        <p className="text-sm font-medium text-tomo-warning">
+                            {recovery.title}
+                        </p>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-tomo-text-h">
+                            {recovery.message}
+                        </p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-tomo-text">
+                            {recovery.nextStep}
+                        </p>
+
+                        <div className="mt-3 grid gap-2">
+                            {recovery.retryable && (
+                                <button
+                                    className="tomo-btn tomo-btn-secondary w-full"
+                                    onClick={onRetryReview || undefined}
+                                    disabled={!onRetryReview}
+                                >
+                                    Retry AI review
+                                </button>
+                            )}
+
+                            {recovery.manualReviewAvailable && (
+                                <button
+                                    className="tomo-btn tomo-btn-primary w-full"
+                                    onClick={continueManualReview}
+                                >
+                                    Continue with manual review
+                                </button>
+                            )}
+
+                            {recovery.reviewLaterAvailable && (
+                                <button
+                                    className="tomo-btn tomo-btn-secondary w-full"
+                                    onClick={onReviewLater || undefined}
+                                    disabled={!onReviewLater}
+                                >
+                                    Review later
+                                </button>
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 <div
                     className="flex gap-6 mt-4 border-b border-tomo-border"
@@ -385,14 +456,37 @@ export default function WorkingPanel({
                                 </p>
                             </div>
                         ) : !editMode ? (
-                            <button
-                                className="tomo-btn tomo-btn-secondary w-full"
-                                onClick={onStartEdit || undefined}
-                                disabled={!onStartEdit}
-                                title="Edit extracted fields (candidate truth)"
-                            >
-                                Edit
-                            </button>
+                            <div className="grid gap-2">
+                                <button
+                                    className="tomo-btn tomo-btn-secondary w-full"
+                                    onClick={() => onStartEdit?.()}
+                                    disabled={!onStartEdit || triageLoading}
+                                    title="Edit extracted fields (candidate truth)"
+                                >
+                                    Edit
+                                </button>
+
+                                {showVerificationRecheck && (
+                                    <>
+                                        <button
+                                            className="tomo-btn tomo-btn-secondary w-full disabled:opacity-50"
+                                            onClick={onRetryReview || undefined}
+                                            disabled={
+                                                !onRetryReview || triageLoading
+                                            }
+                                        >
+                                            {triageLoading
+                                                ? "AI review running…"
+                                                : "Recheck with AI"}
+                                        </button>
+                                        <p className="text-[11px] leading-relaxed text-tomo-text">
+                                            Rechecks the saved candidate. It does
+                                            not approve or add anything to trusted
+                                            records automatically.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
                         ) : (
                             <>
                                 <div className="grid grid-cols-3 gap-2">
@@ -438,6 +532,8 @@ export default function WorkingPanel({
             )}
 
             <div
+                ref={reviewBodyRef}
+                tabIndex={-1}
                 className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4"
                 onWheel={stopWheelIfScrollable}
             >
@@ -445,16 +541,23 @@ export default function WorkingPanel({
                     <FieldsView
                         data={data}
                         editMode={editMode}
+                        editTargetPath={editTargetPath}
                         isVerified={isVerified}
                         triageMap={triageMap}
                         hasTriage={hasTriage}
                         isLegacyReview={isLegacyReview}
                         acceptedPaths={acceptedPaths}
                         onAcceptField={onAcceptField}
+                        onCorrectField={onStartEdit}
                         onAcceptAllConfirmed={onAcceptAllConfirmed}
                         validationErrors={validationErrors}
                         onUpdateInvoiceId={onUpdateInvoiceId}
+                        onUpdateSourceOrg={onUpdateSourceOrg}
+                        onUpdateDocDate={onUpdateDocDate}
                         onUpdateWeightMeasurement={onUpdateWeightMeasurement}
+                        onUpdateVaccineEvidence={onUpdateVaccineEvidence}
+                        onAddRabiesEvidence={onAddRabiesEvidence}
+                        onRemoveVaccineEvidence={onRemoveVaccineEvidence}
                         onUpdateEvent={onUpdateEvent}
                         onAddEvent={onAddEvent}
                         onRemoveEvent={onRemoveEvent}
@@ -487,16 +590,23 @@ export default function WorkingPanel({
 function FieldsView({
     data,
     editMode,
+    editTargetPath,
     isVerified,
     triageMap,
     hasTriage,
     isLegacyReview,
     acceptedPaths,
     onAcceptField,
+    onCorrectField,
     onAcceptAllConfirmed,
     validationErrors,
     onUpdateInvoiceId,
+    onUpdateSourceOrg,
+    onUpdateDocDate,
     onUpdateWeightMeasurement,
+    onUpdateVaccineEvidence,
+    onAddRabiesEvidence,
+    onRemoveVaccineEvidence,
     onUpdateEvent,
     onAddEvent,
     onRemoveEvent,
@@ -507,11 +617,19 @@ function FieldsView({
     if (hasTriage && !editMode && !isLegacyReview) {
         return (
             <div className="space-y-5 pb-6">
+                <VaccineEvidenceBlock
+                    candidates={data?.vaccine_evidence || []}
+                    isVerified={isVerified}
+                    triageMap={triageMap}
+                    acceptedPaths={acceptedPaths}
+                    onAcceptField={onAcceptField}
+                />
                 <FlaggedFieldsSection
                     data={data}
                     triageMap={triageMap}
                     acceptedPaths={acceptedPaths}
                     onAcceptField={onAcceptField}
+                    onCorrectField={onCorrectField}
                     isVerified={isVerified}
                 />
 
@@ -537,6 +655,23 @@ function FieldsView({
 
             {!editMode ? (
                 <Field
+                    label="Document date"
+                    value={formatDisplayDate(data?.doc_date)}
+                    triage={isLegacyReview ? null : triageMap["doc_date"]}
+                    isVerified={isVerified}
+                />
+            ) : (
+                <FieldEdit
+                    label="Document date"
+                    type="date"
+                    value={data?.doc_date || ""}
+                    error={validationErrors["doc_date"]}
+                    onChange={(value) => onUpdateDocDate?.(value)}
+                />
+            )}
+
+            {!editMode ? (
+                <Field
                     label="Invoice"
                     value={data?.invoice_id}
                     triage={
@@ -551,6 +686,28 @@ function FieldsView({
                     placeholder="e.g., i-11250003597"
                     error={validationErrors["invoice_id"]}
                     onChange={(v) => onUpdateInvoiceId && onUpdateInvoiceId(v)}
+                />
+            )}
+
+            {!editMode ? (
+                <Field
+                    label="Clinic"
+                    value={data?.source_org}
+                    triage={
+                        isLegacyReview ? null : triageMap["source_org"]
+                    }
+                    isVerified={isVerified}
+                />
+            ) : (
+                <FieldEdit
+                    label="Clinic"
+                    value={data?.source_org || ""}
+                    placeholder="e.g., SoMa Animal Hospital"
+                    error={validationErrors["source_org"]}
+                    onChange={(value) =>
+                        onUpdateSourceOrg?.(value)
+                    }
+                    focusOnMount={editTargetPath === "source_org"}
                 />
             )}
 
@@ -576,6 +733,17 @@ function FieldsView({
                 errors={validationErrors}
                 fallbackDate={data?.doc_date || ""}
                 onUpdate={onUpdateWeightMeasurement}
+            />
+
+            <VaccineEvidenceBlock
+                candidates={data?.vaccine_evidence || []}
+                editMode={editMode}
+                isVerified={isVerified}
+                triageMap={isLegacyReview ? {} : triageMap}
+                errors={validationErrors}
+                onUpdate={onUpdateVaccineEvidence}
+                onAdd={onAddRabiesEvidence}
+                onRemove={onRemoveVaccineEvidence}
             />
 
             <Field
@@ -700,9 +868,12 @@ function FlaggedFieldsSection({
     triageMap,
     acceptedPaths,
     onAcceptField,
+    onCorrectField,
     isVerified,
 }) {
-    const flagged = Object.values(triageMap).filter(isAttentionField)
+    const flagged = Object.values(triageMap)
+        .filter(isAttentionField)
+        .filter((field) => field.group !== "vaccine_evidence")
 
     if (flagged.length === 0) {
         return (
@@ -764,12 +935,24 @@ function FlaggedFieldsSection({
                                 </div>
 
                                 {!accepted && (
-                                    <button
-                                        className="shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors border-[color:var(--tomo-success-border)] text-tomo-success hover:bg-[var(--tomo-success-bg)]"
-                                        onClick={() => onAcceptField?.(f.path)}
-                                    >
-                                        Accept
-                                    </button>
+                                    <div className="flex shrink-0 flex-col gap-2">
+                                        {f.path === "source_org" && (
+                                            <button
+                                                className="text-xs px-3 py-1.5 rounded-full border border-tomo-border text-tomo-text-h hover:border-tomo-accent"
+                                                onClick={() =>
+                                                    onCorrectField?.(f.path)
+                                                }
+                                            >
+                                                Correct
+                                            </button>
+                                        )}
+                                        <button
+                                            className="text-xs px-3 py-1.5 rounded-full border transition-colors border-[color:var(--tomo-success-border)] text-tomo-success hover:bg-[var(--tomo-success-bg)]"
+                                            onClick={() => onAcceptField?.(f.path)}
+                                        >
+                                            Accept
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -791,7 +974,9 @@ function ConfirmedFieldsSection({
     onAcceptAllConfirmed,
     isVerified,
 }) {
-    const confirmed = Object.values(triageMap).filter(isContextField)
+    const confirmed = Object.values(triageMap)
+        .filter(isContextField)
+        .filter((field) => field.group !== "vaccine_evidence")
 
     if (confirmed.length === 0) return null
 
@@ -909,12 +1094,30 @@ function Field({ label, value, triage, isVerified = false }) {
     )
 }
 
-function FieldEdit({ label, value, onChange, placeholder, error }) {
+function FieldEdit({
+    label,
+    value,
+    onChange,
+    placeholder,
+    error,
+    type = "text",
+    focusOnMount = false,
+}) {
+    const inputRef = useRef(null)
+
+    useEffect(() => {
+        if (!focusOnMount || !inputRef.current) return
+        inputRef.current.scrollIntoView({ behavior: "smooth", block: "center" })
+        inputRef.current.focus()
+    }, [focusOnMount])
+
     return (
         <div>
             <p className="text-xs text-tomo-text">{label}</p>
 
             <input
+                ref={inputRef}
+                type={type}
                 className="mt-1 w-full rounded-lg border border-tomo-border bg-transparent px-3 py-2 text-sm text-tomo-text-h outline-none focus:border-tomo-accent"
                 value={value}
                 placeholder={placeholder}

@@ -48,9 +48,26 @@ router.post("/gmail/check-inbox", async (req, res) => {
             reviewDocuments = data || []
         }
 
-        const failedDocuments = processedDocuments.filter(
-            (doc) => doc.status === "failed"
+        const failedDocuments = processedDocuments
+            .filter((doc) => doc.status === "failed")
+            .map((doc) => ({
+                documentId: doc.documentId,
+                filename: doc.filename,
+                failedStep: doc.failedStep,
+                presentation: doc.presentation,
+            }))
+        const manualReviewResults = processedDocuments.filter(
+            (doc) => doc.status === "needs_review" && doc.degraded
         )
+        const manualReviewDocuments = manualReviewResults.map((resultItem) => ({
+            documentId: resultItem.documentId,
+            filename: resultItem.filename,
+            warning: resultItem.warning,
+            document:
+                reviewDocuments.find(
+                    (document) => document.id === resultItem.documentId
+                ) || null,
+        }))
 
         const skippedDuplicates =
             result.ingestSummary?.skippedDuplicates ??
@@ -63,14 +80,16 @@ router.post("/gmail/check-inbox", async (req, res) => {
 
             emailsFound: result.ingestSummary?.emailsFound ?? null,
             documentsCreated: result.documentsCreated ?? 0,
+            documentsRetried: result.documentsRetried ?? 0,
             processedToReview: reviewDocuments.length,
             skippedDuplicates,
 
             failed: failedDocuments.length,
             failedDocuments,
+            needsManualReview: manualReviewDocuments.length,
+            manualReviewDocuments,
 
             reviewDocuments,
-            result,
         })
     } catch (error) {
         console.error(

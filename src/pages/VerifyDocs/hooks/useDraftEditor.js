@@ -8,6 +8,7 @@ import { validateExtracted } from "../validation.js"
 export function useDraftEditor(detail, isVerified) {
     const [editMode, setEditMode] = useState(false)
     const [draftExtracted, setDraftExtracted] = useState(null)
+    const [editTargetPath, setEditTargetPath] = useState(null)
     const [dirty, setDirty] = useState(false)
     const [validationErrors, setValidationErrors] = useState({})
 
@@ -19,14 +20,16 @@ export function useDraftEditor(detail, isVerified) {
     const reset = useCallback(() => {
         setEditMode(false)
         setDraftExtracted(null)
+        setEditTargetPath(null)
         setDirty(false)
         setValidationErrors({})
     }, [])
 
-    function startEdit() {
+    function startEdit(targetPath = null) {
         if (isVerified) return
 
         setDraftExtracted(structuredClone(detail?.text_extracted || {}))
+        setEditTargetPath(targetPath)
         setValidationErrors({})
         setDirty(false)
         setEditMode(true)
@@ -74,6 +77,16 @@ export function useDraftEditor(detail, isVerified) {
         markDirty()
     }
 
+    function onUpdateSourceOrg(value) {
+        setDraftExtracted((prev) => ({ ...(prev || {}), source_org: value }))
+        markDirty()
+    }
+
+    function onUpdateDocDate(value) {
+        setDraftExtracted((prev) => ({ ...(prev || {}), doc_date: value }))
+        markDirty()
+    }
+
     function onUpdateWeightMeasurement(patch) {
         setDraftExtracted((prev) => {
             const next = structuredClone(prev || {})
@@ -87,6 +100,49 @@ export function useDraftEditor(detail, isVerified) {
                 }
             }
 
+            return next
+        })
+        markDirty()
+    }
+
+    function onUpdateVaccineEvidence(index, candidate) {
+        setDraftExtracted((prev) => {
+            const next = structuredClone(prev || {})
+            next.vaccine_evidence = Array.isArray(next.vaccine_evidence)
+                ? next.vaccine_evidence
+                : []
+            next.vaccine_evidence[index] = candidate
+            return next
+        })
+        markDirty()
+    }
+
+    function onAddRabiesEvidence() {
+        setDraftExtracted((prev) => {
+            const next = structuredClone(prev || {})
+            next.vaccine_evidence = Array.isArray(next.vaccine_evidence)
+                ? next.vaccine_evidence
+                : []
+            if (next.vaccine_evidence.length) return next
+            next.vaccine_evidence.push({
+                schema_version: 1,
+                care_kind: "vaccine",
+                care_item: "rabies",
+                source_record_type: "vaccination_certificate",
+                assertions: [],
+                product_details: {},
+            })
+            return next
+        })
+        markDirty()
+    }
+
+    function onRemoveVaccineEvidence(index) {
+        setDraftExtracted((prev) => {
+            const next = structuredClone(prev || {})
+            next.vaccine_evidence = (next.vaccine_evidence || []).filter(
+                (_, candidateIndex) => candidateIndex !== index
+            )
             return next
         })
         markDirty()
@@ -118,6 +174,7 @@ export function useDraftEditor(detail, isVerified) {
     return {
         editMode,
         draftExtracted,
+        editTargetPath,
         dirty,
         validationErrors,
         startEdit,
@@ -126,7 +183,12 @@ export function useDraftEditor(detail, isVerified) {
         validate,
         setDirty,
         onUpdateInvoiceId,
+        onUpdateSourceOrg,
+        onUpdateDocDate,
         onUpdateWeightMeasurement,
+        onUpdateVaccineEvidence,
+        onAddRabiesEvidence,
+        onRemoveVaccineEvidence,
         onUpdateEvent,
         onAddEvent,
         onRemoveEvent,

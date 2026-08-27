@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 
 from .documents import get_document_text, update_document_extraction
+from .vaccine_evidence import normalize_vaccine_evidence
 
 MODEL = os.getenv("TOMO_GEMINI_MODEL", "gemini-3-flash-preview")
 
@@ -125,8 +126,7 @@ def _call_gemini(prompt: str, *, temperature: float = 0.0, max_output_tokens: in
     cfg = types.GenerateContentConfig(
         temperature=temperature,
         max_output_tokens=max_output_tokens,
-        # Optional to try later:
-        # response_mime_type="application/json",
+        response_mime_type="application/json",
     )
 
     resp1 = client.models.generate_content(model=MODEL, contents=prompt, config=cfg)
@@ -506,6 +506,9 @@ def _apply_post_normalizations(extracted: Dict[str, Any], doc: Dict[str, Any]) -
     extracted = _normalize_lab_analytes(extracted)
     extracted = _normalize_lab_value_text_title_case(extracted)
     extracted = _normalize_weight_measurement(extracted, doc)
+    extracted["vaccine_evidence"] = normalize_vaccine_evidence(
+        extracted.get("vaccine_evidence")
+    )
 
     # Fill summary if missing and labs exist (common in per-panel fallback)
     if extracted.get("summary") in (None, ""):
@@ -690,7 +693,7 @@ def _retry_cost_items_only(raw_text: str, doc: Dict[str, Any], extracted: Dict[s
         f"{raw_text[:120000]}"
     )
 
-    text = _call_gemini(retry_prompt, temperature=0.0, max_output_tokens=4096)
+    text = _call_gemini(retry_prompt, temperature=0.0, max_output_tokens=8192)
 
     try:
         retry_out = parse_json_loose(text)
@@ -726,6 +729,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
             "invoice_id": None,
             "summary": None,
             "weight_measurement": None,
+            "vaccine_evidence": [],
             "events": [],
             "cost_items": [],
             "totals": {"paid": None, "currency": "USD"},
@@ -750,6 +754,30 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
             "source_label": "Weight|Patient metadata weight",
             "source_context": None,
         },
+        "vaccine_evidence": [
+            {
+                "schema_version": 1,
+                "care_kind": "vaccine",
+                "care_item": "rabies",
+                "source_record_type": "vaccination_certificate|receipt",
+                "assertions": [
+                    {
+                        "assertion_type": "administration|next_due|clinic_reported_status",
+                        "date": None,
+                        "date_meaning": "administered_on|clinic_reported_next_due",
+                        "status": None,
+                        "as_of_date": None,
+                        "source_context": None,
+                    }
+                ],
+                "product_details": {
+                    "product_name": None,
+                    "manufacturer": None,
+                    "batch_number": None,
+                    "product_expiration_date": None,
+                },
+            }
+        ],
         "events": [
             {
                 "event_type": "appointment|visit|injection|vaccine|procedure|lab|refill_request|other",
@@ -795,9 +823,14 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
         "STRICT OUTPUT RULES:\n"
         "- Return ONLY a single JSON object (no markdown, no code fences).\n"
         "- doc_id MUST equal the provided documents.id UUID exactly.\n"
+        "- source_org is the clinical organization explicitly named inside the attached document. Never use the Gmail sender, forwarder, or uploader as source_org. If the clinical organization is not explicit, use null.\n"
         "- If you find an invoice number (e.g., i-###########), put it in invoice_id.\n"
         "- For receipts/invoices: populate cost_items[] and totals.paid if present.\n"
         "- If the source explicitly shows this patient's weight, populate weight_measurement. Never infer weight.\n"
+        "- Populate vaccine_evidence[] only for Rabies in this phase. Preserve administration, clinic-reported next due, and explicitly stated clinic status as separate assertions.\n"
+        "- Only an official vaccination certificate may provide an administration assertion. A receipt or future-reminder line may provide next_due, but never administration.\n"
+        "- product_expiration_date is vial/product metadata. Never use it as the patient's next-due or vaccine-expiration date.\n"
+        "- Other vaccines are outside this phase; do not add them to vaccine_evidence[].\n"
         "- For clinical docs: populate events[]; for lab reports: populate labs[].\n"
         "- Do not invent facts.\n"
         "- If this is a receipt/invoice and line items exist, cost_items must include them. Do not leave it empty.\n\n"
@@ -815,7 +848,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
         f"{raw_text[:120000]}"
     )
 
-    text = _call_gemini(prompt, temperature=0.0, max_output_tokens=4096)
+    text = _call_gemini(prompt, temperature=0.0, max_output_tokens=8192)
 
     try:
         extracted = parse_json_loose(text)
@@ -834,6 +867,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
                 "invoice_id": None,
                 "summary": None,
                 "weight_measurement": None,
+                "vaccine_evidence": [],
                 "events": [],
                 "cost_items": [],
                 "totals": {"paid": None, "currency": "USD"},
@@ -875,6 +909,7 @@ def extract_document_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
                     "invoice_id": None,
                     "summary": None,
                     "weight_measurement": None,
+                    "vaccine_evidence": [],
                     "events": [],
                     "cost_items": [],
                     "totals": {"paid": None, "currency": "USD"},

@@ -5,6 +5,12 @@ import { spawn } from "node:child_process"
 import { sbAdmin } from "../supabase.js"
 import { ingestGmailReceipts } from "./ingestGmailReceipts.js"
 import { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
+import { getInboxProcessingPlan } from "./documentProvenance.js"
+import {
+    buildManualReviewExtraction,
+    buildManualReviewWarning,
+    getProcessingFailurePresentation,
+} from "./documentProcessingFallback.js"
 
 export { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
 
@@ -164,6 +170,29 @@ async function markProcessingFailed(docId, step, error) {
     return message
 }
 
+async function markExtractionFallbackForReview(document, error) {
+    const warning = buildManualReviewWarning(document.id)
+    const fallback = buildManualReviewExtraction(document)
+    const message = `[${warning.code}] ${error.message}`
+
+    const { data, error: updateError } = await sbAdmin
+        .from("documents")
+        .update({
+            text_extracted: fallback,
+            triage_result: null,
+            status: "needs_review",
+            remarks: message.slice(0, 1000),
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", document.id)
+        .select("id, status, updated_at")
+        .single()
+
+    if (updateError) throw updateError
+
+    return { warning, document: data }
+}
+
 export async function processDocumentToReview(docId, { force = false } = {}) {
     const result = {
         documentId: docId,
@@ -173,7 +202,9 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
 
     const { data: document, error: documentError } = await sbAdmin
         .from("documents")
-        .select("id, status, raw_text, text_extracted, triage_result")
+        .select(
+            "id, pet_id, title, doc_type, doc_date, source_org, status, raw_text, text_extracted, triage_result"
+        )
         .eq("id", docId)
         .single()
 
@@ -194,13 +225,15 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
         }
     }
 
+    let currentStep = "populate_raw_text"
+
     try {
         if (!document.raw_text || force) {
             const rawTextResult = await populateRawText(docId)
             result.steps.push({
                 step: "populate_raw_text",
                 ok: true,
-                stdout: rawTextResult.stdout,
+                outputReceived: Boolean(rawTextResult.stdout),
             })
         } else {
             result.steps.push({
@@ -212,12 +245,14 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
         }
     
 
+        currentStep = "extract_document"
+
         if (!document.text_extracted || force) {
             const extractionResult = await extractDocument(docId)
             result.steps.push({
                 step: "extract_document",
                 ok: true,
-                stdout: extractionResult.stdout,
+                outputReceived: Boolean(extractionResult.stdout),
             })
         } else {
             result.steps.push({
@@ -227,6 +262,8 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
                 reason: "text_extracted already exists",
             })
         }
+
+        currentStep = "triage"
 
         if (!document.triage_result || force) {
             const triageResult = await runTriage(docId)
@@ -244,6 +281,7 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
             })
         }
 
+        currentStep = "mark_needs_review"
         const reviewStatus = await markNeedsReview(docId)
         result.steps.push({
             step: "mark_needs_review",
@@ -254,15 +292,42 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
         result.status = "needs_review"
         return result
     } catch (error) {
+        let failureError = error
+        const rawTextAvailable =
+            Boolean(document.raw_text) ||
+            result.steps.some(
+                (step) => step.step === "populate_raw_text" && step.ok
+            )
+
+        if (currentStep === "extract_document" && rawTextAvailable) {
+            try {
+                const fallback = await markExtractionFallbackForReview(
+                    document,
+                    error
+                )
+
+                result.status = "needs_review"
+                result.degraded = true
+                result.failedStep = currentStep
+                result.warning = fallback.warning
+                result.steps.push({
+                    step: "route_to_manual_review",
+                    ok: true,
+                    status: fallback.document.status,
+                })
+                return result
+            } catch (fallbackError) {
+                failureError = fallbackError
+                currentStep = "mark_needs_review"
+            }
+        }
+
         result.status = "failed"
-        result.error = error.message
+        result.error = failureError.message
+        result.failedStep = currentStep
+        result.presentation = getProcessingFailurePresentation(currentStep)
 
-        const failedStep =
-            result.steps.length === 0
-                ? "populate_raw_text"
-                : result.steps.at(-1)?.step || "unknown"
-
-        await markProcessingFailed(docId, failedStep, error)
+        await markProcessingFailed(docId, currentStep, failureError)
 
         return result
     }
@@ -292,16 +357,18 @@ export async function processGmailInbox({
         dryRun,
     })
 
-    const createdItems = ingestSummary.items.filter(
-        (item) => item.action === "created_document"
-    )
+    const processingPlan = getInboxProcessingPlan(ingestSummary.items)
 
     const processedDocuments = []
 
     if (!dryRun) {
-        for (const item of createdItems) {
+        for (const item of processingPlan) {
             const processed = await processDocumentToReview(item.documentId)
-            processedDocuments.push(processed)
+            processedDocuments.push({
+                ...processed,
+                filename: item.filename,
+                intakeAction: item.intakeAction,
+            })
         }
     }
 
@@ -309,7 +376,10 @@ export async function processGmailInbox({
         mode: "gmail_inbox",
         dryRun,
         ingestSummary,
-        documentsCreated: createdItems.length,
+        documentsCreated: ingestSummary.documentsCreated || 0,
+        documentsRetried: processingPlan.filter(
+            (item) => item.intakeAction === "retry_existing_document"
+        ).length,
         processedDocuments,
     }
 }

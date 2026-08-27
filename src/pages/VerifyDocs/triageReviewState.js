@@ -64,3 +64,42 @@ export function getTriageReviewState({
             (!currentAssessment || unresolvedPaths.length > 0),
     }
 }
+
+function reviewFieldSignature(field) {
+    return JSON.stringify({
+        path: field?.path || null,
+        extracted_value: field?.extracted_value ?? null,
+        state: field?.state || null,
+        outcome: field?.outcome || null,
+        blocks_approval: field?.blocks_approval === true,
+    })
+}
+
+export function preserveUnchangedAcceptedPaths({
+    previousAssessment,
+    nextAssessment,
+    acceptedPaths = new Set(),
+} = {}) {
+    const accepted =
+        acceptedPaths instanceof Set
+            ? acceptedPaths
+            : new Set(acceptedPaths || [])
+    const previousByPath = new Map(
+        (previousAssessment?.fields || []).map((field) => [field.path, field])
+    )
+    const nextByPath = new Map(
+        (nextAssessment?.fields || []).map((field) => [field.path, field])
+    )
+
+    return new Set(
+        [...accepted].filter((path) => {
+            const previous = previousByPath.get(path)
+            const next = nextByPath.get(path)
+            return (
+                previous &&
+                next &&
+                reviewFieldSignature(previous) === reviewFieldSignature(next)
+            )
+        })
+    )
+}

@@ -145,6 +145,26 @@ test("preserves the existing insurance recommendation for invoices", () => {
     assert.equal(recommendation.recommended, true)
 })
 
+test("does not offer an insurance reminder for a vaccination certificate", () => {
+    const recommendation = getPostVerifyRecommendations({
+        status: "verified",
+        doc_type: "vaccination_certificate",
+        title: "Rabies vaccination certificate",
+        text_extracted: {
+            vaccine_evidence: [
+                {
+                    care_item: "rabies",
+                    source_record_type: "vaccination_certificate",
+                },
+            ],
+        },
+    }).insuranceClaimReminder
+
+    assert.equal(recommendation.show, false)
+    assert.equal(recommendation.disabled, true)
+    assert.equal(recommendation.recommended, false)
+})
+
 test("uses the server-owned verified-weight recovery recommendation", () => {
     const recommendation = getPostVerifyRecommendations(
         buildInvoice({

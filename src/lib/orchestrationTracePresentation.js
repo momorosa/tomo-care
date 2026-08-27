@@ -13,6 +13,7 @@ const SPECIALIST_STATUS_LABELS = Object.freeze({
 
 const RESULT_LABELS = Object.freeze({
     assessment_ready: "Assessment ready",
+    manual_review: "Manual review ready",
     answer_only: "Answer only",
     clarification_required: "Needs details",
     action_prepared: "Proposal ready",
@@ -33,6 +34,7 @@ const RESULT_LABELS = Object.freeze({
 
 const RESULT_TONES = Object.freeze({
     assessment_ready: "success",
+    manual_review: "warning",
     answer_only: "success",
     action_prepared: "success",
     action_already_prepared: "success",
@@ -83,6 +85,8 @@ const RESULT_CONTROL_LABELS = Object.freeze({
         "Nothing changes until the missing detail is clear.",
     assessment_ready:
         "The assessment remains review-only until you verify it.",
+    manual_review:
+        "The saved fields remain untrusted until you review and approve them.",
 })
 
 export function getOrchestrationTracePresentation(trace) {

@@ -62,7 +62,10 @@ export function enrichCitations(citations = [], context = {}) {
     )
 
     const factById = new Map(
-        (context.verifiedWeightFacts || []).map((fact) => [fact.id, fact])
+        [
+            ...(context.verifiedWeightFacts || []),
+            ...(context.verifiedPreventiveCareFacts || []),
+        ].map((fact) => [fact.id, fact])
     )
 
     return citations.map((citation) => {
@@ -168,6 +171,18 @@ function getFactDisplayValue(fact) {
         }
     }
 
+    if (fact.fact_type === "preventive_care_status") {
+        const item = String(valueJson.care_item || "preventive care")
+        if (valueJson.clinic_reported_next_due) {
+            return `${titleCase(item)} · clinic-reported next due ${formatDate(
+                valueJson.clinic_reported_next_due
+            )}`
+        }
+        if (valueJson.clinic_reported_status) {
+            return `${titleCase(item)} · clinic reported ${valueJson.clinic_reported_status}`
+        }
+    }
+
     if (valueJson.value !== undefined && valueJson.unit) {
         return `${valueJson.value} ${valueJson.unit}`
     }
@@ -199,6 +214,10 @@ function getEvidenceNote(citation, sourceRecord) {
             return "Extracted from patient metadata in the source document."
         }
 
+        if (sourceRecord.fact_type === "preventive_care_status") {
+            return "Verified clinic-reported preventive status; no medical interpretation or reminder was inferred."
+        }
+
         return "Verified fact from trusted TomoCare records."
     }
 
@@ -220,10 +239,16 @@ function getEvidenceNote(citation, sourceRecord) {
     return null
 }
 
-function getSourceContext(sourceRecord) {
-    if (!sourceRecord?.value_json?.source_context) return null
+function titleCase(value) {
+    return value.replace(/\b\w/g, (character) => character.toUpperCase())
+}
 
-    return sourceRecord.value_json.source_context
+function getSourceContext(sourceRecord) {
+    return (
+        sourceRecord?.value_json?.source_context ||
+        sourceRecord?.details_json?.source_context ||
+        null
+    )
 }
 
 function formatMoney(value, currency = "USD") {

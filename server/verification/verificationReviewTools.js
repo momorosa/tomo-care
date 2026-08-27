@@ -26,6 +26,8 @@ const DOCUMENT_COLUMNS = [
     "updated_at",
 ].join(", ")
 
+export const SOURCE_REVIEW_TIMEOUT_MS = 45000
+
 export class VerificationReviewToolError extends Error {
     constructor(message, { reason = "internal_error", retryable = true } = {}) {
         super(message)
@@ -154,6 +156,9 @@ export async function runSourceReview({
     extracted,
     document,
     signal,
+    timeoutMs = SOURCE_REVIEW_TIMEOUT_MS,
+    fetchImpl = fetch,
+    now = () => Date.now(),
 }) {
     const fields = enumerateVerificationFields(extracted)
     const apiKey = process.env.ANTHROPIC_API_KEY
@@ -166,7 +171,11 @@ export async function runSourceReview({
         return buildSourceReviewFailSafe(
             fields,
             "Source reviewer is unavailable",
-            model
+            model,
+            {
+                reasonCode: "not_configured",
+                retryable: false,
+            }
         )
     }
 
@@ -179,10 +188,32 @@ export async function runSourceReview({
         }
     }
 
+    const controller = new AbortController()
+    const startedAt = now()
+    let sourceTimedOut = false
+    let timeoutId = null
+    const abortFromSpecialist = () => controller.abort()
+
+    if (signal?.aborted) {
+        throw new VerificationReviewToolError(
+            "Source comparison timed out.",
+            {
+                reason: "timeout",
+                retryable: true,
+            }
+        )
+    }
+
+    signal?.addEventListener("abort", abortFromSpecialist, { once: true })
+    timeoutId = setTimeout(() => {
+        sourceTimedOut = true
+        controller.abort()
+    }, timeoutMs)
+
     try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
+        const response = await fetchImpl("https://api.anthropic.com/v1/messages", {
             method: "POST",
-            signal,
+            signal: controller.signal,
             headers: {
                 "Content-Type": "application/json",
                 "x-api-key": apiKey,
@@ -214,7 +245,12 @@ export async function runSourceReview({
             return buildSourceReviewFailSafe(
                 fields,
                 `Source reviewer returned ${response.status}`,
-                model
+                model,
+                {
+                    reasonCode: "provider_error",
+                    retryable: response.status >= 500 || response.status === 429,
+                    elapsedMs: now() - startedAt,
+                }
             )
         }
 
@@ -229,7 +265,12 @@ export async function runSourceReview({
             return buildSourceReviewFailSafe(
                 fields,
                 "Source reviewer returned an invalid response",
-                model
+                model,
+                {
+                    reasonCode: "malformed_result",
+                    retryable: true,
+                    elapsedMs: now() - startedAt,
+                }
             )
         }
 
@@ -240,6 +281,19 @@ export async function runSourceReview({
             notes: parsed.notes || null,
         }
     } catch (error) {
+        if (sourceTimedOut) {
+            return buildSourceReviewFailSafe(
+                fields,
+                "AI comparison took too long; compare this field with the PDF.",
+                model,
+                {
+                    reasonCode: "timeout",
+                    retryable: true,
+                    elapsedMs: now() - startedAt,
+                }
+            )
+        }
+
         if (signal?.aborted) {
             throw new VerificationReviewToolError(
                 "Source comparison timed out.",
@@ -257,7 +311,15 @@ export async function runSourceReview({
         return buildSourceReviewFailSafe(
             fields,
             "Source reviewer is unavailable",
-            model
+            model,
+            {
+                reasonCode: "unavailable",
+                retryable: true,
+                elapsedMs: now() - startedAt,
+            }
         )
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId)
+        signal?.removeEventListener("abort", abortFromSpecialist)
     }
 }

@@ -15,6 +15,10 @@ const EXTRACTED = {
 }
 const CANDIDATE_FINGERPRINT = getCandidateFingerprint(EXTRACTED)
 
+test("reserves time to persist a source-review fail-safe", () => {
+    assert.equal(VERIFICATION_INTELLIGENCE_CONTRACT.timeout_ms, 60000)
+})
+
 function buildAssessment({ failSafe = false } = {}) {
     return {
         schema_version: "verification_intelligence_v1",

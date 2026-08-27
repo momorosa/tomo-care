@@ -18,6 +18,19 @@ function addDays(dateString, days) {
     return date.toISOString().slice(0, 10)
 }
 
+function isFinancialSource(document) {
+    if (document?.doc_type === "vaccination_certificate") return false
+
+    const extracted = document?.text_extracted || {}
+    return (
+        document?.doc_type === "receipt" ||
+        document?.doc_type === "invoice" ||
+        Boolean(extracted.invoice_id) ||
+        (Array.isArray(extracted.cost_items) &&
+            extracted.cost_items.length > 0)
+    )
+}
+
 export function buildInsuranceClaimReminderPlan({
     document,
     careDate,
@@ -31,6 +44,15 @@ export function buildInsuranceClaimReminderPlan({
             reason: "source_not_verified",
             message:
                 "Document must be verified before TomoCare can create insurance claim reminders from it.",
+        }
+    }
+
+    if (!isFinancialSource(document)) {
+        return {
+            actionable: false,
+            reason: "source_not_financial",
+            message:
+                "Insurance claim reminders are available only for verified receipts or invoices with financial evidence.",
         }
     }
 

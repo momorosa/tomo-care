@@ -13,7 +13,10 @@ import { useTriage } from "./hooks/useTriage.js"
 import { useDraftEditor } from "./hooks/useDraftEditor.js"
 import { usePostVerifyActions } from "./hooks/usePostVerifyActions.js"
 import { getPostVerifyRecommendations } from "./recommendations.js"
-import { getTriageReviewState } from "./triageReviewState.js"
+import {
+    getTriageReviewState,
+    preserveUnchangedAcceptedPaths,
+} from "./triageReviewState.js"
 
 export default function VerifyDocs() {
     const { docId } = useParams()
@@ -160,7 +163,7 @@ export default function VerifyDocs() {
                     doc.raw_text &&
                     doc.status !== "verified"
                 ) {
-                    runTriage(doc.id).catch((e) => setError(e.message))
+                    runTriage(doc.id).catch(() => {})
                 }
             })
             .catch((e) => {
@@ -238,6 +241,8 @@ export default function VerifyDocs() {
         if (Object.keys(draft.validate()).length) return
 
         try {
+            const previousAssessment = triage.triageResult
+            const previousAcceptedPaths = new Set(triage.acceptedPaths)
             await api.patchExtracted(selectedId, draft.draftExtracted)
 
             setDetail((prev) =>
@@ -258,13 +263,20 @@ export default function VerifyDocs() {
 
             draft.setDirty(false)
 
-            triage.setTriageResult(null)
-            triage.setAcceptedPaths(new Set())
-            await triage.runTriage(selectedId, { force: true })
+            const assessment = await triage.runTriage(selectedId, {
+                force: true,
+            })
+            triage.setAcceptedPaths(
+                preserveUnchangedAcceptedPaths({
+                    previousAssessment,
+                    nextAssessment: assessment,
+                    acceptedPaths: previousAcceptedPaths,
+                })
+            )
 
             showToast("Saved draft")
         } catch (e) {
-            setError(e.message)
+            if (!e.reason) setError(e.message)
         }
     }
 
@@ -276,14 +288,22 @@ export default function VerifyDocs() {
         if (Object.keys(draft.validate()).length) return
 
         try {
+            const previousAssessment = triage.triageResult
+            const previousAcceptedPaths = new Set(triage.acceptedPaths)
             await api.patchExtracted(selectedId, draft.draftExtracted)
 
             const assessment = await triage.runTriage(selectedId, {
                 force: true,
             })
+            const preservedAcceptedPaths = preserveUnchangedAcceptedPaths({
+                previousAssessment,
+                nextAssessment: assessment,
+                acceptedPaths: previousAcceptedPaths,
+            })
+            triage.setAcceptedPaths(preservedAcceptedPaths)
             const nextReviewState = getTriageReviewState({
                 triageResult: assessment,
-                acceptedPaths: new Set(),
+                acceptedPaths: preservedAcceptedPaths,
                 isVerified: false,
             })
 
@@ -308,10 +328,55 @@ export default function VerifyDocs() {
                 return
             }
 
-            await approveDoc({ assessment, acceptedPaths: new Set() })
+            await approveDoc({
+                assessment,
+                acceptedPaths: preservedAcceptedPaths,
+            })
         } catch (e) {
-            setError(e.message)
+            if (!e.reason) setError(e.message)
         }
+    }
+
+    async function retryVerificationReview() {
+        if (!selectedId || isVerified) return
+
+        setError("")
+        const previousAssessment = triage.triageResult
+        const previousAcceptedPaths = new Set(triage.acceptedPaths)
+
+        try {
+            const assessment = await triage.runTriage(selectedId, {
+                force: true,
+            })
+            const preservedAcceptedPaths = preserveUnchangedAcceptedPaths({
+                previousAssessment,
+                nextAssessment: assessment,
+                acceptedPaths: previousAcceptedPaths,
+            })
+
+            triage.setAcceptedPaths(preservedAcceptedPaths)
+            setDetail((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          triage_result: assessment,
+                          status: "needs_review",
+                      }
+                    : prev
+            )
+
+            showToast(
+                assessment?.fail_safe
+                    ? "AI comparison still unavailable · manual review is ready"
+                    : "AI review completed"
+            )
+        } catch {
+            // useTriage keeps the saved candidate and presents recovery actions.
+        }
+    }
+
+    function reviewLater() {
+        navigate("/")
     }
 
     const extracted = detail?.text_extracted || {}
@@ -416,6 +481,7 @@ export default function VerifyDocs() {
                         isVerified={isVerified}
                         editMode={draft.editMode}
                         draftExtracted={draft.draftExtracted}
+                        editTargetPath={draft.editTargetPath}
                         dirty={draft.dirty}
                         validationErrors={draft.validationErrors}
                         onStartEdit={draft.startEdit}
@@ -423,9 +489,14 @@ export default function VerifyDocs() {
                         onSaveDraft={saveDraft}
                         onSaveAndVerify={saveAndVerify}
                         onUpdateInvoiceId={draft.onUpdateInvoiceId}
+                        onUpdateSourceOrg={draft.onUpdateSourceOrg}
+                        onUpdateDocDate={draft.onUpdateDocDate}
                         onUpdateWeightMeasurement={
                             draft.onUpdateWeightMeasurement
                         }
+                        onUpdateVaccineEvidence={draft.onUpdateVaccineEvidence}
+                        onAddRabiesEvidence={draft.onAddRabiesEvidence}
+                        onRemoveVaccineEvidence={draft.onRemoveVaccineEvidence}
                         onUpdateEvent={draft.onUpdateEvent}
                         onAddEvent={draft.onAddEvent}
                         onRemoveEvent={draft.onRemoveEvent}
@@ -435,9 +506,12 @@ export default function VerifyDocs() {
                         triageResult={triage.triageResult}
                         orchestrationTrace={triage.orchestrationTrace}
                         triageLoading={triage.triageLoading}
+                        triageFailure={triage.triageFailure}
                         acceptedPaths={triage.acceptedPaths}
                         onAcceptField={triage.acceptField}
                         onAcceptAllConfirmed={triage.acceptAllConfirmed}
+                        onRetryReview={retryVerificationReview}
+                        onReviewLater={reviewLater}
                     />
                 </div>
             </div>

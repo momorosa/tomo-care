@@ -1,5 +1,9 @@
 import { canonicalizeVerifiedLibrelaEvents } from "../lib/librelaEvidence.js"
 import { getVerifiedWeightCandidate } from "../lib/verifiedWeight.js"
+import {
+    getVaccineAssertion,
+    getVerifiedRabiesEvidence,
+} from "../lib/vaccineEvidence.js"
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -9,6 +13,14 @@ function firstValidDate(...values) {
             (value) => typeof value === "string" && DATE_RE.test(value)
         ) || null
     )
+}
+
+function firstNonEmptyText(...values) {
+    const value = values.find(
+        (candidate) =>
+            typeof candidate === "string" && candidate.trim().length > 0
+    )
+    return value ? value.trim() : null
 }
 
 function normalizeEventDetails(eventType, details, { verifiedAt, verifiedBy }) {
@@ -59,17 +71,28 @@ export function buildVerifiedDocumentMaterialization({
         throw new Error("No text_extracted found for this document.")
     }
 
+    const vaccineEvidence = getVerifiedRabiesEvidence(extracted)
+    const vaccineAdministrationDate = getVaccineAssertion(
+        vaccineEvidence[0],
+        "administration"
+    )?.date
     const approvedDocDate = firstValidDate(
         extracted.doc_date,
+        vaccineAdministrationDate,
         extracted.events?.[0]?.event_date,
         extracted.cost_items?.[0]?.service_date,
         document.doc_date
+    )
+    const approvedSourceOrg = firstNonEmptyText(
+        extracted.source_org,
+        document.source_org
     )
 
     const verifiedDocument = {
         ...document,
         status: "verified",
         doc_date: approvedDocDate || document.doc_date,
+        source_org: approvedSourceOrg,
         text_extracted: extracted,
     }
 
@@ -139,14 +162,18 @@ export function buildVerifiedDocumentMaterialization({
         documentUpdate.doc_date = approvedDocDate
     }
 
+    documentUpdate.source_org = approvedSourceOrg
+
     return {
         approvedDocDate,
+        approvedSourceOrg,
         documentUpdate,
         verifiedDocument,
         canonicalization: canonicalized,
         events,
         costItems,
         labs: [],
+        vaccineEvidence,
         weightMeasurement: getVerifiedWeightCandidate(verifiedDocument, {
             allowRawText: false,
         }),

@@ -1230,6 +1230,11 @@ function answerWeightMedicalBoundary(context, queryPlan) {
 function answerVaccineRecordLookup(context, queryPlan) {
     const vaccineEvents = [...(context.verifiedEvents || [])]
         .filter(isVaccineRelated)
+        .filter(
+            (event) =>
+                event.details_json?.evidence_type ===
+                "official_vaccination_certificate"
+        )
         .filter((event) =>
             queryPlan.subject === "rabies_vaccine"
                 ? isRabiesRelated(event)
@@ -1238,9 +1243,88 @@ function answerVaccineRecordLookup(context, queryPlan) {
         .sort((a, b) => new Date(b.event_date) - new Date(a.event_date))
 
     const latest = vaccineEvents[0]
+    const preventiveFact = [...(context.verifiedPreventiveCareFacts || [])]
+        .filter((fact) =>
+            queryPlan.subject === "rabies_vaccine"
+                ? fact.value_json?.care_item === "rabies"
+                : true
+        )
+        .sort((a, b) => new Date(b.verified_at || 0) - new Date(a.verified_at || 0))[0]
+    const certificate = [...(context.verifiedVaccineDocuments || [])]
+        .filter((document) =>
+            queryPlan.subject === "rabies_vaccine"
+                ? vaccineEvents.some((event) => event.doc_id === document.id)
+                : true
+        )
+        .sort((a, b) => new Date(b.doc_date || 0) - new Date(a.doc_date || 0))[0]
     const vaccineLabel = queryPlan.subject === "rabies_vaccine"
         ? "rabies vaccine"
         : "vaccine"
+
+    if (queryPlan.vaccine_focus === "certificate") {
+        if (!certificate) {
+            return noTrustedDataAnswer(
+                `I don’t have a verified ${vaccineLabel} certificate for Momo yet.`
+            )
+        }
+
+        return {
+            answer: `I found Momo’s verified ${vaccineLabel} certificate. Open the source PDF from the evidence card.`,
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [
+                documentCitation(certificate, "Verified Rabies certificate"),
+            ],
+            limitations: [
+                "The certificate is returned as trusted source evidence; no reminder or medical interpretation was created.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    if (queryPlan.vaccine_focus === "next_due") {
+        const nextDue = preventiveFact?.value_json?.clinic_reported_next_due
+        if (!nextDue) {
+            return noTrustedDataAnswer(
+                `I don’t have a verified clinic-reported next-due date for Momo’s ${vaccineLabel} yet.`
+            )
+        }
+
+        return {
+            answer: `Momo’s clinic-reported next ${vaccineLabel} due date is ${formatDate(nextDue)}.`,
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [
+                factCitation(preventiveFact, "Clinic-reported Rabies next due"),
+            ],
+            limitations: [
+                "This is the clinic-reported date from verified evidence, not a reminder or medical interpretation.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    if (queryPlan.vaccine_focus === "clinic_reported_status") {
+        const status = preventiveFact?.value_json?.clinic_reported_status
+        if (!status) {
+            return noTrustedDataAnswer(
+                `I don’t have an explicit clinic-reported ${vaccineLabel} status for Momo. I won’t infer one from today’s date or a due date.`
+            )
+        }
+
+        return {
+            answer: `The verified record says Momo’s clinic-reported ${vaccineLabel} status is ${status}.`,
+            answer_type: "grounded_answer",
+            confidence: "high",
+            citations: [
+                factCitation(preventiveFact, "Clinic-reported Rabies status"),
+            ],
+            limitations: [
+                "Tomo is repeating the clinic’s stated status without independently interpreting it.",
+            ],
+            proposed_action: null,
+        }
+    }
 
     if (!latest) {
         return noTrustedDataAnswer(
@@ -1250,12 +1334,12 @@ function answerVaccineRecordLookup(context, queryPlan) {
 
     return {
         answer:
-            `Momo’s last verified ${vaccineLabel} record was on ${formatDate(latest.event_date)}.`,
+            `Momo’s verified ${vaccineLabel} administration was on ${formatDate(latest.event_date)}.`,
         answer_type: "grounded_answer",
         confidence: "high",
         citations: [eventCitation(latest, `Verified ${vaccineLabel} record`)],
         limitations: [
-            "This answer uses verified TomoCare event records only.",
+            "This administration answer requires a verified certificate-backed event.",
         ],
         proposed_action: null,
     }
@@ -2272,6 +2356,8 @@ function isRabiesRelated(event) {
 
     const haystack = [
         event.event_type,
+        details.care_item,
+        details.evidence_type,
         details.medication,
         details.medication_name,
         details.item,

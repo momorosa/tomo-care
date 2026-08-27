@@ -76,6 +76,11 @@ test("malformed source response falls back to manual review input", () => {
     )
     assert.equal(fallback.failed, true)
     assert.equal(fallback.model, "fixture-model")
+    assert.deepEqual(fallback.failure, {
+        reason: "unavailable",
+        retryable: true,
+        elapsed_ms: null,
+    })
     assert.equal(fallback.fields.length, 2)
     assert.equal(
         fallback.fields.every((field) => field.state === "uncertain"),
