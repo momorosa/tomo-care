@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** August 24, 2026
+**Last updated:** August 27, 2026
 
 ---
 
@@ -333,10 +333,11 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.4 shipped:** governed Profile answers from the current `pets` row; deterministic age calculation; honest missing-data behavior; warm but clearly separated relationship context; question-aware clarification for broad wellbeing language; and typed read-only navigation to the Profile panel
 - **3E.5 shipped:** risk-weighted Verification Intelligence using current-source comparison, deterministic date, arithmetic, and weight checks, and up to five comparable trusted records; grouped consistent patterns; explicit changes, conflicts, and unsupported content; stale-candidate enforcement; fail-safe manual review; legacy-review labeling; and consistent currency presentation
 - **3E.6 shipped:** Tomo as the explicit manager over versioned Verification Intelligence and Care Operations contracts; allowlisted routing and tools; bounded evidence; typed permissions, failures, recovery, and stale-state handling; durable `orchestration_runs` and governed `care_actions`; and one product-visible manager-to-specialist trace shared across VerifyDocs, Chat, and Voice
+- **3E.7a shipped:** a strict Rabies evidence foundation from Gmail intake through Verification Intelligence, human correction and approval, server-only materialization, and grounded Agent Tomo answers; certificate-backed administration, clinic-reported due/status, and product expiration remain separate meanings; receipt failures and review timeouts preserve recoverable untrusted work without creating reminders or other actions
 
-The next bounded slice is **3E.7a — Verified Preventive Status Capture**. It begins with clinic-reported rabies status, preserves item, lifecycle state, date meaning, and source provenance as candidate truth, requires grouped human review, and materializes only a verified preventive-status fact. It must not infer administration, activate a reminder, create a care action, or sync Calendar from a clinic due-date statement.
+The next bounded slice is **3E.8 — Verified Weight-Trend Visualization**. It adds a compact, source-linked chart to the existing grounded weight-trend answer. The chart uses the complete verified weight history for the requested range, keeps each point traceable to its trusted fact and source document, preserves the existing narrative and newest-first evidence list, and makes no medical interpretation.
 
-Near-term work then proceeds through **3E.7 — Preventive Care Lifecycle**, a verified weight-trend visualization, Animate Tomo recovery, the separate resettable demo environment, and the final synthetic-invoice Gmail path and end-to-end polish. Phase 3E.7 covers vaccines, annual wellness, annual senior-lab lifecycle state, and bounded preventive screening while leaving lab-result interpretation outside portfolio v1. This order lets verification, orchestration, preventive care, weight, and recovery improvements benefit the real product before the demo environment inherits them.
+Near-term work then proceeds through Animate Tomo recovery, the separate resettable demo environment, synthetic veterinary documents and demo-safe Gmail intake, and final end-to-end polish. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it. This keeps the shipped Rabies foundation reusable while preventing the portfolio path from expanding into a general medical-care system.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
@@ -370,13 +371,21 @@ The foundation provides typed inputs and outputs, allowlisted tools, bounded con
 
 **Phase thesis:** Tomo may coordinate specialist reasoning without allowing agents to become an alternate path around trusted truth, deterministic rules, or human approval.
 
-### Phase 3E.7 — Preventive Care Lifecycle
+### Phase 3E.7a — Verified Rabies Evidence Foundation · Shipped
 
-TomoCare will turn clinic-reported future-care information into governed, source-linked candidates for vaccines, annual wellness exams, annual senior-lab panels, and bounded preventive screening such as heartworm testing. The lifecycle distinguishes due, scheduled, completed, and unknown state; deduplicates repeated source entries; requires grouped human review; and reconciles approved actions with reminders, the dashboard, grounded answers, and Google Calendar.
+TomoCare now ingests veterinary receipts and official Rabies certificates from the dedicated Gmail inbox, keeps candidate truth untrusted through Verification Intelligence and human review, and materializes certificate-backed administration and clinic-reported preventive status as separate source-linked trusted records. Agent Tomo can answer when Rabies was administered, report the clinic's next-due date, and return the verified certificate without treating receipt reminders, the current date, or product expiration as proof of administration or clinical status.
 
-A future reminder is not evidence of administration or completion. Senior-lab tracking covers lifecycle state only; result values, analyte trends, reference ranges, and medical interpretation remain outside the phase.
+The strict Rabies allowlist proves the reusable evidence and provenance contract. Additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, Calendar actions, completion reconciliation, and medical interpretation remain deferred Real-Care work.
 
-**Phase thesis:** Important preventive care should become an accountable lifecycle without turning clinic reminders into completed medical facts.
+**Phase thesis:** Official administration evidence and clinic-reported future status can coexist without collapsing into one inferred medical claim.
+
+### Phase 3E.8 — Verified Weight-Trend Visualization · Next
+
+TomoCare already materializes verified weight facts, calculates deterministic weight summaries from the complete trusted history, cites every governing fact, and limits only the expandable evidence list to the ten newest sources. Phase 3E.8 will add a compact accessible chart beside the existing narrative answer, using the same ordered verified facts and source links rather than reconstructing a trend from display text.
+
+The chart will show verified measurements only, preserve kg and lb display, support the requested date range, distinguish overall and recent movement without medical interpretation, and retain the text answer and source list as complete nonvisual alternatives.
+
+**Phase thesis:** A health-data visualization is trustworthy only when every point, summary, and explanation comes from the same verified evidence contract.
 
 ### Phase 4 — Governed specialist expansion
 
@@ -482,7 +491,7 @@ TomoCare is Rosa’s flagship example of designing at the architecture layer of 
 
 The portfolio narrative should remain personal first and technical second. It should open with Momo and the real care problem, then reveal the transferable system patterns.
 
-Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded Chat and Voice, a native Apple Messages draft handoff, optional live character animation, and a shipped governed manager with Verification Intelligence and Care Operations specialists. The product-visible trace shows manager, specialist, bounded evidence, result, recovery, and human-control state without exposing hidden reasoning. The Messages handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Inbound reply interpretation, preventive-care lifecycle execution, and broader assistant coverage remain unfinished.
+Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded Chat and Voice, a native Apple Messages draft handoff, optional live character animation, a shipped governed manager with Verification Intelligence and Care Operations specialists, and a verified Rabies evidence foundation that preserves the distinction between administration and clinic-reported future status. The product-visible trace shows manager, specialist, bounded evidence, result, recovery, and human-control state without exposing hidden reasoning. The Messages handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Additional vaccines, preventive reminders and lifecycle execution, lab interpretation, inbound reply interpretation, and broader assistant coverage remain unfinished.
 
 Portfolio demonstrations should use the separate resettable synthetic environment by default. Real Momo records remain appropriate for private product use and validation, but screenshots, recordings, and interviews should not depend on live clinic, insurance, recipient, or medical data. The portfolio story should demonstrate the same governance rules as the real product rather than relaxing them for convenience.
 

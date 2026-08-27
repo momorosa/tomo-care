@@ -2,6 +2,8 @@
 
 **Decision date:** August 16, 2026
 
+**Last revised:** August 27, 2026
+
 **Owner:** Rosa Choi
 
 **Status:** Accepted product direction
@@ -103,18 +105,20 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Add permission enforcement, concise traces, timeouts, retries, stale-state handling, and specialist-specific evals.
    - Keep trusted materialization and Calendar or Messages execution behind deterministic server contracts and human approval.
 
-4. **Phase 3E.7 — Preventive Care Lifecycle**
-   - Cover vaccines, annual wellness exams, annual senior-lab panels, and bounded preventive screening such as heartworm testing.
-   - Extract source-linked candidates and distinguish `due`, `scheduled`, `completed`, and `unknown` state.
-   - Deduplicate repeated source entries and require one grouped human review before activating care actions.
-   - Reconcile later completion evidence, reminders, dashboard state, grounded answers, and Google Calendar through the existing governed boundaries.
-   - Never treat a future reminder as proof of administration or completion.
-   - Track senior-lab lifecycle state without interpreting results, analytes, units, reference ranges, or medical significance.
+4. **Phase 3E.7a — Verified Rabies Evidence Foundation · Shipped**
+   - Ingest varied veterinary receipts and official Rabies certificates through the dedicated Gmail workflow.
+   - Preserve certificate-backed administration, clinic-reported next due, explicit clinic status, and product expiration as separate source meanings.
+   - Require current-source review, human correction and approval, and server-only source-linked materialization.
+   - Let Agent Tomo answer administration, next-due, and certificate questions from the correct trusted records and citations.
+   - Keep additional vaccines visible but uncaptured, and create no preventive reminder, care action, Calendar entry, or medical interpretation.
+   - Defer the broader preventive lifecycle to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
 
-5. **Verified weight-trend visualization**
+5. **Phase 3E.8 — Verified Weight-Trend Visualization · Next**
    - Plot verified measurements only.
+   - Use the complete verified history for the requested date range rather than the ten-card evidence display limit.
    - Preserve source access and trust state for each point.
    - Keep Tomo's explanation consistent with the chart's deterministic data.
+   - Preserve the narrative answer and evidence list as accessible alternatives.
    - Avoid medical conclusions about the trend.
 
 6. **Animate Tomo reliability and recovery**
@@ -195,7 +199,7 @@ This work is part of the core governed-AI thesis and has higher portfolio priori
 
 ## Preventive-care boundary for portfolio v1
 
-Portfolio v1 should demonstrate a bounded preventive-care lifecycle for vaccines, annual wellness, annual senior-lab tracking, and a small allowlist of preventive screening. The lifecycle may track due, scheduled, and completed state, but it does not interpret lab results or infer that a future reminder proves completed care.
+Portfolio v1 should demonstrate the shipped strict Rabies evidence pilot rather than a broad preventive-care lifecycle. The same governed contract distinguishes official certificate-backed administration from clinic-reported next due and explicit clinic status. Additional vaccines, annual wellness, annual-lab lifecycle tracking, preventive screening, reminders, and completion reconciliation remain Real-Care expansion after the portfolio checkpoint unless Rosa explicitly reprioritizes them.
 
 Allowed claim:
 
@@ -205,10 +209,12 @@ Disallowed claim without a separate trusted administration event:
 
 > Momo received her rabies vaccine.
 
-No preventive-care reminder becomes active unless its date meaning and source state have been verified and Rosa approves the applicable Phase 3E.7 care-action contract.
+The portfolio checkpoint does not activate preventive reminders or Calendar actions. Future Real-Care work must still verify date meaning and source state and require Rosa's approval before any applicable care-action contract becomes active.
 
 ## Deferred until after portfolio v1
 
+- Additional vaccine materialization and general preventive-care lifecycle coverage
+- Annual wellness, annual-lab lifecycle state, preventive screening, reminders, Calendar actions, and completion reconciliation
 - Medication refill or prescription-renewal lifecycle, unless a trustworthy and very small source rule is identified
 - Lab-result interpretation, longitudinal analyte comparison, urinalysis, imaging, and broad medical-document intelligence
 - Current-health inference, diagnosis, urgency judgment, or treatment recommendation
@@ -223,7 +229,7 @@ The portfolio checkpoint is ready when:
 
 - The three demo stories work end to end from a resettable synthetic starting state.
 - No demo action can affect Momo's live records, clinic contact, Calendar, or inbox.
-- Verification directs attention to meaningful uncertainty and does not silently ignore the vaccine section.
+- Verification directs attention to meaningful uncertainty and does not silently convert a vaccine reminder, certificate field, or unsupported vaccine mention into trusted administration.
 - The manager-to-specialist trace makes evidence, approval, and deterministic execution boundaries legible without exposing private content or hidden reasoning.
 - Profile, weight, attention, reminders, and the Librela request agree across UI, Chat, and Voice.
 - Every factual answer or operational calculation has a governing record or trusted source.
@@ -235,7 +241,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Phase 3E.7a — Verified Preventive Status Capture** with a bounded rabies-status pilot. Capture clinic-reported item, lifecycle state, date meaning, target date, and source provenance as candidate truth; require Verification Intelligence and grouped human review; then materialize only a source-linked preventive-status fact. Do not treat a due date or clinic status section as proof of administration, and do not activate a reminder, care action, or Calendar entry in this first slice.
+Begin **Phase 3E.8 — Verified Weight-Trend Visualization**. Reuse the complete verified weight facts already loaded for Tomo's deterministic `weight_trend` answer, return one typed visualization payload from the same ordered facts, and render a compact accessible chart beside the existing narrative. Every point must link to its trusted fact and source document; the chart must not use the ten-card evidence display limit, unverified measurements, narrative-only values, or medical interpretation.
 
 ## Maintenance rule
 

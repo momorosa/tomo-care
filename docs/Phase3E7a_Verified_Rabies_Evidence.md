@@ -1,5 +1,7 @@
 # Phase 3E.7a — Verified Rabies Evidence Foundation
 
+**Status:** Shipped and merged to `main` at `40cd59e` on August 27, 2026. See `docs/Phase3E7a_Closeout_and_Phase3E8_Handover.md` for final acceptance evidence, deferred work, and the next-slice contract.
+
 ## Outcome
 
 Phase 3E.7a makes one bounded preventive-care slice work end to end:
@@ -99,9 +101,9 @@ The repository tests and examples use synthetic names, dates, and identifiers on
 
 The migration `202608260001_materialize_verified_vaccine_evidence.sql` owns validation, deduplication, provenance accumulation, and trusted writes. Execute permission is limited to the service role.
 
-## Setup
+## Historical implementation and replay setup
 
-1. Check out `phase-3e-7a-verified-preventive-status`.
+1. Use `main` at or after merge `40cd59e`. The completed implementation branch was `phase-3e-7a-verified-preventive-status`.
 2. Apply the new Supabase migration with the project's normal linked migration workflow (for example, `npx supabase db push`) or run the migration in the Supabase SQL editor.
 3. Confirm existing Gmail, Supabase, Gemini extraction, and Verification Intelligence environment variables are configured.
 4. Restart the application with `npm run dev`.

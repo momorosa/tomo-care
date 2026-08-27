@@ -2,9 +2,11 @@
 
 **Decision date:** August 16, 2026
 
+**Last revised:** August 27, 2026
+
 **Owner:** Rosa Choi
 
-**Status:** Accepted architecture direction; Verification Intelligence shipped in Phase 3E.5 and manager orchestration begins with Phase 3E.6
+**Status:** Accepted architecture direction; Verification Intelligence, manager orchestration, Care Operations, and the governed Rabies evidence handoff are shipped through Phase 3E.7a
 
 ## Decision
 
@@ -203,16 +205,16 @@ With Phase 3E.5 shipped and accepted, Phase 3E.6 will formalize **Tomo Multi-Age
 The aligned near-term order is:
 
 1. **Phase 3E.5 — Verification Intelligence Agent · Shipped**
-2. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent**
-3. **Phase 3E.7 — Preventive Care Lifecycle**
-4. **Verified weight-trend visualization**
+2. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent · Shipped**
+3. **Phase 3E.7a — Verified Rabies Evidence Foundation · Shipped**
+4. **Phase 3E.8 — Verified Weight-Trend Visualization · Next**
 5. **Animate Tomo reliability and recovery**
 6. **Separate demo environment and resettable synthetic dataset**
-7. **Synthetic invoice and demo-safe Gmail ingestion**
+7. **Synthetic veterinary documents and demo-safe Gmail ingestion**
 8. **Final Voice, animation, and end-to-end UI polish**
 9. **Demo evidence, case study, and portfolio freeze**
 
-Phase 3E.7 may track that an annual senior-lab panel is due, scheduled, or completed. Lab results, analytes, units, reference ranges, urinalysis, imaging, and broad clinical-document interpretation remain after the portfolio checkpoint and require their own medical-safety contract.
+The strict Rabies pilot preserves administration and clinic-reported status as separate trusted meanings without creating reminders or medical interpretation. Additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation move to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes them. Lab results, analytes, units, reference ranges, urinalysis, imaging, and broad clinical-document interpretation still require their own medical-safety contract.
 
 ## Portfolio demonstration
 

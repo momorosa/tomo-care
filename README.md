@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.6, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding; risk-weighted Verification Intelligence; and the governed Tomo manager with Verification Intelligence and Care Operations specialists. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.7a: Verified Preventive Status Capture.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.7a, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; and the verified Rabies evidence foundation. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.8: Verified Weight-Trend Visualization.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.6 closeout and Phase 3E.7 handover](./docs/Phase3E6_Closeout_and_Phase3E7_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.7a closeout and Phase 3E.8 handover](./docs/Phase3E7a_Closeout_and_Phase3E8_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -126,6 +126,9 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Verification Intelligence invoked through a governed handoff without weakening current-candidate fingerprints, manual review, or human-controlled promotion to trusted truth
 * Care Operations reconciliation over trusted Simparica and Adequan state, with answer-only, clarification, ineligible, recovered, and one-proposal outcomes while approval and execution remain deterministic
 * Product-visible orchestration traces across VerifyDocs, Chat, and Voice that show manager, specialist, bounded evidence, result, safe reuse, and the human-control boundary without exposing prompts or hidden reasoning
+* End-to-end Gmail ingestion and governed review for a strict Rabies pilot, with certificate-backed administration, clinic-reported next due, clinic-reported status, and product expiration kept as separate meanings
+* Server-only, source-linked materialization of verified Rabies administration and preventive status, grounded Agent Tomo answers, and direct access to the verified certificate
+* Receipt and review recovery that names failed intake stages, preserves readable candidate truth, supports correction and bounded AI recheck, and never promotes data automatically
 
 The accepted architecture is a small manager-style hybrid multi-agent system:
 
@@ -156,15 +159,14 @@ TomoCare now follows one product roadmap with two release tracks:
 
 The agreed near-term sequence is:
 
-1. Begin Phase 3E.7a with bounded, source-linked preventive-status capture, starting with clinic-reported rabies status and preserving the distinction between a due date and verified administration.
-2. Continue Phase 3E.7 as a governed Preventive Care Lifecycle for vaccines, annual wellness exams, annual senior-lab panels, and preventive screening such as heartworm testing. Track due, scheduled, completed, and unknown state without treating a future reminder as proof of completed care or interpreting lab results.
-3. Add a source-linked visualization of verified weight measurements.
-4. Make Animate Tomo failure visible and recoverable while preserving local Voice.
-5. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
-6. Finalize a clearly labeled synthetic Librela invoice and pass it through a demo-safe Gmail intake.
-7. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
+1. Build Phase 3E.8 as a source-linked visualization of the complete verified weight history.
+2. Make Animate Tomo failure visible and recoverable while preserving local Voice.
+3. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
+4. Finalize clearly labeled synthetic veterinary documents and pass them through a demo-safe Gmail intake.
+5. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
+6. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
 
-Medication refill or renewal, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. Phase 3E.7 may track that a senior-lab panel is due, scheduled, or completed; it does not interpret the results. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
+Medication refill or renewal, additional preventive-care lifecycle expansion, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. The shipped Rabies foundation is reusable Real-Care infrastructure, not a claim of general vaccine, wellness, or laboratory coverage. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
 ## What TomoCare is not
 
