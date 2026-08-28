@@ -29,6 +29,115 @@ test("does not split verified weight facts at decimal points", () => {
     )
 })
 
+test("speaks the latest verified weight and measured change from the typed trend", () => {
+    const spoken = composeSpokenAnswer({
+        answer_type: "grounded_answer",
+        answer:
+            "Let’s see how Queen Momo’s been doing. Momo’s verified weight trend is slightly downward overall. The complete verified comparison remains visible on screen.",
+        visualization: {
+            schema_version: 1,
+            type: "verified_weight_trend",
+            unit: "kg",
+            points: [
+                {
+                    fact_id: "weight-first",
+                    fact_date: "2025-02-17",
+                    value_kg: 15.4,
+                    value_lb: 33.95,
+                },
+                {
+                    fact_id: "weight-latest",
+                    fact_date: "2026-08-10",
+                    value_kg: 15.2,
+                    value_lb: 33.51,
+                },
+            ],
+            summary: {
+                reading_count: 2,
+                first_fact_id: "weight-first",
+                latest_fact_id: "weight-latest",
+                low_fact_ids: ["weight-latest"],
+                high_fact_ids: ["weight-first"],
+                overall_change_kg: -0.2,
+                overall_direction: "slightly_downward",
+            },
+        },
+    })
+
+    assert.equal(
+        spoken,
+        "Momo’s latest verified weight is 33.51 pounds as of August 10, 2026. Across 2 verified readings since February 17, 2025, she is down 0.44 pounds overall—a slightly downward trend."
+    )
+    assert.doesNotMatch(spoken, /Let’s see/)
+})
+
+test("speaks one typed weight reading without manufacturing a trend", () => {
+    const spoken = composeSpokenAnswer({
+        answer_type: "grounded_answer",
+        answer: "A longer written answer remains visible on screen.",
+        visualization: {
+            schema_version: 1,
+            type: "verified_weight_trend",
+            unit: "kg",
+            points: [
+                {
+                    fact_id: "weight-only",
+                    fact_date: "2026-08-10",
+                    value_kg: 15.2,
+                    value_lb: 33.51,
+                },
+            ],
+            summary: {
+                reading_count: 1,
+                first_fact_id: "weight-only",
+                latest_fact_id: "weight-only",
+                low_fact_ids: ["weight-only"],
+                high_fact_ids: ["weight-only"],
+                overall_change_kg: 0,
+                overall_direction: "insufficient_readings",
+            },
+        },
+    })
+
+    assert.equal(
+        spoken,
+        "Momo’s one verified weight reading is 33.51 pounds as of August 10, 2026. One reading is not enough to establish a weight trend."
+    )
+})
+
+test("falls back to the written answer when the typed trend is inconsistent", () => {
+    const spoken = composeSpokenAnswer({
+        answer_type: "grounded_answer",
+        answer:
+            "The first grounded fact remains available. The second grounded fact remains available. Extra detail stays on screen.",
+        visualization: {
+            schema_version: 1,
+            type: "verified_weight_trend",
+            unit: "kg",
+            points: [
+                {
+                    fact_id: "weight-only",
+                    fact_date: "2026-08-10",
+                    value_kg: 15.2,
+                    value_lb: 33.51,
+                },
+            ],
+            summary: {
+                reading_count: 2,
+                first_fact_id: "weight-only",
+                latest_fact_id: "weight-only",
+                overall_change_kg: 0,
+                overall_direction: "stable",
+            },
+        },
+    })
+
+    assert.equal(
+        spoken,
+        "The first grounded fact remains available. The second grounded fact remains available."
+    )
+})
+
 test("keeps numeric dates and common abbreviations inside their sentences", () => {
     const spoken = composeSpokenAnswer({
         answer_type: "grounded_answer",

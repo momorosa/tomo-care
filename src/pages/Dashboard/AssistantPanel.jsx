@@ -31,6 +31,7 @@ import {
     reportVoiceLatency,
 } from "./voiceLatency.js"
 import OrchestrationTrace from "../../components/OrchestrationTrace.jsx"
+import VerifiedWeightTrendChart from "./VerifiedWeightTrendChart.jsx"
 
 const MAX_RECORDING_MS = 30_000
 
@@ -1115,6 +1116,11 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
             >
                 {answer.answer}
             </p>
+
+            <VerifiedWeightTrendChart
+                visualization={answer.visualization}
+                citations={answer.citations}
+            />
 
             {answer.answer_type === "attention_summary" &&
                 answer.attention_items?.length > 0 && (
