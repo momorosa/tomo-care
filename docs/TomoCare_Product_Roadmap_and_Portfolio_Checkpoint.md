@@ -2,7 +2,7 @@
 
 **Decision date:** August 16, 2026
 
-**Last revised:** August 27, 2026
+**Last revised:** August 28, 2026
 
 **Owner:** Rosa Choi
 
@@ -113,7 +113,7 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Keep additional vaccines visible but uncaptured, and create no preventive reminder, care action, Calendar entry, or medical interpretation.
    - Defer the broader preventive lifecycle to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
 
-5. **Phase 3E.8 — Verified Weight-Trend Visualization · Next**
+5. **Phase 3E.8 — Verified Weight-Trend Visualization · Shipped**
    - Plot verified measurements only.
    - Use the complete verified history for the requested date range rather than the ten-card evidence display limit.
    - Preserve source access and trust state for each point.
@@ -121,12 +121,19 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Preserve the narrative answer and evidence list as accessible alternatives.
    - Avoid medical conclusions about the trend.
 
-6. **Animate Tomo reliability and recovery**
+6. **Phase 3E.9 — Governed Profile Detail and UI Refinement · Next**
+   - Add `pets.microchip_id` to the existing allowlisted read-only Profile contract without a migration.
+   - Answer direct microchip questions from the governed `pets` row while keeping the identifier out of broad Profile speech.
+   - Show the microchip number in a clear Profile-details group with long-identifier wrapping and an honest missing state.
+   - Separate governed Profile details visually from the existing care overview without redesigning the drawer or navigation.
+   - Keep Profile editing, clipboard actions, clinic and insurance governance, broader identity modeling, and real identifiers in demo evidence out of scope.
+
+7. **Animate Tomo reliability and recovery**
    - Make Runway/LiveKit fallback visible and non-blocking.
    - Offer a safe retry while preserving uninterrupted local voice.
    - Retain a typed failure reason for diagnosis.
 
-7. **Demo environment and resettable synthetic dataset**
+8. **Demo environment and resettable synthetic dataset**
    - Keep one application codebase.
    - Use separate demo configuration and data from Momo's live care records.
    - Prefer a separate hosted Supabase demo project for interview reliability.
@@ -135,17 +142,17 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Keep Google Calendar and Apple Messages destinations demo-safe.
    - Display a clear Demo indicator so synthetic and real state cannot be confused.
 
-8. **Synthetic invoice and demo Gmail ingestion**
+9. **Synthetic invoice and demo Gmail ingestion**
    - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
    - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
    - Send it through a dedicated demo-safe inbox and exercise the completed verification path.
    - Prevent the workflow from affecting Momo's live records or external destinations.
 
-9. **Final Voice, animation, and UI polish**
+10. **Final Voice, animation, and UI polish**
    - Refine listening, thinking, speaking, playback, and idle transitions.
    - Resolve visual inconsistencies, dead ends, and unclear state changes across the end-to-end demo.
 
-10. **Demo evidence and portfolio freeze**
+11. **Demo evidence and portfolio freeze**
    - Rehearse one deterministic end-to-end path.
    - Capture screenshots and video evidence.
    - Prepare a recorded fallback for provider-dependent moments.
@@ -241,7 +248,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Phase 3E.8 — Verified Weight-Trend Visualization**. Reuse the complete verified weight facts already loaded for Tomo's deterministic `weight_trend` answer, return one typed visualization payload from the same ordered facts, and render a compact accessible chart beside the existing narrative. Every point must link to its trusted fact and source document; the chart must not use the ten-card evidence display limit, unverified measurements, narrative-only values, or medical interpretation.
+Begin **Phase 3E.9 — Governed Profile Detail and UI Refinement**. Extend the existing explicit Profile allowlist with `pets.microchip_id`, route direct microchip questions through the governed Profile answer, and present the identifier in a clearer Profile-details group that works at the current drawer widths. Keep the broad Profile summary from volunteering the identifier, preserve honest missing and unavailable states, and do not add Profile editing, a database migration, a broader identity model, or new authority for the presentation-only clinic and insurance labels.
 
 ## Maintenance rule
 

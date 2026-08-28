@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.7a, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; and the verified Rabies evidence foundation. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.8: Verified Weight-Trend Visualization.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.8, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.9: Governed Profile Detail and UI Refinement.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.7a closeout and Phase 3E.8 handover](./docs/Phase3E7a_Closeout_and_Phase3E8_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.8 closeout and Phase 3E.9 handover](./docs/Phase3E8_Closeout_and_Phase3E9_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -129,6 +129,8 @@ Shipped the first lifecycle and assistant-coverage slices:
 * End-to-end Gmail ingestion and governed review for a strict Rabies pilot, with certificate-backed administration, clinic-reported next due, clinic-reported status, and product expiration kept as separate meanings
 * Server-only, source-linked materialization of verified Rabies administration and preventive status, grounded Agent Tomo answers, and direct access to the verified certificate
 * Receipt and review recovery that names failed intake stages, preserves readable candidate truth, supports correction and bounded AI recheck, and never promotes data automatically
+* A typed verified weight-trend contract that uses the complete requested trusted history for deterministic narrative, chart, summary, and concise Voice speech while the visible evidence drawer remains capped at ten recent sources
+* A responsive accessible weight chart with source-linked points, explicit selected-state meaning, lb-first or kg display choice, truthful one-reading and tied-value states, and no medical interpretation
 
 The accepted architecture is a small manager-style hybrid multi-agent system:
 
@@ -159,7 +161,7 @@ TomoCare now follows one product roadmap with two release tracks:
 
 The agreed near-term sequence is:
 
-1. Build Phase 3E.8 as a source-linked visualization of the complete verified weight history.
+1. Build Phase 3E.9 as a bounded governed Profile detail and UI refinement: expose `pets.microchip_id` through the existing Profile contract and direct Tomo questions, improve the Profile drawer's information hierarchy, and keep editing and broader identity modeling out of scope.
 2. Make Animate Tomo failure visible and recoverable while preserving local Voice.
 3. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
 4. Finalize clearly labeled synthetic veterinary documents and pass them through a demo-safe Gmail intake.

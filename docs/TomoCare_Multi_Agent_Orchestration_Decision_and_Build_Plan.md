@@ -2,11 +2,11 @@
 
 **Decision date:** August 16, 2026
 
-**Last revised:** August 27, 2026
+**Last revised:** August 28, 2026
 
 **Owner:** Rosa Choi
 
-**Status:** Accepted architecture direction; Verification Intelligence, manager orchestration, Care Operations, and the governed Rabies evidence handoff are shipped through Phase 3E.7a
+**Status:** Accepted architecture direction; Verification Intelligence, manager orchestration, Care Operations, the governed Rabies evidence handoff, and the verified weight-trend presentation are shipped through Phase 3E.8
 
 ## Decision
 
@@ -207,12 +207,13 @@ The aligned near-term order is:
 1. **Phase 3E.5 — Verification Intelligence Agent · Shipped**
 2. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent · Shipped**
 3. **Phase 3E.7a — Verified Rabies Evidence Foundation · Shipped**
-4. **Phase 3E.8 — Verified Weight-Trend Visualization · Next**
-5. **Animate Tomo reliability and recovery**
-6. **Separate demo environment and resettable synthetic dataset**
-7. **Synthetic veterinary documents and demo-safe Gmail ingestion**
-8. **Final Voice, animation, and end-to-end UI polish**
-9. **Demo evidence, case study, and portfolio freeze**
+4. **Phase 3E.8 — Verified Weight-Trend Visualization · Shipped**
+5. **Phase 3E.9 — Governed Profile Detail and UI Refinement · Next**
+6. **Animate Tomo reliability and recovery**
+7. **Separate demo environment and resettable synthetic dataset**
+8. **Synthetic veterinary documents and demo-safe Gmail ingestion**
+9. **Final Voice, animation, and end-to-end UI polish**
+10. **Demo evidence, case study, and portfolio freeze**
 
 The strict Rabies pilot preserves administration and clinic-reported status as separate trusted meanings without creating reminders or medical interpretation. Additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation move to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes them. Lab results, analytes, units, reference ranges, urinalysis, imaging, and broad clinical-document interpretation still require their own medical-safety contract.
 

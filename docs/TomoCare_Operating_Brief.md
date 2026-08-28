@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** August 27, 2026
+**Last updated:** August 28, 2026
 
 ---
 
@@ -334,8 +334,9 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.5 shipped:** risk-weighted Verification Intelligence using current-source comparison, deterministic date, arithmetic, and weight checks, and up to five comparable trusted records; grouped consistent patterns; explicit changes, conflicts, and unsupported content; stale-candidate enforcement; fail-safe manual review; legacy-review labeling; and consistent currency presentation
 - **3E.6 shipped:** Tomo as the explicit manager over versioned Verification Intelligence and Care Operations contracts; allowlisted routing and tools; bounded evidence; typed permissions, failures, recovery, and stale-state handling; durable `orchestration_runs` and governed `care_actions`; and one product-visible manager-to-specialist trace shared across VerifyDocs, Chat, and Voice
 - **3E.7a shipped:** a strict Rabies evidence foundation from Gmail intake through Verification Intelligence, human correction and approval, server-only materialization, and grounded Agent Tomo answers; certificate-backed administration, clinic-reported due/status, and product expiration remain separate meanings; receipt failures and review timeouts preserve recoverable untrusted work without creating reminders or other actions
+- **3E.8 shipped:** one typed verified weight-trend contract for the complete requested trusted history; deterministic narrative, summary, accessible source-linked chart, and concise Voice speech; lb-first or kg display choice; explicit selected-point meaning; and the existing ten-card recent evidence limit kept separate from chart calculations
 
-The next bounded slice is **3E.8 — Verified Weight-Trend Visualization**. It adds a compact, source-linked chart to the existing grounded weight-trend answer. The chart uses the complete verified weight history for the requested range, keeps each point traceable to its trusted fact and source document, preserves the existing narrative and newest-first evidence list, and makes no medical interpretation.
+The next bounded slice is **3E.9 — Governed Profile Detail and UI Refinement**. It adds `pets.microchip_id` to the existing allowlisted governed Profile contract, supports direct Tomo questions without volunteering the identifier in broad spoken summaries, and improves the Profile drawer's information hierarchy and long-identifier presentation. It introduces no Profile editing, schema migration, broader identity model, or medical interpretation.
 
 Near-term work then proceeds through Animate Tomo recovery, the separate resettable demo environment, synthetic veterinary documents and demo-safe Gmail intake, and final end-to-end polish. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it. This keeps the shipped Rabies foundation reusable while preventing the portfolio path from expanding into a general medical-care system.
 
@@ -379,13 +380,23 @@ The strict Rabies allowlist proves the reusable evidence and provenance contract
 
 **Phase thesis:** Official administration evidence and clinic-reported future status can coexist without collapsing into one inferred medical claim.
 
-### Phase 3E.8 — Verified Weight-Trend Visualization · Next
+### Phase 3E.8 — Verified Weight-Trend Visualization · Shipped
 
-TomoCare already materializes verified weight facts, calculates deterministic weight summaries from the complete trusted history, cites every governing fact, and limits only the expandable evidence list to the ten newest sources. Phase 3E.8 will add a compact accessible chart beside the existing narrative answer, using the same ordered verified facts and source links rather than reconstructing a trend from display text.
+TomoCare now derives one typed, versioned visualization payload from the complete ordered verified weight history in the requested range. The same payload supports the deterministic narrative, latest/lowest/highest summary, accessible chart, point-level source access, and concise Voice summary. The expandable evidence drawer remains a separate newest-first audit view capped at ten recent sources.
 
-The chart will show verified measurements only, preserve kg and lb display, support the requested date range, distinguish overall and recent movement without medical interpretation, and retain the text answer and source list as complete nonvisual alternatives.
+The chart shows verified measurements only, keeps kg canonical, lets Rosa choose lb or kg for chart presentation, explains purple verified points and the white selected state directly, and makes selection changes and verification access visible at narrow Chat and Voice widths. Voice leads with the latest verified weight and measured change rather than stopping after a qualitative direction. No target range, prediction, medical conclusion, new extraction, or consequential action was added.
 
 **Phase thesis:** A health-data visualization is trustworthy only when every point, summary, and explanation comes from the same verified evidence contract.
+
+### Phase 3E.9 — Governed Profile Detail and UI Refinement · Next
+
+The `pets` table already stores `microchip_id`, but Phase 3E.4 intentionally allowlisted only name, species, breed, birth date, sex, and reproductive status. The current Profile drawer therefore cannot display Momo's microchip number, and Tomo cannot answer a direct microchip question from the governed Profile source.
+
+Phase 3E.9 will add `microchip_id` to the explicit Profile repository selection and normalization contract, preserve null and unavailable behavior, route direct microchip questions through the existing governed Profile answer, and show the identifier in a clearer Profile-details section. The drawer will separate governed identity details from the existing care overview, support long identifiers without truncation, and preserve the current portrait, navigation, reminders, and care-summary behavior.
+
+The identifier will not be volunteered in broad Profile speech, copied into logs, or placed in real-data fixtures or portfolio screenshots. The minimum slice adds no editing, clipboard action, new profile fields, clinic or insurance governance, multi-pet support, avatar work, provider change, or database migration.
+
+**Phase thesis:** A useful personal Profile should expose the important identifier the governed record already contains without turning a narrow read-only enhancement into a general identity-management system.
 
 ### Phase 4 — Governed specialist expansion
 
