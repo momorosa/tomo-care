@@ -158,12 +158,35 @@
   }
 
   .tomo-profile-facts {
-    @apply mt-5 space-y-4 text-sm;
+    @apply mt-3 space-y-4 text-sm;
+  }
+
+  .tomo-profile-section {
+    @apply mt-5;
+  }
+
+  .tomo-profile-section--care {
+    @apply mt-6 border-t border-tomo-border pt-5;
+  }
+
+  .tomo-profile-section__label {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-tomo-text;
   }
 
   .tomo-context-fact {
     @apply grid items-start gap-4;
     grid-template-columns: minmax(0, 1fr) minmax(76px, auto);
+  }
+
+  .tomo-context-fact--stacked {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .tomo-context-fact__identifier {
+    @apply font-mono tabular-nums;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .tomo-compact-record {

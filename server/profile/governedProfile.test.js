@@ -4,6 +4,7 @@ import {
     buildGovernedProfile,
     calculateProfileAge,
     deriveReproductiveStatus,
+    normalizeProfileFields,
 } from "./governedProfile.js"
 
 const PET_ID = "pet-123"
@@ -37,6 +38,21 @@ test("maps reproductive status without guessing sex", () => {
     assert.equal(deriveReproductiveStatus(null, "female"), null)
 })
 
+test("preserves a stored microchip identifier as trimmed text", () => {
+    assert.equal(
+        normalizeProfileFields(
+            { microchip_id: " 900215000000001 " },
+            "2026-08-14"
+        ).microchip_id,
+        "900215000000001"
+    )
+    assert.equal(
+        normalizeProfileFields({ microchip_id: "   " }, "2026-08-14")
+            .microchip_id,
+        null
+    )
+})
+
 test("builds an available governed profile and typed navigation", async () => {
     const result = await buildGovernedProfile({
         repository: repositoryFor({
@@ -47,6 +63,7 @@ test("builds an available governed profile and typed navigation", async () => {
             birth_date: "2014-08-22",
             sex: "female",
             spayed_neutered: true,
+            microchip_id: "900215000000001",
         }),
         petId: PET_ID,
         currentCareDate: "2026-08-14",
@@ -55,6 +72,7 @@ test("builds an available governed profile and typed navigation", async () => {
     assert.equal(result.status, "available")
     assert.equal(result.fields.age, 11)
     assert.equal(result.fields.reproductive_status, "spayed")
+    assert.equal(result.fields.microchip_id, "900215000000001")
     assert.deepEqual(result.governing_reference, {
         table: "pets",
         record_id: PET_ID,
@@ -88,6 +106,7 @@ test("keeps missing optional fields null and marks the profile partial", async (
         "age",
         "sex",
         "reproductive_status",
+        "microchip_id",
     ])
 })
 

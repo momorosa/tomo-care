@@ -209,6 +209,8 @@ test("guarantees the bounded governed Profile phrase family", () => {
         ["When is Momo’s birthday?", "birth_date"],
         ["What is Momo’s sex?", "sex"],
         ["Is Momo spayed?", "reproductive_status"],
+        ["What is Momo’s microchip number?", "microchip_id"],
+        ["What’s her chip number?", "microchip_id"],
     ]
 
     for (const [question, focus] of cases) {
@@ -223,14 +225,19 @@ test("guarantees the bounded governed Profile phrase family", () => {
 
 test("does not mistake ambiguous health or Profile edits for Profile reads", () => {
     const healthQuestions = ["How is Momo?", "How’s Momo?", "Hows Momo?"]
-    const edit = buildQueryPlan("Please update Momo’s breed")
+    const edits = [
+        buildQueryPlan("Please update Momo’s breed"),
+        buildQueryPlan("Please change Momo’s microchip number"),
+    ]
 
     for (const question of healthQuestions) {
         const health = buildQueryPlan(question)
         assert.equal(health.intent, "ambiguous_health_question", question)
     }
-    assert.equal(edit.intent, "action_request")
-    assert.equal(edit.subject, "profile")
-    assert.equal(edit.scope, "profile_change_governance")
-    assert.equal(edit.requires_action, true)
+    for (const edit of edits) {
+        assert.equal(edit.intent, "action_request")
+        assert.equal(edit.subject, "profile")
+        assert.equal(edit.scope, "profile_change_governance")
+        assert.equal(edit.requires_action, true)
+    }
 })

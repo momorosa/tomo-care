@@ -476,6 +476,59 @@ test("answers the observed Momo-profile question from only the governed profile 
     assert.deepEqual(result.citations, [])
 })
 
+test("answers a direct microchip question from only the governed Profile source", async () => {
+    let contextCalls = 0
+    let profileCalls = 0
+    const result = await answerAssistantQuestion({
+        petId: "pet-1",
+        question: "What is Momo’s microchip number?",
+        dependencies: {
+            currentCareDate: "2026-08-28",
+            semanticProvider: null,
+            buildContext: async () => {
+                contextCalls += 1
+                return {
+                    documents: [{ raw_text: "Untrusted 111111111111111" }],
+                }
+            },
+            profileRepository: {},
+            buildProfile: async () => {
+                profileCalls += 1
+                return {
+                    status: "available",
+                    fields: {
+                        id: "pet-1",
+                        name: "Momo",
+                        species: "canine",
+                        breed: "American Eskimo",
+                        birth_date: "2014-08-22",
+                        age: 12,
+                        sex: "female",
+                        reproductive_status: "spayed",
+                        microchip_id: "900215000000001",
+                    },
+                    missing_fields: [],
+                    governing_reference: {
+                        table: "pets",
+                        record_id: "pet-1",
+                    },
+                    navigation_targets: [],
+                }
+            },
+        },
+    })
+
+    assert.equal(contextCalls, 0)
+    assert.equal(profileCalls, 1)
+    assert.equal(
+        result.answer,
+        "Momo’s microchip number is 900215000000001."
+    )
+    assert.deepEqual(result.profile_fields, {
+        microchip_id: "900215000000001",
+    })
+})
+
 test("answers the observed last-Simparica question from verified history without preparing an action", async () => {
     let prepareCalls = 0
     const administration = {

@@ -317,6 +317,29 @@ test("maps a semantic Profile paraphrase to a bounded field focus", async () => 
     assert.equal(result.queryPlan.profile_focus, "breed")
 })
 
+test("maps a semantic microchip paraphrase to the governed Profile focus", async () => {
+    const result = await resolveAssistantPlan({
+        question: "Which identification number is stored for her?",
+        currentCareDate: "2026-07-31",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    kind: "care_query",
+                    intent: "profile_summary",
+                    subject: "profile",
+                    profile_field: "microchip_id",
+                    cost_scope: "none",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "profile_summary")
+    assert.equal(result.queryPlan.profile_focus, "microchip_id")
+    assert.equal(result.queryPlan.requires_action, false)
+})
+
 test("accepts model-classified capability questions as bounded social turns", async () => {
     const result = await resolveAssistantPlan({
         question: "How can you help with Momo?",

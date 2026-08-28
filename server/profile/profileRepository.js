@@ -1,7 +1,7 @@
 import { sbAdmin } from "../supabase.js"
 
 export const PROFILE_SELECT =
-    "id, name, species, breed, birth_date, sex, spayed_neutered"
+    "id, name, species, breed, birth_date, sex, spayed_neutered, microchip_id"
 
 export function createProfileRepository(client = sbAdmin) {
     return {

@@ -75,6 +75,7 @@ const SEMANTIC_SCHEMA = {
                 "age",
                 "sex",
                 "reproductive_status",
+                "microchip_id",
                 "none",
             ],
         },
@@ -201,8 +202,8 @@ Use social only for ordinary conversation that contains no care question.
 Classify questions about who Tomo is, what Tomo can do, or how Tomo can help as
 social with social_intent capabilities.
 Classify questions asking who Momo is, what is known about Momo, what is in her
-Profile, or asking for her name, species, breed, birth date, age, sex, or
-spay/neuter status as care_query with intent profile_summary and subject
+Profile, or asking for her name, species, breed, birth date, age, sex,
+spay/neuter status, or microchip number as care_query with intent profile_summary and subject
 profile. Set profile_field to the requested field, or summary for a broad
 Profile question. These facts are retrieved only from the governed pets row.
 Never confuse Momo, the pet, with Tomo, the assistant. “How is Momo?” is
