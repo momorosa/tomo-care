@@ -121,17 +121,20 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Preserve the narrative answer and evidence list as accessible alternatives.
    - Avoid medical conclusions about the trend.
 
-6. **Phase 3E.9 — Governed Profile Detail and UI Refinement · Next**
-   - Add `pets.microchip_id` to the existing allowlisted read-only Profile contract without a migration.
-   - Answer direct microchip questions from the governed `pets` row while keeping the identifier out of broad Profile speech.
-   - Show the microchip number in a clear Profile-details group with long-identifier wrapping and an honest missing state.
-   - Separate governed Profile details visually from the existing care overview without redesigning the drawer or navigation.
-   - Keep Profile editing, clipboard actions, clinic and insurance governance, broader identity modeling, and real identifiers in demo evidence out of scope.
+6. **Phase 3E.9 — Governed Profile Detail and UI Refinement · Shipped**
+   - Added `pets.microchip_id` to the existing allowlisted read-only Profile contract without a migration.
+   - Answers direct microchip questions from the governed `pets` row while keeping the identifier out of broad Profile answers, payloads, limitations, and speech.
+   - Shows the microchip number in a clear Profile-details group with long-identifier wrapping and an honest missing state.
+   - Separates governed Profile details visually from the existing care overview without redesigning the drawer or navigation.
+   - Opens the shared Voice transcript by default while preserving user-controlled collapse and session-only content.
+   - Kept Profile editing, clipboard actions, clinic and insurance governance, broader identity modeling, and real identifiers in fixtures or demo evidence out of scope.
 
-7. **Animate Tomo reliability and recovery**
-   - Make Runway/LiveKit fallback visible and non-blocking.
-   - Offer a safe retry while preserving uninterrupted local voice.
-   - Retain a typed failure reason for diagnosis.
+7. **Animate Tomo Reliability and Recovery · Next**
+   - Distinguish intentional end, startup failure, unexpected disconnect, session expiry, and live-playback failure through typed non-sensitive presentation state.
+   - Keep static or local-motion media and already-generated local Voice available throughout every failure.
+   - Offer an explicit user-initiated retry for transient failures after cleaning up the prior client, tracks, and timers.
+   - Never reconnect automatically, replay an answer as part of retry, or create duplicate audio.
+   - Preserve reduced-motion behavior, server-only secrets, numeric-only latency data, and the existing answer and speech contracts.
 
 8. **Demo environment and resettable synthetic dataset**
    - Keep one application codebase.
@@ -248,7 +251,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Phase 3E.9 — Governed Profile Detail and UI Refinement**. Extend the existing explicit Profile allowlist with `pets.microchip_id`, route direct microchip questions through the governed Profile answer, and present the identifier in a clearer Profile-details group that works at the current drawer widths. Keep the broad Profile summary from volunteering the identifier, preserve honest missing and unavailable states, and do not add Profile editing, a database migration, a broader identity model, or new authority for the presentation-only clinic and insurance labels.
+Begin **Animate Tomo Reliability and Recovery**. Preserve Animate Tomo as an explicit optional presentation layer, but make startup, connection, playback, timeout, and session-expiry failures visible and typed. Continue the already-generated answer through local Voice exactly once, distinguish an intentional end from a failure, and allow a clean user-initiated retry only for transient states. Do not add automatic reconnect, answer or speech changes, a new provider, durable failure storage, character redesign, demo-environment work, or final animation polish.
 
 ## Maintenance rule
 

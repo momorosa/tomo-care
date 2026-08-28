@@ -6,7 +6,7 @@
 
 **Owner:** Rosa Choi
 
-**Status:** Accepted architecture direction; Verification Intelligence, manager orchestration, Care Operations, the governed Rabies evidence handoff, and the verified weight-trend presentation are shipped through Phase 3E.8
+**Status:** Accepted architecture direction; Verification Intelligence, manager orchestration, Care Operations, the governed Rabies evidence handoff, the verified weight-trend presentation, and governed Profile detail are shipped through Phase 3E.9
 
 ## Decision
 
@@ -208,8 +208,8 @@ The aligned near-term order is:
 2. **Phase 3E.6 — Tomo Multi-Agent Orchestration Foundation and Care Operations Agent · Shipped**
 3. **Phase 3E.7a — Verified Rabies Evidence Foundation · Shipped**
 4. **Phase 3E.8 — Verified Weight-Trend Visualization · Shipped**
-5. **Phase 3E.9 — Governed Profile Detail and UI Refinement · Next**
-6. **Animate Tomo reliability and recovery**
+5. **Phase 3E.9 — Governed Profile Detail and UI Refinement · Shipped**
+6. **Animate Tomo Reliability and Recovery · Next**
 7. **Separate demo environment and resettable synthetic dataset**
 8. **Synthetic veterinary documents and demo-safe Gmail ingestion**
 9. **Final Voice, animation, and end-to-end UI polish**

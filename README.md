@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.8, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Phase 3E.9: Governed Profile Detail and UI Refinement.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Animate Tomo Reliability and Recovery.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.8 closeout and Phase 3E.9 handover](./docs/Phase3E8_Closeout_and_Phase3E9_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.9 closeout and Animate Tomo handover](./docs/Phase3E9_Closeout_and_AnimateTomo_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -131,6 +131,9 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Receipt and review recovery that names failed intake stages, preserves readable candidate truth, supports correction and bounded AI recheck, and never promotes data automatically
 * A typed verified weight-trend contract that uses the complete requested trusted history for deterministic narrative, chart, summary, and concise Voice speech while the visible evidence drawer remains capped at ten recent sources
 * A responsive accessible weight chart with source-linked points, explicit selected-state meaning, lb-first or kg display choice, truthful one-reading and tied-value states, and no medical interpretation
+* Governed read-only microchip retrieval from the allowlisted `pets` row across Profile, Chat, and Voice, with direct-only disclosure and honest missing or unavailable states
+* A clearer Profile drawer that separates Profile details from care overview, keeps long identifiers readable, and preserves existing navigation and care content
+* A default-open, user-collapsible Voice transcript so charts, evidence, links, and limits remain visible during spoken conversations
 
 The accepted architecture is a small manager-style hybrid multi-agent system:
 
@@ -161,12 +164,11 @@ TomoCare now follows one product roadmap with two release tracks:
 
 The agreed near-term sequence is:
 
-1. Build Phase 3E.9 as a bounded governed Profile detail and UI refinement: expose `pets.microchip_id` through the existing Profile contract and direct Tomo questions, improve the Profile drawer's information hierarchy, and keep editing and broader identity modeling out of scope.
-2. Make Animate Tomo failure visible and recoverable while preserving local Voice.
-3. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
-4. Finalize clearly labeled synthetic veterinary documents and pass them through a demo-safe Gmail intake.
-5. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
-6. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
+1. Make Animate Tomo failure visible and recoverable while preserving uninterrupted local Voice and user control over retry.
+2. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
+3. Finalize clearly labeled synthetic veterinary documents and pass them through a demo-safe Gmail intake.
+4. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
+5. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
 
 Medication refill or renewal, additional preventive-care lifecycle expansion, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. The shipped Rabies foundation is reusable Real-Care infrastructure, not a claim of general vaccine, wellness, or laboratory coverage. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
@@ -304,11 +306,14 @@ anchor. Verified records, citations, reminder actions, and approval dialogs
 continue to use the existing governed backend.
 
 Voice uses an immersive, avatar-first stage rather than the information-dense
-Chat layout. The stage stays visually quiet, while the full scrollable transcript
-opens from the floating control dock with citations and reminder evidence intact.
-When that panel opens, Tomo and the dock recenter within the remaining stage so
-the avatar stays conversationally present instead of being covered. Listening,
-thinking, speaking, playback, and mute controls remain in the dock.
+Chat layout. The full scrollable transcript opens by default so charts,
+citations, links, limits, and reminder evidence remain available during spoken
+conversation; Rosa can collapse and reopen it from the floating control dock.
+Clearing the session clears its content without unexpectedly collapsing the
+panel. When the transcript is open, Tomo and the dock recenter within the
+remaining stage so the avatar stays conversationally present instead of being
+covered. Listening, thinking, speaking, playback, and mute controls remain in
+the dock.
 
 Local one-shot motion clips cover idle, acknowledgment, listening, and thinking.
 Each completed clip holds its final frame instead of looping. If the user selects
@@ -335,7 +340,11 @@ and validation do not change.
 
 Momo's profile reads safe identity fields from the `pets` table. Displayed age
 is calculated from `birth_date` at runtime and changes on her birthday; it is not
-stored as a fixed number in the interface.
+stored as a fixed number in the interface. Phase 3E.9 adds the existing
+`microchip_id` through the same explicit read-only allowlist and displays it in
+a Profile-details group separate from the care overview. Tomo answers a direct
+microchip question from that governed value but does not volunteer the
+identifier in broad Profile answers or speech.
 
 Phase 3E.3 now answers “What needs my attention?” from governed reminder,
 care-action, and document-review state. It ranks no more than five supported

@@ -335,8 +335,9 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.6 shipped:** Tomo as the explicit manager over versioned Verification Intelligence and Care Operations contracts; allowlisted routing and tools; bounded evidence; typed permissions, failures, recovery, and stale-state handling; durable `orchestration_runs` and governed `care_actions`; and one product-visible manager-to-specialist trace shared across VerifyDocs, Chat, and Voice
 - **3E.7a shipped:** a strict Rabies evidence foundation from Gmail intake through Verification Intelligence, human correction and approval, server-only materialization, and grounded Agent Tomo answers; certificate-backed administration, clinic-reported due/status, and product expiration remain separate meanings; receipt failures and review timeouts preserve recoverable untrusted work without creating reminders or other actions
 - **3E.8 shipped:** one typed verified weight-trend contract for the complete requested trusted history; deterministic narrative, summary, accessible source-linked chart, and concise Voice speech; lb-first or kg display choice; explicit selected-point meaning; and the existing ten-card recent evidence limit kept separate from chart calculations
+- **3E.9 shipped:** `pets.microchip_id` added to the allowlisted governed Profile contract and direct Chat and Voice retrieval; direct-only disclosure in assistant responses; clearer Profile-details and Care-overview groups; long-identifier readability; and a default-open, user-collapsible Voice transcript
 
-The next bounded slice is **3E.9 — Governed Profile Detail and UI Refinement**. It adds `pets.microchip_id` to the existing allowlisted governed Profile contract, supports direct Tomo questions without volunteering the identifier in broad spoken summaries, and improves the Profile drawer's information hierarchy and long-identifier presentation. It introduces no Profile editing, schema migration, broader identity model, or medical interpretation.
+The next bounded slice is **Animate Tomo Reliability and Recovery**. It will make startup, disconnect, session-expiry, and playback failures visible through typed non-sensitive presentation state; preserve uninterrupted local Voice; and offer an explicit safe retry for transient failures. It introduces no automatic reconnect, answer or speech change, new provider, avatar redesign, demo work, or trusted-state behavior.
 
 Near-term work then proceeds through Animate Tomo recovery, the separate resettable demo environment, synthetic veterinary documents and demo-safe Gmail intake, and final end-to-end polish. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it. This keeps the shipped Rabies foundation reusable while preventing the portfolio path from expanding into a general medical-care system.
 
@@ -388,15 +389,25 @@ The chart shows verified measurements only, keeps kg canonical, lets Rosa choose
 
 **Phase thesis:** A health-data visualization is trustworthy only when every point, summary, and explanation comes from the same verified evidence contract.
 
-### Phase 3E.9 — Governed Profile Detail and UI Refinement · Next
+### Phase 3E.9 — Governed Profile Detail and UI Refinement · Shipped
 
-The `pets` table already stores `microchip_id`, but Phase 3E.4 intentionally allowlisted only name, species, breed, birth date, sex, and reproductive status. The current Profile drawer therefore cannot display Momo's microchip number, and Tomo cannot answer a direct microchip question from the governed Profile source.
+The `pets` table already stored `microchip_id`, but Phase 3E.4 intentionally allowlisted only name, species, breed, birth date, sex, and reproductive status. Before Phase 3E.9, the Profile drawer therefore could not display Momo's microchip number, and Tomo could not answer a direct microchip question from the governed Profile source.
 
-Phase 3E.9 will add `microchip_id` to the explicit Profile repository selection and normalization contract, preserve null and unavailable behavior, route direct microchip questions through the existing governed Profile answer, and show the identifier in a clearer Profile-details section. The drawer will separate governed identity details from the existing care overview, support long identifiers without truncation, and preserve the current portrait, navigation, reminders, and care-summary behavior.
+Phase 3E.9 adds `microchip_id` to the explicit Profile repository selection and normalization contract, preserves null and unavailable behavior, routes direct microchip questions through the existing governed Profile answer, and shows the identifier in a clearer Profile-details section. The drawer separates governed identity details from the existing care overview, supports long identifiers without truncation, and preserves the current portrait, navigation, reminders, and care-summary behavior.
 
-The identifier will not be volunteered in broad Profile speech, copied into logs, or placed in real-data fixtures or portfolio screenshots. The minimum slice adds no editing, clipboard action, new profile fields, clinic or insurance governance, multi-pet support, avatar work, provider change, or database migration.
+The identifier is not volunteered in broad Profile answers or speech, copied into logs or traces, or placed in real-data fixtures or portfolio screenshots. Direct microchip responses carry only the bounded requested field. The shipped slice adds no editing, clipboard action, new profile fields, clinic or insurance governance, multi-pet support, avatar provider change, or database migration. It also makes the shared Voice transcript visible by default while preserving user-controlled collapse and session-only content.
 
 **Phase thesis:** A useful personal Profile should expose the important identifier the governed record already contains without turning a narrow read-only enhancement into a general identity-management system.
+
+### Animate Tomo Reliability and Recovery · Next
+
+Animate Tomo already remains optional and preserves static or local-motion media plus local audio when Runway or LiveKit is unavailable. The current presentation does not clearly distinguish an intentional end from an unexpected disconnect or session expiry, and it reduces several provider and playback failures to transient text without retaining a bounded reason.
+
+The next slice will add a small typed presentation contract for starting, ready, failed, ended, and local-fallback states; map known startup, connection, playback, timeout, and expiry reasons to calm user-facing guidance; and offer a user-initiated retry only when retry is safe. Local Voice must continue exactly once from the already-generated audio when live playback fails. Retry will start a fresh animation session without replaying an answer, changing care content, or reconnecting automatically.
+
+The slice will preserve reduced-motion behavior, explicit **Animate Tomo** and **End live animation** controls, numeric-only latency instrumentation, secrets on the server, and the existing answer and speech contracts. It adds no provider, automatic retry loop, database record, care-state mutation, character redesign, new motion language, demo configuration, or final animation polish.
+
+**Phase thesis:** Provider-dependent character animation should fail as an optional presentation layer, never as a failure of Tomo's answer or Voice conversation.
 
 ### Phase 4 — Governed specialist expansion
 
