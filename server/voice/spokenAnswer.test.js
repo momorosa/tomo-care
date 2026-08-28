@@ -168,6 +168,34 @@ test("speaks the complete compact Profile answer including relationship warmth",
     assert.doesNotMatch(spoken, /Let’s see/)
 })
 
+test("speaks a direct governed microchip answer without unrelated Profile facts", () => {
+    const answer = "Momo’s microchip number is 900215000000001."
+    const spoken = composeSpokenAnswer({
+        answer_type: "profile_summary",
+        profile_focus: "microchip_id",
+        answer,
+        governed_answer: answer,
+    })
+
+    assert.equal(spoken, answer)
+    assert.doesNotMatch(spoken, /breed|birthday|spayed|happy place/i)
+})
+
+test("does not pull a microchip identifier into broad Profile speech", () => {
+    const governedAnswer =
+        "Momo is an American Eskimo dog, born August 22, 2014, and is 12 years old. She is female and spayed according to her Profile."
+    const spoken = composeSpokenAnswer({
+        answer_type: "profile_summary",
+        profile_focus: "summary",
+        answer: governedAnswer,
+        governed_answer: governedAnswer,
+        profile_fields: { microchip_id: "900215000000001" },
+    })
+
+    assert.equal(spoken, governedAnswer)
+    assert.doesNotMatch(spoken, /microchip|900215000000001/i)
+})
+
 test("adds the fixed visual-review boundary to prepared actions", () => {
     const spoken = composeSpokenAnswer({
         answer_type: "action_prepared",

@@ -205,7 +205,7 @@ test("keeps Chat readable, uses Tomo branding, and provides a calm multiline com
     )
 })
 
-test("gives Voice a centered avatar stage with transcript detail on demand", async () => {
+test("gives Voice a centered avatar stage with a default-open collapsible transcript", async () => {
     const [source, avatarSource, css] = await Promise.all([
         readFile(assistantUrl, "utf8"),
         readFile(avatarMediaUrl, "utf8"),
@@ -220,6 +220,10 @@ test("gives Voice a centered avatar stage with transcript detail on demand", asy
     assert.match(avatarSource, /End live animation/)
     assert.match(source, /aria-label="Voice conversation with Tomo"/)
     assert.match(source, /aria-label="Full session transcript"/)
+    assert.match(
+        source,
+        /\[voiceTranscriptOpen, setVoiceTranscriptOpen\] = useState\(true\)/
+    )
     assert.match(source, /aria-expanded=\{transcriptOpen\}/)
     assert.match(source, /aria-controls="tomo-voice-transcript"/)
     assert.match(source, /tomo-voice-stage__focus/)
@@ -238,6 +242,29 @@ test("gives Voice a centered avatar stage with transcript detail on demand", asy
     assert.match(css, /\.tomo-voice-transcript-sheet\s*\{[\s\S]*position: absolute/)
     assert.match(css, /\.tomo-voice-dock\s*\{[\s\S]*backdrop-filter: blur/)
     assert.match(css, /\.tomo-avatar-media__video\s*\{[\s\S]*object-fit: cover/)
+
+    const clearSessionSource = source.match(
+        /function clearSession\(\)[\s\S]*?(?=\n\s*const showSuggestions)/
+    )?.[0]
+    assert.ok(clearSessionSource)
+    assert.doesNotMatch(clearSessionSource, /setVoiceTranscriptOpen/)
+})
+
+test("separates governed Profile details from the care overview", async () => {
+    const [source, css] = await Promise.all([
+        readFile(sidebarUrl, "utf8"),
+        readFile(cssUrl, "utf8"),
+    ])
+
+    assert.match(source, />\s*Profile details\s*</)
+    assert.match(source, />\s*Care overview\s*</)
+    assert.match(source, /label="Microchip number"/)
+    assert.match(source, /profile\.microchip_id \|\| "Not recorded"/)
+    assert.match(source, /valueClassName="tomo-context-fact__identifier"/)
+    assert.match(
+        css,
+        /\.tomo-context-fact__identifier[\s\S]*overflow-wrap: anywhere/
+    )
 })
 
 test("uses a neutral eyebrow color for reminder categories", async () => {

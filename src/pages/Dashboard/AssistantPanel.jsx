@@ -61,7 +61,7 @@ export default function AssistantPanel({
     const [voiceState, setVoiceState] = useState(VOICE_STATES.IDLE)
     const [voiceResponse, setVoiceResponse] = useState(null)
     const [voiceMuted, setVoiceMuted] = useState(false)
-    const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(false)
+    const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(true)
     const [pendingMenuOpen, setPendingMenuOpen] = useState(false)
     const [pendingActionLoading, setPendingActionLoading] = useState(null)
     const recorderRef = useRef(null)
@@ -477,7 +477,6 @@ export default function AssistantPanel({
         setQuestion("")
         setError("")
         setVoiceState(VOICE_STATES.IDLE)
-        setVoiceTranscriptOpen(false)
         conversationContextRef.current = null
         lastAnswerRef.current = null
     }

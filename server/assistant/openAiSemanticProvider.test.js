@@ -91,6 +91,11 @@ test("requests a stateless schema-constrained semantic interpretation", async ()
         request.text.format.schema.properties.subject.enum.includes("profile")
     )
     assert.ok(request.text.format.schema.required.includes("profile_field"))
+    assert.ok(
+        request.text.format.schema.properties.profile_field.enum.includes(
+            "microchip_id"
+        )
+    )
     assert.equal(
         request.text.format.schema.properties.social_intent.enum.includes(
             "momo_profile"

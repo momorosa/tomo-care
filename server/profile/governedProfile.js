@@ -7,6 +7,7 @@ const PROFILE_FIELD_KEYS = Object.freeze([
     "age",
     "sex",
     "reproductive_status",
+    "microchip_id",
 ])
 
 const OPTIONAL_PROFILE_FIELD_KEYS = Object.freeze([
@@ -15,6 +16,7 @@ const OPTIONAL_PROFILE_FIELD_KEYS = Object.freeze([
     "age",
     "sex",
     "reproductive_status",
+    "microchip_id",
 ])
 
 export function calculateProfileAge(birthDate, currentCareDate) {
@@ -60,6 +62,7 @@ export function normalizeProfileFields(pet, currentCareDate) {
             pet?.spayed_neutered,
             sex
         ),
+        microchip_id: normalizeText(pet?.microchip_id),
     }
 }
 

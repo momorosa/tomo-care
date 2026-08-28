@@ -177,6 +177,7 @@ test("answers a broad profile question from governed pets fields", () => {
                 age: 11,
                 sex: "female",
                 reproductive_status: "spayed",
+                microchip_id: "900215000000001",
             },
             missing_fields: [],
             governing_reference: { table: "pets", record_id: "pet-1" },
@@ -197,6 +198,8 @@ test("answers a broad profile question from governed pets fields", () => {
         /Beyond those official details, she’s regal, devoted, discerning, playful, and joyful—and very much your happy place\./
     )
     assert.equal(response.profile_fields.breed, "American Eskimo")
+    assert.equal("microchip_id" in response.profile_fields, false)
+    assert.doesNotMatch(response.answer, /microchip|900215000000001/i)
     assert.equal(response.navigation_targets[0].kind, "open_profile")
     assert.deepEqual(response.citations, [])
     assert.equal(response.proposed_action, null)
@@ -243,6 +246,7 @@ test("answers direct Profile fields in natural language", () => {
         age: 11,
         sex: "female",
         reproductive_status: "spayed",
+        microchip_id: "900215000000001",
     }
     const expected = {
         age: "Momo is 11 years old.",
@@ -251,6 +255,7 @@ test("answers direct Profile fields in natural language", () => {
         birth_date: "Momo’s birthday is August 22, 2014.",
         sex: "Momo’s Profile records her as female.",
         reproductive_status: "Momo’s Profile records her as spayed.",
+        microchip_id: "Momo’s microchip number is 900215000000001.",
     }
 
     for (const [profile_focus, answer] of Object.entries(expected)) {
@@ -272,7 +277,92 @@ test("answers direct Profile fields in natural language", () => {
         })
 
         assert.equal(response.answer, answer, profile_focus)
+        if (profile_focus === "microchip_id") {
+            assert.deepEqual(response.profile_fields, {
+                microchip_id: "900215000000001",
+            })
+            assert.doesNotMatch(response.answer, /breed|birthday|spayed/i)
+        }
     }
+})
+
+test("keeps the microchip identifier out of broad partial Profile language", () => {
+    const response = composeGroundedAnswer({
+        question: "Tell me about Momo",
+        queryPlan: {
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "summary",
+        },
+        context: {},
+        profileSummary: {
+            status: "partial",
+            fields: {
+                id: "pet-1",
+                name: "Momo",
+                species: "canine",
+                breed: "American Eskimo",
+                birth_date: "2014-08-22",
+                age: 11,
+                sex: "female",
+                reproductive_status: "spayed",
+                microchip_id: null,
+            },
+            missing_fields: ["microchip_id"],
+            governing_reference: { table: "pets", record_id: "pet-1" },
+            navigation_targets: [],
+        },
+    })
+
+    assert.equal(response.profile_status, "partial")
+    assert.doesNotMatch(response.answer, /microchip/i)
+    assert.doesNotMatch(JSON.stringify(response.limitations), /microchip/i)
+    assert.equal("microchip_id" in response.profile_fields, false)
+})
+
+test("states an honestly missing microchip without guessing from other context", () => {
+    const response = composeGroundedAnswer({
+        question: "What is Momo’s microchip number?",
+        queryPlan: {
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "microchip_id",
+        },
+        context: {
+            documents: [{ raw_text: "Possible identifier 111111111111111" }],
+        },
+        profileSummary: {
+            status: "partial",
+            fields: { name: "Momo", microchip_id: null },
+            missing_fields: ["microchip_id"],
+            governing_reference: { table: "pets", record_id: "pet-1" },
+            navigation_targets: [],
+        },
+    })
+
+    assert.equal(
+        response.answer,
+        "Momo’s microchip number isn’t recorded in Profile."
+    )
+    assert.doesNotMatch(response.answer, /111111111111111/)
+    assert.deepEqual(response.profile_fields, { microchip_id: null })
+})
+
+test("does not guess a microchip identifier when the Profile source is unavailable", () => {
+    const response = composeGroundedAnswer({
+        question: "What is Momo’s microchip number?",
+        queryPlan: {
+            intent: "profile_summary",
+            subject: "profile",
+            profile_focus: "microchip_id",
+        },
+        context: {},
+        profileSummary: null,
+    })
+
+    assert.equal(response.profile_status, "unavailable")
+    assert.match(response.answer, /couldn’t load the governed pets Profile row/)
+    assert.deepEqual(response.profile_fields, { microchip_id: null })
 })
 
 test("states missing direct fields and unavailable sources without inference", () => {

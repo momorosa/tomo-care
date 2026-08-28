@@ -333,12 +333,18 @@ function answerProfileSummary(profile, queryPlan) {
         age: null,
         sex: null,
         reproductive_status: null,
+        microchip_id: null,
     }
+    const responseFields = getProfileFieldsForResponse(fields, focus)
+    const responseMissingFields = getProfileMissingFieldsForResponse(
+        profile?.missing_fields,
+        focus
+    )
     const shared = {
         answer_type: "profile_summary",
         profile_status: profile?.status || "unavailable",
         profile_focus: focus,
-        profile_fields: fields,
+        profile_fields: responseFields,
         governing_reference: profile?.governing_reference || null,
         navigation_targets: profile?.navigation_targets || [],
         citations: [],
@@ -361,7 +367,7 @@ function answerProfileSummary(profile, queryPlan) {
 
     const governedAnswer =
         focus === "summary"
-            ? composeProfileOverview(fields, profile.missing_fields)
+            ? composeProfileOverview(fields, responseMissingFields)
             : composeProfileFieldAnswer(fields, focus)
     const relationshipColor =
         focus === "summary"
@@ -377,10 +383,10 @@ function answerProfileSummary(profile, queryPlan) {
         governed_answer: governedAnswer,
         confidence: profile.status === "available" ? "high" : "medium",
         limitations:
-            profile.status === "partial"
+            profile.status === "partial" && responseMissingFields.length
                 ? [
                       `Not set in Profile: ${formatNaturalList(
-                          (profile.missing_fields || []).map(
+                          responseMissingFields.map(
                               getProfileFieldLabel
                           )
                       )}.`,
@@ -428,6 +434,9 @@ function composeProfileFieldAnswer(fields, focus) {
     const value = fields[focus]
 
     if (value === null || value === undefined || value === "") {
+        if (focus === "microchip_id") {
+            return `${name}’s microchip number isn’t recorded in Profile.`
+        }
         if (focus === "age") {
             return `${name}’s birth date isn’t set in Profile, so I can’t calculate age.`
         }
@@ -451,6 +460,9 @@ function composeProfileFieldAnswer(fields, focus) {
         return `${name} is ${getIndefiniteArticle(formatProfileSpecies(displayedValue))} ${formatProfileSpecies(displayedValue)}.`
     }
     if (focus === "birth_date") return `${name}’s birthday is ${displayedValue}.`
+    if (focus === "microchip_id") {
+        return `${name}’s microchip number is ${displayedValue}.`
+    }
     if (focus === "name") return `The Profile name is ${displayedValue}.`
     if (focus === "sex" || focus === "reproductive_status") {
         const pronouns = getProfilePronouns(fields.sex)
@@ -458,6 +470,24 @@ function composeProfileFieldAnswer(fields, focus) {
     }
 
     return `${name}’s ${getProfileFieldLabel(focus)} is ${displayedValue}.`
+}
+
+function getProfileFieldsForResponse(fields, focus) {
+    if (focus === "microchip_id") {
+        return { microchip_id: fields.microchip_id ?? null }
+    }
+
+    return Object.fromEntries(
+        Object.entries(fields).filter(([field]) => field !== "microchip_id")
+    )
+}
+
+function getProfileMissingFieldsForResponse(missingFields = [], focus) {
+    if (focus === "microchip_id") {
+        return missingFields.includes("microchip_id") ? ["microchip_id"] : []
+    }
+
+    return missingFields.filter((field) => field !== "microchip_id")
 }
 
 function composeRelationshipColor(relationshipProfile, fields) {
@@ -523,6 +553,7 @@ function getProfileFieldLabel(field) {
         age: "age",
         sex: "sex",
         reproductive_status: "reproductive status",
+        microchip_id: "microchip number",
     }[field] || field
 }
 

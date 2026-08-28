@@ -64,6 +64,7 @@ test("returns the stored pet profile fields needed for a live age", () => {
             sex: "female",
             spayed_neutered: true,
             birth_date: "2014-08-22",
+            microchip_id: " 900215000000001 ",
             private_note: "do not expose",
         }, "2026-08-14"),
         {
@@ -75,6 +76,7 @@ test("returns the stored pet profile fields needed for a live age", () => {
             age: 11,
             sex: "female",
             reproductive_status: "spayed",
+            microchip_id: "900215000000001",
         }
     )
 })

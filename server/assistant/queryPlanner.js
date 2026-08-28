@@ -299,7 +299,7 @@ function basePlan({
 
 function isProfileEditRequest(q) {
     const normalized = normalizeOverviewQuestion(q)
-    const mentionsProfile = /\b(profile|name|breed|species|birthday|birth date|sex|spayed|neutered)\b/.test(
+    const mentionsProfile = /\b(profile|name|breed|species|birthday|birth date|sex|spayed|neutered|microchip|chip number)\b/.test(
         normalized
     )
     const asksChange = /\b(change|update|edit|correct|set|fix)\b/.test(normalized)
@@ -310,6 +310,7 @@ function isProfileEditRequest(q) {
 function getProfileFocus(q) {
     const normalized = normalizeOverviewQuestion(q)
     const directFields = [
+        ["microchip_id", /\b(microchip(?: id| number)?|chip number)\b/],
         ["age", /\b(how old|what(?: is|'s) .* age|age)\b/],
         ["birth_date", /\b(birthday|birth date|born)\b/],
         ["breed", /\bbreed\b/],

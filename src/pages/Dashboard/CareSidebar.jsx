@@ -227,6 +227,7 @@ function ProfileContext({ careSummary, reminderCount }) {
               .replaceAll("_", " ")
               .replace(/^./, (character) => character.toUpperCase())
         : "Status not set"
+    const microchipId = profile.microchip_id || "Not recorded"
 
     return (
         <div className="tomo-profile-context">
@@ -247,30 +248,75 @@ function ProfileContext({ careSummary, reminderCount }) {
                 </div>
             </div>
 
-            <dl className="tomo-profile-facts">
-                <ContextFact
-                    label="Latest verified care"
-                    value={formatDisplayDate(
-                        careSummary.latest_verified_care?.event_date
-                    )}
-                />
-                <ContextFact
-                    label="Last Librela"
-                    value={formatDisplayDate(careSummary.last_librela?.event_date)}
-                />
-                <ContextFact label="Active reminders" value={reminderCount} />
-                <ContextFact label="Primary clinic" value="SoMa AH" />
-                <ContextFact label="Insurance" value="Nationwide" />
-            </dl>
+            <section
+                className="tomo-profile-section"
+                aria-labelledby="tomo-profile-details-heading"
+            >
+                <h3
+                    id="tomo-profile-details-heading"
+                    className="tomo-profile-section__label"
+                >
+                    Profile details
+                </h3>
+                <dl className="tomo-profile-facts">
+                    <ContextFact
+                        label="Birth date"
+                        value={formatDisplayDate(profile.birth_date)}
+                    />
+                    <ContextFact
+                        label="Microchip number"
+                        value={microchipId}
+                        stacked
+                        valueClassName="tomo-context-fact__identifier"
+                    />
+                </dl>
+            </section>
+
+            <section
+                className="tomo-profile-section tomo-profile-section--care"
+                aria-labelledby="tomo-care-overview-heading"
+            >
+                <h3
+                    id="tomo-care-overview-heading"
+                    className="tomo-profile-section__label"
+                >
+                    Care overview
+                </h3>
+                <dl className="tomo-profile-facts">
+                    <ContextFact
+                        label="Latest verified care"
+                        value={formatDisplayDate(
+                            careSummary.latest_verified_care?.event_date
+                        )}
+                    />
+                    <ContextFact
+                        label="Last Librela"
+                        value={formatDisplayDate(
+                            careSummary.last_librela?.event_date
+                        )}
+                    />
+                    <ContextFact label="Active reminders" value={reminderCount} />
+                    <ContextFact label="Primary clinic" value="SoMa AH" />
+                    <ContextFact label="Insurance" value="Nationwide" />
+                </dl>
+            </section>
         </div>
     )
 }
 
-function ContextFact({ label, value }) {
+function ContextFact({ label, value, stacked = false, valueClassName = "" }) {
     return (
-        <div className="tomo-context-fact">
+        <div
+            className={`tomo-context-fact ${
+                stacked ? "tomo-context-fact--stacked" : ""
+            }`}
+        >
             <dt className="text-tomo-text">{label}</dt>
-            <dd className="min-w-0 text-right font-medium text-tomo-text-h">
+            <dd
+                className={`min-w-0 font-medium text-tomo-text-h ${
+                    stacked ? "text-left" : "text-right"
+                } ${valueClassName}`}
+            >
                 {value}
             </dd>
         </div>

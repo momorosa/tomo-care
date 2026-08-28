@@ -10,7 +10,7 @@ test("the governed Profile repository selects only the bounded pets fields", asy
 
     assert.match(
         source,
-        /"id, name, species, breed, birth_date, sex, spayed_neutered"/
+        /"id, name, species, breed, birth_date, sex, spayed_neutered, microchip_id"/
     )
     assert.match(source, /\.from\("pets"\)/)
     assert.match(source, /\.eq\("id", petId\)/)
