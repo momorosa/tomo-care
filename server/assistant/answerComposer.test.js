@@ -503,6 +503,75 @@ test("summarizes the weight pattern before supporting it with key comparisons", 
     assert.match(response.answer, /4 most recent readings show a gradual downward movement/)
     assert.doesNotMatch(response.answer, /→/)
     assert.equal(response.citations.length, 9)
+    assert.equal(response.visualization.type, "verified_weight_trend")
+    assert.equal(response.visualization.schema_version, 1)
+    assert.equal(response.visualization.points.length, 9)
+    assert.equal(response.visualization.summary.first_fact_id, "weight-1")
+    assert.equal(response.visualization.summary.latest_fact_id, "weight-9")
+    assert.equal(response.visualization.summary.overall_change_kg, -0.2)
+})
+
+test("returns an honest single-reading chart without claiming a trend", () => {
+    const only = {
+        id: "weight-only",
+        doc_id: "document-only",
+        fact_type: "weight",
+        fact_date: "2026-08-03",
+        status: "verified",
+        value_json: { value_kg: 15.2, value_lb: 33.51 },
+    }
+
+    const response = composeGroundedAnswer({
+        question: "Tell me about Momo’s weight trend.",
+        queryPlan: {
+            intent: "weight_trend",
+            subject: "weight",
+            date_range: { type: "all_time", start: null, end: null },
+        },
+        context: {
+            verifiedWeightFacts: [only],
+            documents: [],
+        },
+    })
+
+    assert.match(response.answer, /only have one verified weight record/i)
+    assert.match(response.answer, /not enough to establish a weight trend/i)
+    assert.doesNotMatch(response.answer, /stable overall|upward overall|downward overall/i)
+    assert.equal(response.visualization.points.length, 1)
+    assert.equal(
+        response.visualization.summary.overall_direction,
+        "insufficient_readings"
+    )
+    assert.deepEqual(
+        response.citations.map((citation) => citation.id),
+        ["weight-only"]
+    )
+})
+
+test("does not add a weight visualization to unrelated grounded answers", () => {
+    const response = composeGroundedAnswer({
+        question: "What was Momo’s latest weight?",
+        queryPlan: {
+            intent: "last_weight",
+            subject: "weight",
+            date_range: { type: "all_time", start: null, end: null },
+        },
+        context: {
+            verifiedWeightFacts: [
+                {
+                    id: "latest-weight",
+                    doc_id: "latest-document",
+                    fact_type: "weight",
+                    fact_date: "2026-08-03",
+                    status: "verified",
+                    value_json: { value_kg: 15.2 },
+                },
+            ],
+            documents: [],
+        },
+    })
+
+    assert.equal("visualization" in response, false)
 })
 
 test("returns an editable, unsent Librela appointment-message draft", () => {

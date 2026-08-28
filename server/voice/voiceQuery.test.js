@@ -75,6 +75,61 @@ test("sends the visible transcript through the shared grounded assistant", async
     assert.doesNotMatch(JSON.stringify(result), /raw-audio/)
 })
 
+test("preserves the typed weight visualization for the Voice transcript", async () => {
+    const visualization = {
+        schema_version: 1,
+        type: "verified_weight_trend",
+        unit: "kg",
+        points: [
+            {
+                fact_id: "weight-1",
+                fact_date: "2026-08-03",
+                value_kg: 15.2,
+                value_lb: 33.51,
+                doc_id: "document-1",
+            },
+        ],
+        summary: {
+            reading_count: 1,
+            first_fact_id: "weight-1",
+            latest_fact_id: "weight-1",
+            low_fact_ids: ["weight-1"],
+            high_fact_ids: ["weight-1"],
+            overall_change_kg: 0,
+            overall_direction: "insufficient_readings",
+        },
+    }
+    const voiceProvider = createVoiceProvider()
+    const result = await answerVoiceQuestion({
+        petId: "pet-1",
+        audioBuffer: Buffer.from("raw-audio"),
+        contentType: "audio/webm",
+        dependencies: {
+            voiceProvider,
+            answerQuestion: async () => ({
+                answer_type: "grounded_answer",
+                answer:
+                    "I only have one verified weight reading, so I can’t establish a trend.",
+                citations: [{ type: "trusted_fact", id: "weight-1" }],
+                visualization,
+            }),
+        },
+    })
+
+    assert.equal(result.visualization, visualization)
+    assert.equal(result.visualization.points[0].fact_id, "weight-1")
+    assert.equal(result.citations[0].id, "weight-1")
+    assert.equal(
+        result.spoken_answer,
+        "Momo’s one verified weight reading is 33.51 pounds as of August 3, 2026. One reading is not enough to establish a weight trend."
+    )
+    assert.equal(
+        voiceProvider.calls.find((call) => call.method === "synthesize")
+            .input.text,
+        result.spoken_answer
+    )
+})
+
 test("reports bounded stage timings without including voice or care content", async () => {
     const timestamps = [100, 125, 180, 240]
     const result = await answerVoiceQuestion({

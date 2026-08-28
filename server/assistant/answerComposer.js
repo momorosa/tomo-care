@@ -1,5 +1,6 @@
 import { costItemCitation, documentCitation, eventCitation, factCitation, enrichCitations, } from "./citations.js"
 import { dateInRange, getDateRangePhrase, } from "./dateRanges.js"
+import { buildVerifiedWeightTrendPresentation } from "./weightTrendPresentation.js"
 import { getCareDate } from "../lib/careDates.js"
 import { TOMO_RELATIONSHIP_PROFILE_V2 } from "./relationshipProfile.js"
 
@@ -1561,41 +1562,64 @@ function answerWeightChange(context, queryPlan) {
 }
 
 function answerWeightTrend(context, queryPlan) {
-    const weights = getWeightFactsInRange(context, queryPlan).sort(
-        (a, b) => new Date(a.fact_date) - new Date(b.fact_date)
+    const visualization = buildVerifiedWeightTrendPresentation(
+        context.verifiedWeightFacts,
+        queryPlan.date_range
     )
 
-    if (!weights.length) {
+    if (!visualization) {
         return noTrustedDataAnswer(
             "I don’t have verified weight records for that timeframe, so I can’t show a trend from trusted data."
         )
     }
 
+    const points = visualization.points
     const rangePhrase = getDateRangePhrase(queryPlan.date_range)
-    const first = weights[0]
-    const latest = weights[weights.length - 1]
-    const overallChangeKg = getWeightKg(latest) - getWeightKg(first)
-    const peak = [...weights].sort((a, b) => getWeightKg(b) - getWeightKg(a))[0]
-    const low = [...weights].sort((a, b) => getWeightKg(a) - getWeightKg(b))[0]
-    const peakChangeKg = getWeightKg(latest) - getWeightKg(peak)
-    const recentWeights = weights.slice(-4)
-    const recentFirst = recentWeights[0]
-    const recentChangeKg = getWeightKg(latest) - getWeightKg(recentFirst)
-    const overallDirection = describeWeightDirection(overallChangeKg)
-    const recentDirection = describeRecentWeightDirection(recentWeights)
+    const first = points[0]
+    const latest = points.at(-1)
+
+    if (points.length === 1) {
+        return {
+            answer: `I only have one verified weight record${rangePhrase ? ` ${rangePhrase}` : ""}: ${formatWeightPoint(latest)} on ${formatDate(latest.fact_date)}. One reading is not enough to establish a weight trend.`,
+            answer_type: "grounded_answer",
+            confidence: "medium",
+            citations: [weightPointCitation(latest)],
+            visualization,
+            limitations: [
+                "At least two verified weight records are needed to describe a trend.",
+                "This is not a medical interpretation of the reading.",
+            ],
+            proposed_action: null,
+        }
+    }
+
+    const summary = visualization.summary
+    const low = findWeightPoint(points, summary.low_fact_ids[0])
+    const high = findWeightPoint(points, summary.high_fact_ids[0])
+    const recentFirst = findWeightPoint(
+        points,
+        summary.recent_first_fact_id
+    )
+    const overallDirection = formatOverallWeightDirection(
+        summary.overall_direction
+    )
+    const recentDirection = formatRecentWeightDirection(
+        summary.recent_direction
+    )
     const recentSentence =
-        recentWeights.length >= 3 && recentDirection !== "mixed"
-            ? `The ${recentWeights.length} most recent readings ${recentDirection}, from ${formatWeightFact(recentFirst)} on ${formatDate(recentFirst.fact_date)} to ${formatWeightFact(latest)} on ${formatDate(latest.fact_date)} (${formatSignedWeightChange(recentChangeKg)}).`
+        summary.recent_reading_count >= 3 && recentDirection
+            ? `The ${summary.recent_reading_count} most recent readings ${recentDirection}, from ${formatWeightPoint(recentFirst)} on ${formatDate(recentFirst.fact_date)} to ${formatWeightPoint(latest)} on ${formatDate(latest.fact_date)} (${formatSignedWeightChange(summary.recent_change_kg)}).`
             : ""
 
     return {
         answer:
             `Momo’s verified weight trend${rangePhrase ? ` ${rangePhrase}` : ""} is ${overallDirection}. ` +
-            `Across ${weights.length} verified records from ${formatDate(first.fact_date)} to ${formatDate(latest.fact_date)}, she ranged from ${formatWeightFact(low)} to ${formatWeightFact(peak)}; her latest weight is ${formatWeightFact(latest)}, ${formatSignedWeightChange(overallChangeKg)} from the first record and ${formatSignedWeightChange(peakChangeKg)} from the highest. ` +
+            `Across ${points.length} verified records from ${formatDate(first.fact_date)} to ${formatDate(latest.fact_date)}, she ranged from ${formatWeightPoint(low)} to ${formatWeightPoint(high)}; her latest weight is ${formatWeightPoint(latest)}, ${formatSignedWeightChange(summary.overall_change_kg)} from the first record and ${formatSignedWeightChange(summary.latest_from_high_kg)} from the highest. ` +
             recentSentence,
         answer_type: "grounded_answer",
         confidence: "high",
-        citations: weights.map((fact) => factCitation(fact, "Verified weight")),
+        citations: points.map(weightPointCitation),
+        visualization,
         limitations: [
             "This trend uses verified weight facts only.",
             "This is not a medical interpretation of whether the change is clinically meaningful.",
@@ -2224,40 +2248,47 @@ function formatSignedWeightChange(changeKg) {
     return `${direction} ${formatDecimal(absKg)} kg (${formatDecimal(absLb)} lb)`
 }
 
-function describeWeightDirection(changeKg) {
-    const absChangeKg = Math.abs(changeKg)
+function formatWeightPoint(point) {
+    if (!point) return "an unknown weight"
 
-    if (absChangeKg < 0.05) return "stable overall"
-    if (absChangeKg <= 0.25) {
-        return changeKg > 0
-            ? "slightly upward overall"
-            : "slightly downward overall"
-    }
-
-    return changeKg > 0 ? "upward overall" : "downward overall"
+    return `${formatDecimal(point.value_kg)} kg (${formatDecimal(point.value_lb)} lb)`
 }
 
-function describeRecentWeightDirection(weights) {
-    if (weights.length < 2) return "mixed"
-
-    const values = weights.map(getWeightKg)
-    const nonDecreasing = values.every(
-        (value, index) => index === 0 || value >= values[index - 1] - 0.01
+function weightPointCitation(point) {
+    return factCitation(
+        {
+            id: point.fact_id,
+            doc_id: point.doc_id,
+            fact_date: point.fact_date,
+        },
+        "Verified weight"
     )
-    const nonIncreasing = values.every(
-        (value, index) => index === 0 || value <= values[index - 1] + 0.01
+}
+
+function findWeightPoint(points, factId) {
+    return points.find((point) => point.fact_id === factId) || null
+}
+
+function formatOverallWeightDirection(direction) {
+    return (
+        {
+            stable: "stable overall",
+            slightly_upward: "slightly upward overall",
+            slightly_downward: "slightly downward overall",
+            upward: "upward overall",
+            downward: "downward overall",
+        }[direction] || "mixed"
     )
-    const netChange = values[values.length - 1] - values[0]
+}
 
-    if (nonIncreasing && netChange < -0.05) {
-        return "show a gradual downward movement"
-    }
-    if (nonDecreasing && netChange > 0.05) {
-        return "show a gradual upward movement"
-    }
-    if (Math.abs(netChange) < 0.05) return "remain stable"
-
-    return "mixed"
+function formatRecentWeightDirection(direction) {
+    return (
+        {
+            gradual_downward: "show a gradual downward movement",
+            gradual_upward: "show a gradual upward movement",
+            stable: "remain stable",
+        }[direction] || ""
+    )
 }
 
 function formatDecimal(value) {
