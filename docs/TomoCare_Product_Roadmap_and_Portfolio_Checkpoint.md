@@ -2,7 +2,7 @@
 
 **Decision date:** August 16, 2026
 
-**Last revised:** August 28, 2026
+**Last revised:** September 3, 2026
 
 **Owner:** Rosa Choi
 
@@ -129,21 +129,21 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Opens the shared Voice transcript by default while preserving user-controlled collapse and session-only content.
    - Kept Profile editing, clipboard actions, clinic and insurance governance, broader identity modeling, and real identifiers in fixtures or demo evidence out of scope.
 
-7. **Animate Tomo Reliability and Recovery · Next**
-   - Distinguish intentional end, startup failure, unexpected disconnect, session expiry, and live-playback failure through typed non-sensitive presentation state.
-   - Keep static or local-motion media and already-generated local Voice available throughout every failure.
-   - Offer an explicit user-initiated retry for transient failures after cleaning up the prior client, tracks, and timers.
-   - Never reconnect automatically, replay an answer as part of retry, or create duplicate audio.
-   - Preserve reduced-motion behavior, server-only secrets, numeric-only latency data, and the existing answer and speech contracts.
+7. **Animate Tomo Reliability and Recovery · Shipped**
+   - Distinguishes intentional end, startup failure, unexpected disconnect, session expiry, and live-playback failure through typed non-sensitive presentation state.
+   - Keeps static or local-motion media and already-generated local Voice available throughout every failure.
+   - Offers one explicit user-initiated retry for transient failures after cleaning up the prior client, tracks, handlers, speech state, and timers.
+   - Never reconnects automatically, replays an answer as part of retry, resynthesizes speech, exposes raw provider errors, or creates duplicate audio.
+   - Preserves reduced-motion behavior, server-only secrets, numeric-only latency data, and the existing answer and speech contracts.
 
-8. **Demo environment and resettable synthetic dataset**
+8. **Demo Environment and Resettable Synthetic Dataset · Next**
    - Keep one application codebase.
    - Use separate demo configuration and data from Momo's live care records.
    - Prefer a separate hosted Supabase demo project for interview reliability.
-   - Seed deterministic records and provide one safe reset path.
-   - Use a dedicated demo inbox if Gmail ingestion will be shown live.
-   - Keep Google Calendar and Apple Messages destinations demo-safe.
-   - Display a clear Demo indicator so synthetic and real state cannot be confused.
+   - Seed deterministic records from an explicit synthetic scenario and provide one guarded, repeatable reset path.
+   - Make the server the source of truth for real-care versus demo mode and display a persistent Demo indicator before data is shown.
+   - Fail closed against reset or external-action execution unless the target is explicitly identified as the demo environment.
+   - Defer the dedicated demo inbox and polished synthetic document to the following slice.
 
 9. **Synthetic invoice and demo Gmail ingestion**
    - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
@@ -251,7 +251,7 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Animate Tomo Reliability and Recovery**. Preserve Animate Tomo as an explicit optional presentation layer, but make startup, connection, playback, timeout, and session-expiry failures visible and typed. Continue the already-generated answer through local Voice exactly once, distinguish an intentional end from a failure, and allow a clean user-initiated retry only for transient states. Do not add automatic reconnect, answer or speech changes, a new provider, durable failure storage, character redesign, demo-environment work, or final animation polish.
+Begin **Demo Environment and Resettable Synthetic Dataset**. Preserve one application codebase and the shipped governance contracts while introducing a separately configured hosted Supabase demo project, a server-owned runtime-mode contract, a persistent Demo indicator, deterministic synthetic baseline records, and one guarded reset command. The reset must refuse to run against any unapproved project, and demo mode must not contact Momo's real inbox, clinic, Calendar, or Messages destination. Do not begin the polished synthetic invoice, demo Gmail intake, final UI or animation polish, case-study capture, broader care coverage, or medical intelligence in this slice.
 
 ## Maintenance rule
 

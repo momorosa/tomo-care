@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff is also shipped. The next bounded slice is Animate Tomo Reliability and Recovery.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff and the bounded Animate Tomo reliability-and-recovery slice are also shipped. The next bounded slice is the Demo Environment and Resettable Synthetic Dataset.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Phase 3E.9 closeout and Animate Tomo handover](./docs/Phase3E9_Closeout_and_AnimateTomo_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Animate Tomo reliability closeout and demo-environment handover](./docs/AnimateTomo_Reliability_Closeout_and_Demo_Environment_Handover.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -134,6 +134,8 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Governed read-only microchip retrieval from the allowlisted `pets` row across Profile, Chat, and Voice, with direct-only disclosure and honest missing or unavailable states
 * A clearer Profile drawer that separates Profile details from care overview, keeps long identifiers readable, and preserves existing navigation and care content
 * A default-open, user-collapsible Voice transcript so charts, evidence, links, and limits remain visible during spoken conversations
+* Typed non-sensitive Animate Tomo startup, disconnect, session-expiry, and playback recovery states with intentional ending kept distinct from failure
+* One user-initiated animation retry after complete cleanup, with no automatic reconnect, answer replay, resynthesis, duplicate audio, or loss of local Voice
 
 The accepted architecture is a small manager-style hybrid multi-agent system:
 
@@ -162,13 +164,12 @@ TomoCare now follows one product roadmap with two release tracks:
 * The **real-care track** continues toward a comprehensive long-term health sidekick for Momo.
 * The **portfolio track** creates a reliable, visually polished checkpoint of the same governed product using separate, resettable synthetic demo data.
 
-The agreed near-term sequence is:
+Animate Tomo reliability and recovery is complete. The remaining near-term sequence is:
 
-1. Make Animate Tomo failure visible and recoverable while preserving uninterrupted local Voice and user control over retry.
-2. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
-3. Finalize clearly labeled synthetic veterinary documents and pass them through a demo-safe Gmail intake.
-4. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
-5. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
+1. Create a separate demo environment and deterministic synthetic Momo dataset without forking the application code.
+2. Finalize clearly labeled synthetic veterinary documents and pass them through a demo-safe Gmail intake.
+3. Polish Voice, animation, and the complete end-to-end UI before freezing the portfolio v1 checkpoint.
+4. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
 
 Medication refill or renewal, additional preventive-care lifecycle expansion, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. The shipped Rabies foundation is reusable Real-Care infrastructure, not a claim of general vaccine, wellness, or laboratory coverage. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 

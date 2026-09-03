@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** August 28, 2026
+**Last updated:** September 3, 2026
 
 ---
 
@@ -337,9 +337,9 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.8 shipped:** one typed verified weight-trend contract for the complete requested trusted history; deterministic narrative, summary, accessible source-linked chart, and concise Voice speech; lb-first or kg display choice; explicit selected-point meaning; and the existing ten-card recent evidence limit kept separate from chart calculations
 - **3E.9 shipped:** `pets.microchip_id` added to the allowlisted governed Profile contract and direct Chat and Voice retrieval; direct-only disclosure in assistant responses; clearer Profile-details and Care-overview groups; long-identifier readability; and a default-open, user-collapsible Voice transcript
 
-The next bounded slice is **Animate Tomo Reliability and Recovery**. It will make startup, disconnect, session-expiry, and playback failures visible through typed non-sensitive presentation state; preserve uninterrupted local Voice; and offer an explicit safe retry for transient failures. It introduces no automatic reconnect, answer or speech change, new provider, avatar redesign, demo work, or trusted-state behavior.
+**Animate Tomo Reliability and Recovery is shipped.** Startup, unexpected disconnect, session expiry, and playback failure now resolve through typed non-sensitive presentation state; intentional ending remains a normal outcome; local Voice continues exactly once; and transient failures offer one user-initiated retry after complete cleanup. The slice added no automatic reconnect, answer or speech change, provider, avatar redesign, demo behavior, or trusted-state mutation.
 
-Near-term work then proceeds through Animate Tomo recovery, the separate resettable demo environment, synthetic veterinary documents and demo-safe Gmail intake, and final end-to-end polish. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it. This keeps the shipped Rabies foundation reusable while preventing the portfolio path from expanding into a general medical-care system.
+The next bounded slice is **Demo Environment and Resettable Synthetic Dataset**. It will preserve one codebase while separating demo configuration and synthetic records from Momo's live care state, expose a clear Demo indicator, and provide one guarded deterministic reset path. Synthetic veterinary document production and demo Gmail intake remain the following slice. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
@@ -399,15 +399,25 @@ The identifier is not volunteered in broad Profile answers or speech, copied int
 
 **Phase thesis:** A useful personal Profile should expose the important identifier the governed record already contains without turning a narrow read-only enhancement into a general identity-management system.
 
-### Animate Tomo Reliability and Recovery · Next
+### Animate Tomo Reliability and Recovery · Shipped
 
-Animate Tomo already remains optional and preserves static or local-motion media plus local audio when Runway or LiveKit is unavailable. The current presentation does not clearly distinguish an intentional end from an unexpected disconnect or session expiry, and it reduces several provider and playback failures to transient text without retaining a bounded reason.
+Animate Tomo remains an optional presentation layer. A typed allowlisted presentation contract now distinguishes starting, live-ready, intentional ending, startup failure, unexpected disconnect, session expiry, playback failure, and local-only continuation without rendering raw provider errors.
 
-The next slice will add a small typed presentation contract for starting, ready, failed, ended, and local-fallback states; map known startup, connection, playback, timeout, and expiry reasons to calm user-facing guidance; and offer a user-initiated retry only when retry is safe. Local Voice must continue exactly once from the already-generated audio when live playback fails. Retry will start a fresh animation session without replaying an answer, changing care content, or reconnecting automatically.
+Transient failures offer one explicit **Try animation again** action. A retry fully cleans the previous client, tracks, handlers, timers, transition state, and pending live speech before creating one fresh session. It does not reconnect automatically, replay the preceding answer, resynthesize speech, or duplicate audio. If live playback fails after speech is generated, the same local audio continues exactly once through the existing Voice path.
 
-The slice will preserve reduced-motion behavior, explicit **Animate Tomo** and **End live animation** controls, numeric-only latency instrumentation, secrets on the server, and the existing answer and speech contracts. It adds no provider, automatic retry loop, database record, care-state mutation, character redesign, new motion language, demo configuration, or final animation polish.
+Reduced Motion remains a preference rather than a failure. Static and local-motion media, explicit **Animate Tomo** and **End live animation** controls, server-only secrets, numeric-only latency instrumentation, and the existing answer and speech contracts remain intact. No provider, durable failure record, care-state mutation, character redesign, new motion language, demo configuration, or final animation polish was added.
 
 **Phase thesis:** Provider-dependent character animation should fail as an optional presentation layer, never as a failure of Tomo's answer or Voice conversation.
+
+### Demo Environment and Resettable Synthetic Dataset · Next
+
+Portfolio demonstrations need repeatable care state without exposing or mutating Momo's live records. The next slice will keep one application codebase while using a separate hosted Supabase project, a server-owned real-care or demo runtime contract, deterministic fictional baseline data, and one explicit reset command.
+
+Demo mode must be unmistakable before care data is presented. Reset logic must verify both demo mode and the allowlisted target project, operate only on deterministic demo-owned identifiers and storage prefixes, and refuse to run against the real-care project. External integrations must fail closed unless a later demo-safe destination is explicitly configured.
+
+The initial dataset will prove environment isolation, reset reproducibility, and the existing Profile, attention, reminder, verified-weight, Chat, and Voice reads. It will not finalize the synthetic invoice, send Gmail, contact a clinic, write to Rosa's Calendar, open a real Messages recipient, change provider setup, add care intelligence, or begin final demo polish.
+
+**Phase thesis:** A trustworthy portfolio environment should reproduce the governed product without borrowing privacy, state, or side-effect authority from the real-care system.
 
 ### Phase 4 — Governed specialist expansion
 
