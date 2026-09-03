@@ -281,11 +281,12 @@ export async function askAssistantByVoice(
     return jsonOrThrow(response, "Could not ask Tomo by voice")
 }
 
-export async function createRunwayAvatarSession() {
+export async function createRunwayAvatarSession({ signal } = {}) {
     const response = await fetch("/api/avatar/sessions", {
         method: "POST",
         headers: JSON_HEADERS,
         body: JSON.stringify({}),
+        signal,
     })
 
     return jsonOrThrow(response, "Tomo’s live animation could not start")

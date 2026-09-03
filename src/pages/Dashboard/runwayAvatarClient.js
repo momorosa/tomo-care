@@ -10,6 +10,13 @@ import {
 } from "../../../shared/avatarProtocol.js"
 
 const DEFAULT_SPEECH_TIMEOUT_MS = 90_000
+const AVATAR_CANCELLED_REASON = "avatar_cancelled"
+const AVATAR_STATUS_FAILURE_REASONS = new Set([
+    "unsupported_audio",
+    "empty_audio",
+    "audio_too_large",
+    "avatar_playback_failed",
+])
 
 export class RunwayAvatarClientError extends Error {
     constructor(message, reason = "avatar_client_error") {
@@ -27,9 +34,14 @@ function statusError(reason) {
         avatar_playback_failed: "Tomo’s live animation stopped before playback.",
     }
 
+    const safeReason = AVATAR_STATUS_FAILURE_REASONS.has(reason)
+        ? reason
+        : "avatar_playback_failed"
+
     return new RunwayAvatarClientError(
-        messages[reason] || "Tomo’s live animation could not play this response.",
-        reason || "avatar_playback_failed"
+        messages[safeReason] ||
+            "Tomo’s live animation could not play this response.",
+        safeReason
     )
 }
 
@@ -43,6 +55,7 @@ export async function connectRunwayAvatar({
     createId = () => globalThis.crypto.randomUUID(),
     speechTimeoutMs = DEFAULT_SPEECH_TIMEOUT_MS,
     now = () => globalThis.performance?.now?.() ?? Date.now(),
+    signal,
 } = {}) {
     if (!session?.livekit_url || !session?.token) {
         throw new RunwayAvatarClientError(
@@ -51,11 +64,76 @@ export async function connectRunwayAvatar({
         )
     }
 
-    const sdk = await loadSdk()
-    const room = new sdk.Room({ adaptiveStream: true, dynacast: true })
+    let sdk
+    let room
+
+    try {
+        sdk = await loadSdk()
+        room = new sdk.Room({ adaptiveStream: true, dynacast: true })
+    } catch {
+        throw new RunwayAvatarClientError(
+            "Tomo’s live animation could not connect.",
+            "avatar_session_failed"
+        )
+    }
     const pendingSpeech = new Map()
+    const subscribedTracks = new Set()
     let currentRequestId = null
     let disconnected = false
+    let connected = false
+    let requestedDisconnectReason = null
+
+    function clientErrorForReason(reason) {
+        if (reason === AVATAR_CANCELLED_REASON) {
+            return new RunwayAvatarClientError(
+                "Tomo’s live animation connection was cancelled.",
+                reason
+            )
+        }
+
+        return new RunwayAvatarClientError(
+            "Tomo’s live animation disconnected.",
+            reason || "avatar_disconnected"
+        )
+    }
+
+    function finalizeDisconnect(reason = "avatar_disconnected", { notify = true } = {}) {
+        if (disconnected) return
+        disconnected = true
+
+        for (const pending of pendingSpeech.values()) {
+            clearTimeout(pending.timer)
+            pending.reject(clientErrorForReason(reason))
+        }
+        pendingSpeech.clear()
+        currentRequestId = null
+
+        room.unregisterTextStreamHandler?.(AVATAR_STATUS_TOPIC)
+        room.off?.(sdk.RoomEvent.TrackSubscribed, handleTrackSubscribed)
+        room.off?.(sdk.RoomEvent.Disconnected, handleRoomDisconnected)
+        signal?.removeEventListener?.("abort", handleAbort)
+
+        for (const track of subscribedTracks) track.detach?.()
+        subscribedTracks.clear()
+
+        if (notify) onDisconnected({ reason })
+    }
+
+    function handleTrackSubscribed(track) {
+        subscribedTracks.add(track)
+        if (track.kind === sdk.Track.Kind.Video) onVideoTrack(track)
+        if (track.kind === sdk.Track.Kind.Audio) onAudioTrack(track)
+    }
+
+    function handleRoomDisconnected() {
+        finalizeDisconnect(requestedDisconnectReason || "avatar_disconnected")
+    }
+
+    function handleAbort() {
+        requestedDisconnectReason = AVATAR_CANCELLED_REASON
+        finalizeDisconnect(AVATAR_CANCELLED_REASON, { notify: connected })
+        room.disconnect()
+    }
 
     function settleSpeech(message) {
         const requestId = message?.request_id
@@ -121,29 +199,31 @@ export async function connectRunwayAvatar({
         async (reader) => settleSpeech(parseAvatarMessage(await reader.readAll()))
     )
 
-    room.on(sdk.RoomEvent.TrackSubscribed, (track) => {
-        if (track.kind === sdk.Track.Kind.Video) onVideoTrack(track)
-        if (track.kind === sdk.Track.Kind.Audio) onAudioTrack(track)
-    })
-    room.on(sdk.RoomEvent.Disconnected, () => {
-        if (disconnected) return
-        disconnected = true
+    room.on(sdk.RoomEvent.TrackSubscribed, handleTrackSubscribed)
+    room.on(sdk.RoomEvent.Disconnected, handleRoomDisconnected)
+    signal?.addEventListener?.("abort", handleAbort, { once: true })
 
-        for (const pending of pendingSpeech.values()) {
-            clearTimeout(pending.timer)
-            pending.reject(
-                new RunwayAvatarClientError(
-                    "Tomo’s live animation disconnected.",
-                    "avatar_disconnected"
-                )
-            )
-        }
-        pendingSpeech.clear()
-        currentRequestId = null
-        onDisconnected()
-    })
+    if (signal?.aborted) {
+        handleAbort()
+        throw clientErrorForReason(AVATAR_CANCELLED_REASON)
+    }
 
-    await room.connect(session.livekit_url, session.token)
+    try {
+        await room.connect(session.livekit_url, session.token)
+        connected = true
+    } catch {
+        const reason = signal?.aborted
+            ? AVATAR_CANCELLED_REASON
+            : "avatar_session_failed"
+        finalizeDisconnect(reason, { notify: false })
+        room.disconnect()
+        throw new RunwayAvatarClientError(
+            reason === AVATAR_CANCELLED_REASON
+                ? "Tomo’s live animation connection was cancelled."
+                : "Tomo’s live animation could not connect.",
+            reason
+        )
+    }
 
     return {
         async sendSpeech(audioUrl, { onPlaybackStarted } = {}) {
@@ -155,7 +235,16 @@ export async function connectRunwayAvatar({
             }
 
             const startedAt = now()
-            const response = await fetchImpl(audioUrl)
+            let response
+
+            try {
+                response = await fetchImpl(audioUrl)
+            } catch {
+                throw new RunwayAvatarClientError(
+                    "Tomo’s spoken response could not be prepared for animation.",
+                    "avatar_audio_unavailable"
+                )
+            }
             if (!response.ok) {
                 throw new RunwayAvatarClientError(
                     "Tomo’s spoken response could not be prepared for animation.",
@@ -163,7 +252,15 @@ export async function connectRunwayAvatar({
                 )
             }
 
-            const bytes = new Uint8Array(await response.arrayBuffer())
+            let bytes
+            try {
+                bytes = new Uint8Array(await response.arrayBuffer())
+            } catch {
+                throw new RunwayAvatarClientError(
+                    "Tomo’s spoken response could not be prepared for animation.",
+                    "avatar_audio_unavailable"
+                )
+            }
             const audioReadyAt = now()
             if (bytes.length === 0 || bytes.length > MAX_AVATAR_SPEECH_BYTES) {
                 throw statusError(
@@ -207,12 +304,15 @@ export async function connectRunwayAvatar({
                 })
                 const pending = pendingSpeech.get(requestId)
                 if (pending) pending.sentAt = now()
-            } catch (err) {
+            } catch {
                 const pending = pendingSpeech.get(requestId)
                 clearTimeout(pending?.timer)
                 pendingSpeech.delete(requestId)
                 currentRequestId = null
-                throw err
+                throw new RunwayAvatarClientError(
+                    "Tomo’s live animation could not receive this response.",
+                    "avatar_playback_failed"
+                )
             }
 
             return completion
@@ -233,8 +333,10 @@ export async function connectRunwayAvatar({
             return true
         },
 
-        disconnect() {
+        disconnect({ reason = "user_ended" } = {}) {
             if (disconnected) return
+            requestedDisconnectReason = reason
+            finalizeDisconnect(reason)
             room.disconnect()
         },
     }

@@ -67,16 +67,40 @@ test("carries a bounded pending action detail across Voice turns", async () => {
 })
 
 test("keeps Runway animation behind an explicit user-controlled start", async () => {
+    const [source, presentationSource] = await Promise.all([
+        readFile(new URL("./RunwayAvatarMedia.jsx", import.meta.url), "utf8"),
+        readFile(new URL("./avatarPresentation.js", import.meta.url), "utf8"),
+    ])
+
+    assert.match(source, /startLiveAnimation/)
+    assert.match(presentationSource, /Animate Tomo/)
+    assert.match(presentationSource, /End live animation/)
+    assert.match(source, /createRunwayAvatarSession\(\{[\s\S]*signal:/)
+    assert.doesNotMatch(source, /useEffect\(\(\) => \{\s*startLiveAnimation/)
+})
+
+test("presents typed avatar recovery without exposing raw provider errors", async () => {
     const source = await readFile(
         new URL("./RunwayAvatarMedia.jsx", import.meta.url),
         "utf8"
     )
 
-    assert.match(source, /onClick=\{startLiveAnimation\}/)
-    assert.match(source, /Animate Tomo/)
-    assert.match(source, /End live animation/)
-    assert.match(source, /createRunwayAvatarSession\(\)/)
-    assert.doesNotMatch(source, /useEffect\(\(\) => \{\s*startLiveAnimation/)
+    assert.match(source, /AVATAR_STARTUP_TIMEOUT_MS = 35_000/)
+    assert.match(source, /new AbortController\(\)/)
+    assert.match(source, /cleanupAvatarResources/)
+    assert.match(
+        source,
+        /presentationRef\.current\.state ===[\s\S]*AVATAR_PRESENTATION_STATES\.STARTING/
+    )
+    assert.match(
+        source,
+        /const attemptId = cleanupAvatarResources\(\{[\s\S]*AVATAR_PRESENTATION_STATES\.STARTING/
+    )
+    assert.match(source, /data-avatar-reason=/)
+    assert.match(source, /aria-live="polite"/)
+    assert.match(source, /aria-atomic="true"/)
+    assert.doesNotMatch(source, /error\?\.message/)
+    assert.doesNotMatch(source, /playVoiceAnswer|askAssistantByVoice|speech_generation/)
 })
 
 test("uses the still image and disables live startup for reduced motion", async () => {
@@ -99,8 +123,10 @@ test("preserves local voice playback and cleanup when live animation fails", asy
     )
 
     assert.match(source, /avatarMediaRef\.current\?\.isReady\(\)/)
-    assert.match(source, /avatarMediaRef\.current\.speak/)
+    assert.match(source, /avatarMediaRef\.current\?\.speak/)
     assert.match(source, /const playback = new Audio\(nextVoiceResponse\.audioUrl\)/)
+    assert.match(source, /playbackAttemptRef/)
+    assert.match(source, /playVoiceWithAvatarFallback/)
     assert.match(source, /avatarMediaRef\.current\?\.stopSpeech\(\)/)
     assert.match(source, /avatarMediaRef\.current\?\.end\(\)/)
 })
