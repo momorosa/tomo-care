@@ -26,6 +26,10 @@ import {
 } from "./citationPresentation.js"
 import RunwayAvatarMedia from "./RunwayAvatarMedia.jsx"
 import {
+    AVATAR_VOICE_PLAYBACK,
+    playVoiceWithAvatarFallback,
+} from "./avatarVoiceFallback.js"
+import {
     createVoiceLatencySummary,
     mergeAvatarLatency,
     reportVoiceLatency,
@@ -70,6 +74,7 @@ export default function AssistantPanel({
     const silenceDetectorCleanupRef = useRef(null)
     const chunksRef = useRef([])
     const playbackRef = useRef(null)
+    const playbackAttemptRef = useRef(0)
     const voiceMutedRef = useRef(false)
     const conversationContextRef = useRef(null)
     const lastAnswerRef = useRef(null)
@@ -78,6 +83,7 @@ export default function AssistantPanel({
 
     useEffect(() => {
         return () => {
+            playbackAttemptRef.current += 1
             clearTimeout(recordingTimerRef.current)
             silenceDetectorCleanupRef.current?.()
             playbackRef.current?.pause()
@@ -183,6 +189,7 @@ export default function AssistantPanel({
     }
 
     function stopPlayback({ requiresReview = false } = {}) {
+        playbackAttemptRef.current += 1
         const avatarStop = avatarMediaRef.current?.stopSpeech()
         avatarStop?.catch?.(() => null)
 
@@ -213,57 +220,82 @@ export default function AssistantPanel({
         }
 
         stopPlayback({ requiresReview })
+        const playbackAttempt = playbackAttemptRef.current
+        const isCurrentPlayback = () =>
+            playbackAttemptRef.current === playbackAttempt
+        const avatarReady = Boolean(avatarMediaRef.current?.isReady())
 
-        if (avatarMediaRef.current?.isReady()) {
-            setVoiceState(VOICE_STATES.SPEAKING)
+        if (avatarReady) setVoiceState(VOICE_STATES.SPEAKING)
 
-            try {
-                const result = await avatarMediaRef.current.speak(
-                    nextVoiceResponse.audioUrl
+        const outcome = await playVoiceWithAvatarFallback({
+            avatarReady,
+            playAvatar: () =>
+                avatarMediaRef.current?.speak(nextVoiceResponse.audioUrl),
+            isCurrent: isCurrentPlayback,
+            async playLocal() {
+                if (!isCurrentPlayback()) return
+
+                const playback = new Audio(nextVoiceResponse.audioUrl)
+                playbackRef.current = playback
+
+                playback.addEventListener(
+                    "play",
+                    () => {
+                        if (
+                            !isCurrentPlayback() ||
+                            playbackRef.current !== playback
+                        ) {
+                            return
+                        }
+                        if (nextVoiceResponse.latency) {
+                            reportVoiceLatency(nextVoiceResponse.latency)
+                        }
+                        setVoiceState(VOICE_STATES.SPEAKING)
+                    },
+                    { once: true }
+                )
+                playback.addEventListener(
+                    "ended",
+                    () => {
+                        if (
+                            !isCurrentPlayback() ||
+                            playbackRef.current !== playback
+                        ) {
+                            return
+                        }
+                        playbackRef.current = null
+                        setVoiceState(
+                            getVoiceStateAfterPlayback({ requiresReview })
+                        )
+                    },
+                    { once: true }
                 )
 
-                if (result) {
-                    reportVoiceLatency(
-                        mergeAvatarLatency(
-                            nextVoiceResponse.latency,
-                            result.timings
-                        )
-                    )
+                try {
+                    await playback.play()
+                } catch {
+                    if (!isCurrentPlayback()) return
+                    playbackRef.current = null
+                    if (nextVoiceResponse.latency) {
+                        reportVoiceLatency(nextVoiceResponse.latency)
+                    }
                     setVoiceState(
                         getVoiceStateAfterPlayback({ requiresReview })
                     )
-                    return
                 }
-            } catch {
-                // Preserve the existing local voice path if live animation fails.
-            }
-        }
-
-        const playback = new Audio(nextVoiceResponse.audioUrl)
-        playbackRef.current = playback
-
-        playback.addEventListener("play", () => {
-            if (nextVoiceResponse.latency) {
-                reportVoiceLatency(nextVoiceResponse.latency)
-            }
-            setVoiceState(VOICE_STATES.SPEAKING)
-        }, { once: true })
-        playback.addEventListener(
-            "ended",
-            () => {
-                playbackRef.current = null
-                setVoiceState(getVoiceStateAfterPlayback({ requiresReview }))
             },
-            { once: true }
-        )
+        })
 
-        try {
-            await playback.play()
-        } catch {
-            playbackRef.current = null
-            if (nextVoiceResponse.latency) {
-                reportVoiceLatency(nextVoiceResponse.latency)
-            }
+        if (
+            outcome.mode === AVATAR_VOICE_PLAYBACK.AVATAR &&
+            isCurrentPlayback()
+        ) {
+            reportVoiceLatency(
+                mergeAvatarLatency(
+                    nextVoiceResponse.latency,
+                    outcome.result.timings
+                )
+            )
             setVoiceState(getVoiceStateAfterPlayback({ requiresReview }))
         }
     }

@@ -39,6 +39,7 @@
         "test:phase3c-ui": "node --test src/pages/Dashboard/*.test.js",
         "test:phase3c-orchestration": "node --test server/orchestration/*.test.js",
         "test:phase3d-avatar": "node --test server/avatar/*.test.js src/pages/Dashboard/runwayAvatarClient.test.js",
+        "test:animate-tomo": "node --test server/avatar/*.test.js src/pages/Dashboard/avatarPresentation.test.js src/pages/Dashboard/avatarVoiceFallback.test.js src/pages/Dashboard/runwayAvatarClient.test.js src/pages/Dashboard/tomoMotionAccessibility.test.js src/pages/Dashboard/tomoMotionSequence.test.js src/pages/Dashboard/voiceAccessibility.test.js src/pages/Dashboard/voiceInteractionState.test.js src/pages/Dashboard/voiceLatency.test.js",
         "test:phase3d-voice": "node --test server/voice/*.test.js server/assistant/boundedLanguage.test.js server/assistant/conversationContext.test.js server/assistant/openAiSemanticProvider.test.js server/assistant/personalityLayer.test.js server/assistant/relationshipProfile.test.js server/assistant/semanticUnderstanding.test.js src/pages/Dashboard/voice*.test.js"
     },
     "dependencies": {

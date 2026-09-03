@@ -206,9 +206,10 @@ test("keeps Chat readable, uses Tomo branding, and provides a calm multiline com
 })
 
 test("gives Voice a centered avatar stage with a default-open collapsible transcript", async () => {
-    const [source, avatarSource, css] = await Promise.all([
+    const [source, avatarSource, presentationSource, css] = await Promise.all([
         readFile(assistantUrl, "utf8"),
         readFile(avatarMediaUrl, "utf8"),
+        readFile(new URL("./avatarPresentation.js", import.meta.url), "utf8"),
         readFile(cssUrl, "utf8"),
     ])
 
@@ -216,8 +217,8 @@ test("gives Voice a centered avatar stage with a default-open collapsible transc
     assert.match(source, /<RunwayAvatarMedia/)
     assert.match(avatarSource, /data-avatar-media=/)
     assert.match(avatarSource, /"runway-live"\s*:\s*"placeholder"/)
-    assert.match(avatarSource, /Animate Tomo/)
-    assert.match(avatarSource, /End live animation/)
+    assert.match(presentationSource, /Animate Tomo/)
+    assert.match(presentationSource, /End live animation/)
     assert.match(source, /aria-label="Voice conversation with Tomo"/)
     assert.match(source, /aria-label="Full session transcript"/)
     assert.match(

@@ -11,7 +11,7 @@ import {
 } from "../../../shared/avatarProtocol.js"
 import { connectRunwayAvatar } from "./runwayAvatarClient.js"
 
-function createSdkHarness() {
+function createSdkHarness({ connectError = null } = {}) {
     const rooms = []
 
     class FakeRoom {
@@ -36,15 +36,29 @@ function createSdkHarness() {
             this.textHandlers.set(topic, handler)
         }
 
+        unregisterTextStreamHandler(topic) {
+            this.textHandlers.delete(topic)
+        }
+
         on(event, handler) {
             this.events.set(event, handler)
         }
 
+        off(event, handler) {
+            if (this.events.get(event) === handler) this.events.delete(event)
+        }
+
         async connect(url, token) {
             this.connection = { url, token }
+            if (connectError) throw connectError
         }
 
         disconnect() {
+            this.disconnectCalls = (this.disconnectCalls || 0) + 1
+            this.events.get("disconnected")?.()
+        }
+
+        emitDisconnected() {
             this.events.get("disconnected")?.()
         }
 
@@ -196,4 +210,142 @@ test("sends a bounded stop control without replaying audio locally", async () =>
         })
     )
     assert.equal((await speech).status, AVATAR_STATUS.INTERRUPTED)
+})
+
+test("reports an unexpected disconnect and completely releases client resources", async () => {
+    const harness = createSdkHarness()
+    const disconnects = []
+    const detached = []
+    const client = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        createId: () => "speech-disconnect",
+        fetchImpl: async () => new Response(Buffer.from("safe-mp3")),
+        onDisconnected: (outcome) => disconnects.push(outcome),
+    })
+    const room = harness.rooms[0]
+    room.emitTrack({
+        id: "v1",
+        kind: "video",
+        detach: () => detached.push("video"),
+    })
+    room.emitTrack({
+        id: "a1",
+        kind: "audio",
+        detach: () => detached.push("audio"),
+    })
+    const speech = client.sendSpeech("data:audio/mpeg;base64,c2FmZS1tcDM=")
+    await new Promise((resolve) => setImmediate(resolve))
+
+    room.emitDisconnected()
+
+    await assert.rejects(
+        speech,
+        (error) => error.reason === "avatar_disconnected"
+    )
+    assert.deepEqual(disconnects, [{ reason: "avatar_disconnected" }])
+    assert.deepEqual(detached, ["video", "audio"])
+    assert.equal(room.textHandlers.has(AVATAR_STATUS_TOPIC), false)
+    assert.equal(room.events.size, 0)
+})
+
+test("keeps intentional ending typed and separate from an unexpected disconnect", async () => {
+    const harness = createSdkHarness()
+    const disconnects = []
+    const client = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        onDisconnected: (outcome) => disconnects.push(outcome),
+    })
+    const room = harness.rooms[0]
+
+    client.disconnect({ reason: "user_ended" })
+    client.disconnect({ reason: "avatar_disconnected" })
+
+    assert.deepEqual(disconnects, [{ reason: "user_ended" }])
+    assert.equal(room.disconnectCalls, 1)
+})
+
+test("maps unknown status and transfer failures to safe typed playback errors", async () => {
+    const statusHarness = createSdkHarness()
+    const statusClient = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => statusHarness.sdk,
+        createId: () => "speech-unknown",
+        fetchImpl: async () => new Response(Buffer.from("safe-mp3")),
+    })
+    const statusSpeech = statusClient.sendSpeech(
+        "data:audio/mpeg;base64,c2FmZS1tcDM="
+    )
+    await new Promise((resolve) => setImmediate(resolve))
+    await statusHarness.rooms[0].emitStatus(
+        createAvatarStatus({
+            requestId: "speech-unknown",
+            status: AVATAR_STATUS.FAILED,
+            reason: "private provider stack trace",
+        })
+    )
+
+    await assert.rejects(
+        statusSpeech,
+        (error) =>
+            error.reason === "avatar_playback_failed" &&
+            !error.message.includes("private provider")
+    )
+
+    const transferHarness = createSdkHarness()
+    const transferClient = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => transferHarness.sdk,
+        createId: () => "speech-transfer",
+        fetchImpl: async () => new Response(Buffer.from("safe-mp3")),
+    })
+    transferHarness.rooms[0].localParticipant.sendBytes = async () => {
+        throw new Error("private LiveKit failure")
+    }
+
+    await assert.rejects(
+        transferClient.sendSpeech("data:audio/mpeg;base64,c2FmZS1tcDM="),
+        (error) =>
+            error.reason === "avatar_playback_failed" &&
+            !error.message.includes("LiveKit")
+    )
+})
+
+test("bounds live playback with a typed timeout", async () => {
+    const harness = createSdkHarness()
+    const client = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        createId: () => "speech-timeout",
+        fetchImpl: async () => new Response(Buffer.from("safe-mp3")),
+        speechTimeoutMs: 5,
+    })
+
+    await assert.rejects(
+        client.sendSpeech("data:audio/mpeg;base64,c2FmZS1tcDM="),
+        (error) => error.reason === "avatar_playback_timeout"
+    )
+})
+
+test("cleans a partial connection and hides raw SDK failures", async () => {
+    const harness = createSdkHarness({
+        connectError: new Error("private SDK connection details"),
+    })
+
+    await assert.rejects(
+        connectRunwayAvatar({
+            session: SESSION,
+            loadSdk: async () => harness.sdk,
+        }),
+        (error) =>
+            error.reason === "avatar_session_failed" &&
+            !error.message.includes("private SDK")
+    )
+    assert.equal(harness.rooms[0].disconnectCalls, 1)
+    assert.equal(harness.rooms[0].events.size, 0)
+    assert.equal(
+        harness.rooms[0].textHandlers.has(AVATAR_STATUS_TOPIC),
+        false
+    )
 })
