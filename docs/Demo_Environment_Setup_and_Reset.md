@@ -28,7 +28,7 @@ In the `TomoCare Demo` Supabase project:
 1. Open **Settings → API Keys**.
 2. Open **Publishable and secret API keys**.
 3. Select **Create new secret key**.
-4. Name it `tomocare-demo-server`.
+4. Name it `tomocare_demo_server`.
 5. Copy it into your password manager.
 
 Do not use a publishable key for the server. Do not paste the secret into chat,

@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** September 3, 2026
+**Last updated:** September 7, 2026
 
 ---
 
@@ -339,7 +339,9 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 
 **Animate Tomo Reliability and Recovery is shipped.** Startup, unexpected disconnect, session expiry, and playback failure now resolve through typed non-sensitive presentation state; intentional ending remains a normal outcome; local Voice continues exactly once; and transient failures offer one user-initiated retry after complete cleanup. The slice added no automatic reconnect, answer or speech change, provider, avatar redesign, demo behavior, or trusted-state mutation.
 
-The next bounded slice is **Demo Environment and Resettable Synthetic Dataset**. It will preserve one codebase while separating demo configuration and synthetic records from Momo's live care state, expose a clear Demo indicator, and provide one guarded deterministic reset path. Synthetic veterinary document production and demo Gmail intake remain the following slice. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
+**Demo Environment and Resettable Synthetic Dataset is shipped.** One codebase now runs against a separately configured hosted Supabase demo project, with server-owned runtime identity, one deterministic fictional scenario, a persistent Demo indicator, and one guarded idempotent reset command. Gmail, Calendar, and Messages side effects remain blocked in demo mode.
+
+The next bounded slice is **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**. It will add one polished fictional source document and one narrowly allowlisted demo inbox path from receipt through extraction, human review, approval, and trusted materialization. It will not configure demo Calendar or Messages destinations. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
@@ -409,15 +411,25 @@ Reduced Motion remains a preference rather than a failure. Static and local-moti
 
 **Phase thesis:** Provider-dependent character animation should fail as an optional presentation layer, never as a failure of Tomo's answer or Voice conversation.
 
-### Demo Environment and Resettable Synthetic Dataset · Next
+### Demo Environment and Resettable Synthetic Dataset · Shipped
 
-Portfolio demonstrations need repeatable care state without exposing or mutating Momo's live records. The next slice will keep one application codebase while using a separate hosted Supabase project, a server-owned real-care or demo runtime contract, deterministic fictional baseline data, and one explicit reset command.
+Portfolio demonstrations now use the same application against a separate hosted Supabase project containing one deterministic fictional scenario. The server validates `real` or `demo` mode and the corresponding project and pet identities before startup. The browser waits for a safe public runtime contract before rendering care data, and demo mode remains visibly labeled across the primary application surfaces.
 
-Demo mode must be unmistakable before care data is presented. Reset logic must verify both demo mode and the allowlisted target project, operate only on deterministic demo-owned identifiers and storage prefixes, and refuse to run against the real-care project. External integrations must fail closed unless a later demo-safe destination is explicitly configured.
+The migration chain now creates a fresh TomoCare schema and private Storage bucket. The administrative reset command verifies demo mode, the exact allowlisted project, the fixed synthetic pet, explicit table ownership, and the exact demo Storage prefix before mutation. It deletes and recreates only the manifest-owned scenario, produces the same logical record inventory on repeated runs, and never exposes its secret or reset authority to the browser.
 
-The initial dataset will prove environment isolation, reset reproducibility, and the existing Profile, attention, reminder, verified-weight, Chat, and Voice reads. It will not finalize the synthetic invoice, send Gmail, contact a clinic, write to Rosa's Calendar, open a real Messages recipient, change provider setup, add care intelligence, or begin final demo polish.
+The baseline contains fictional Profile, weight, Librela, Simparica, and clinic-reported Rabies next-due state. Its five document rows are deliberately metadata-only provenance anchors: they have no PDFs, source text, extraction, or triage payload. Gmail, Calendar, and Messages operations fail closed before provider execution in demo mode. No production record or source file was copied, masked, or sampled.
 
 **Phase thesis:** A trustworthy portfolio environment should reproduce the governed product without borrowing privacy, state, or side-effect authority from the real-care system.
+
+### Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Next
+
+The next slice will turn one fictional veterinary invoice into the first complete portfolio source-to-trusted-record story. A clearly labeled `SAMPLE — DEMO DATA` document will arrive through one dedicated, narrowly allowlisted demo Gmail identity, be stored only under the demo scenario prefix, proceed through extraction and Verification Intelligence, and remain candidate truth until Rosa edits and approves it.
+
+The approved result must materialize only the existing allowlisted source-linked records needed for the demonstration. The document should support a realistic Librela visit, one weight, itemized cost and insurance-relevant administrative information, while keeping vaccine-status language separate from proof of administration. Reset must restore the same starting state and remove only the demo-owned message-derived rows and Storage objects.
+
+This slice will not reuse the real inbox or OAuth identity, ingest arbitrary email, add multiple documents or scenarios, bypass human review, configure Calendar or Messages destinations, add medical interpretation or providers, or begin final UI polish and portfolio capture.
+
+**Phase thesis:** A convincing source-to-memory demonstration begins with a safe source boundary and ends only when a human promotes reviewed candidate truth.
 
 ### Phase 4 — Governed specialist expansion
 

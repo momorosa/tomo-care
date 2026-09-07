@@ -2,7 +2,7 @@
 
 **Decision date:** August 16, 2026
 
-**Last revised:** September 3, 2026
+**Last revised:** September 7, 2026
 
 **Owner:** Rosa Choi
 
@@ -136,26 +136,34 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Never reconnects automatically, replays an answer as part of retry, resynthesizes speech, exposes raw provider errors, or creates duplicate audio.
    - Preserves reduced-motion behavior, server-only secrets, numeric-only latency data, and the existing answer and speech contracts.
 
-8. **Demo Environment and Resettable Synthetic Dataset · Next**
-   - Keep one application codebase.
-   - Use separate demo configuration and data from Momo's live care records.
-   - Prefer a separate hosted Supabase demo project for interview reliability.
-   - Seed deterministic records from an explicit synthetic scenario and provide one guarded, repeatable reset path.
-   - Make the server the source of truth for real-care versus demo mode and display a persistent Demo indicator before data is shown.
-   - Fail closed against reset or external-action execution unless the target is explicitly identified as the demo environment.
-   - Defer the dedicated demo inbox and polished synthetic document to the following slice.
+8. **Demo Environment and Resettable Synthetic Dataset · Shipped**
+   - Preserves one application codebase with a server-owned `real` or `demo` runtime contract.
+   - Uses a separate hosted Supabase project created from the complete migration chain, without copied or anonymized production data.
+   - Seeds one deterministic fictional scenario from care-date-relative records.
+   - Shows a persistent accessible **Demo data** indicator before care data is rendered.
+   - Provides one server-only reset command guarded by exact mode, project, pet, table, and Storage-prefix allowlists.
+   - Produces the same logical state on consecutive resets without duplicate records.
+   - Blocks Gmail, Calendar, and Messages side effects before provider execution in demo mode.
+   - Leaves five metadata-only source anchors for baseline reads while deferring actual source files and intake.
 
-9. **Synthetic invoice and demo Gmail ingestion**
+9. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Next**
    - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
    - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
-   - Send it through a dedicated demo-safe inbox and exercise the completed verification path.
-   - Prevent the workflow from affecting Momo's live records or external destinations.
+   - Send it through one dedicated allowlisted demo inbox and demo-only Storage prefix.
+   - Exercise extraction, Verification Intelligence, human correction, approval, and source-linked materialization.
+   - Make reset remove and recreate only the message-derived scenario state.
+   - Prevent the workflow from reading Momo's inbox or affecting live records and external destinations.
 
-10. **Final Voice, animation, and UI polish**
+10. **Governed follow-through demo checkpoint**
+   - Decide whether the portfolio uses an explicitly allowlisted safe demo Messages destination or a rehearsed draft-and-review path with a recorded fallback.
+   - Keep Calendar disabled for the portfolio path unless a separate bounded contract later justifies a demo-only destination.
+   - Preserve truthful handoff state: prepared and reviewed are not sent, delivered, received, or booked.
+
+11. **Final Voice, animation, and UI polish**
    - Refine listening, thinking, speaking, playback, and idle transitions.
    - Resolve visual inconsistencies, dead ends, and unclear state changes across the end-to-end demo.
 
-11. **Demo evidence and portfolio freeze**
+12. **Demo evidence and portfolio freeze**
    - Rehearse one deterministic end-to-end path.
    - Capture screenshots and video evidence.
    - Prepare a recorded fallback for provider-dependent moments.
@@ -251,7 +259,9 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Demo Environment and Resettable Synthetic Dataset**. Preserve one application codebase and the shipped governance contracts while introducing a separately configured hosted Supabase demo project, a server-owned runtime-mode contract, a persistent Demo indicator, deterministic synthetic baseline records, and one guarded reset command. The reset must refuse to run against any unapproved project, and demo mode must not contact Momo's real inbox, clinic, Calendar, or Messages destination. Do not begin the polished synthetic invoice, demo Gmail intake, final UI or animation polish, case-study capture, broader care coverage, or medical intelligence in this slice.
+Begin **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**. Add one polished `SAMPLE — DEMO DATA` fictional invoice and one dedicated allowlisted demo Gmail path. Carry that source through demo-only Storage, extraction, Verification Intelligence, human correction and approval, and the existing source-linked trusted materialization contracts. Extend the guarded reset only for explicitly manifest-owned message-derived rows and objects, and prove replay safety without weakening the existing runtime or side-effect boundary.
+
+Do not reuse Momo's inbox, OAuth identity, records, documents, clinic, Calendar, or Messages destination. Do not add arbitrary mailbox ingestion, multiple synthetic documents or scenarios, automatic verification, new providers, medical interpretation, broader care coverage, final UI or animation polish, case-study capture, or release tagging in this slice.
 
 ## Maintenance rule
 
