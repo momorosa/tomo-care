@@ -42,10 +42,28 @@
 }
 
 @layer components {
+  .tomo-runtime-state {
+    @apply flex min-h-screen flex-col items-center justify-center gap-3 bg-tomo-bg px-6 text-center text-sm text-tomo-text;
+  }
+
+  .tomo-runtime-state h1 {
+    @apply text-xl font-semibold text-tomo-text-h;
+  }
+
   .tomo-app-header {
     position: sticky;
     top: 0;
     z-index: 50;
+  }
+
+  .tomo-demo-indicator {
+    @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-tomo-warning;
+    background: var(--tomo-warning-bg);
+    border-color: var(--tomo-warning-border);
+  }
+
+  .tomo-demo-indicator .material-symbols-outlined {
+    font-size: 16px;
   }
 
   .tomo-conversational-home {

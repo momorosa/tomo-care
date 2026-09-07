@@ -1,6 +1,11 @@
 import { sbAdmin } from "../supabase.js"
+import process from "node:process"
 
-const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const PET_ID = process.env.TOMO_PET_ID?.trim()
+
+if (!PET_ID) {
+    throw new Error("TOMO_PET_ID is required.")
+}
 const DRY_RUN = process.argv.includes("--dry-run")
 
 async function main() {
@@ -94,7 +99,7 @@ function extractWeightCandidate(doc) {
 }
 
 function extractLabeledWeight(text) {
-    const match = text.match(/\b(?:weight|wt|patient weight)\s*[:\-]?\s*(\d{1,2}(?:\.\d{1,2})?)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)\b/i)
+    const match = text.match(/\b(?:weight|wt|patient weight)\s*[:-]?\s*(\d{1,2}(?:\.\d{1,2})?)\s*(kg|kgs|kilogram|kilograms|lb|lbs|pound|pounds)\b/i)
 
     if (!match) return null
 

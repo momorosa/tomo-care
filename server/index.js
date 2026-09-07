@@ -1,21 +1,39 @@
 import express from "express"
 import cors from "cors"
-import documentsRoutes from "./routes/documents.js"
 import "dotenv/config"
-import triageRoutes from "./routes/triage.js"
-import gmailRoutes from "./routes/gmail.js"
-import actionsRoutes from "./routes/actions.js"
-import careActionsRoutes from "./routes/careActions.js"
-import assistantRoutes from "./routes/assistant.js"
-import voiceRoutes from "./routes/voice.js"
-import dashboardRoutes from "./routes/dashboard.js"
-import avatarRoutes from "./routes/avatar.js"
+import { getServerRuntimeContext } from "./config/runtimeContext.js"
+import { createRuntimeBoundaryMiddleware } from "./middleware/runtimeBoundary.js"
+import { createRuntimeRoutes } from "./routes/runtime.js"
 
+const runtimeContext = getServerRuntimeContext()
+const [
+    { default: documentsRoutes },
+    { default: triageRoutes },
+    { default: gmailRoutes },
+    { default: actionsRoutes },
+    { default: careActionsRoutes },
+    { default: assistantRoutes },
+    { default: voiceRoutes },
+    { default: dashboardRoutes },
+    { default: avatarRoutes },
+] = await Promise.all([
+    import("./routes/documents.js"),
+    import("./routes/triage.js"),
+    import("./routes/gmail.js"),
+    import("./routes/actions.js"),
+    import("./routes/careActions.js"),
+    import("./routes/assistant.js"),
+    import("./routes/voice.js"),
+    import("./routes/dashboard.js"),
+    import("./routes/avatar.js"),
+])
 
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use(createRuntimeBoundaryMiddleware(runtimeContext))
 
+app.use("/api", createRuntimeRoutes(runtimeContext))
 app.use("/api", documentsRoutes)
 app.use("/api", triageRoutes)
 app.use("/api", gmailRoutes)
@@ -26,4 +44,8 @@ app.use("/api", voiceRoutes)
 app.use("/api", dashboardRoutes)
 app.use("/api", avatarRoutes)
 
-app.listen(3001, () => console.log("API running on http://localhost:3001"))
+app.listen(3001, () =>
+    console.log(
+        `API running on http://localhost:3001 (${runtimeContext.mode} mode)`
+    )
+)

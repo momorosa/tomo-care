@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { Buffer } from "node:buffer";
 import process from "node:process";
 import { google } from "googleapis";
+import { assertExternalSideEffectAllowed } from "../config/externalSideEffects.js";
 
 const {
   GMAIL_CLIENT_ID,
@@ -17,6 +18,8 @@ export const DEFAULT_GMAIL_QUERY =
   "has:attachment filename:pdf newer_than:60d";
 
 export function getGmailClient() {
+  assertExternalSideEffectAllowed("Gmail intake");
+
   if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
     throw new Error(
       "Missing Gmail OAuth env vars: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, or GMAIL_REFRESH_TOKEN."
