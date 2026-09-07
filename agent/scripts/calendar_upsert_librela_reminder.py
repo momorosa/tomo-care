@@ -15,7 +15,6 @@ from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
-DEFAULT_PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
 DEFAULT_SUBTYPE = "Librela"
 
 # 9:00 AM Pacific
@@ -134,9 +133,19 @@ def _update_event_external_refs(sb, event_row_id: str, external_refs: Dict[str, 
 
 
 def upsert_calendar_for_librela_reminder() -> Dict[str, Any]:
+    runtime_mode = (os.environ.get("TOMOCARE_RUNTIME_MODE") or "").strip().lower()
+    if runtime_mode == "demo":
+        raise SystemExit(
+            "demo_external_action_blocked: Google Calendar is unavailable in demo mode."
+        )
+    if runtime_mode != "real":
+        raise SystemExit("TOMOCARE_RUNTIME_MODE must be exactly real for Calendar sync.")
+
     sb = get_supabase()
 
-    pet_id = os.environ.get("TOMO_PET_ID", DEFAULT_PET_ID)
+    pet_id = os.environ.get("TOMO_PET_ID")
+    if not pet_id:
+        raise SystemExit("TOMO_PET_ID is required.")
     subtype = os.environ.get("TOMO_REMINDER_SUBTYPE", DEFAULT_SUBTYPE)
 
     calendar_id = os.environ.get("TOMO_GCAL_CALENDAR_ID")

@@ -35,7 +35,7 @@ import {
 import { requestAppleMessagesDraft } from "./appleMessagesHandoff.js"
 import { getAttentionNavigationEffect } from "./attentionNavigation.js"
 
-const PET_ID = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const PET_SCOPE = "current"
 const CARE_ACTOR = "Rosa"
 const ACTIVE_ACTION_STORAGE_KEY = "tomocare.active-care-action-id"
 const MARK_HOME_MEDICATION_GIVEN = "mark_home_medication_given"
@@ -104,7 +104,7 @@ export default function Dashboard() {
 
     const loadPendingReviewDocs = useCallback(async () => {
         try {
-            const documents = await fetchPendingReviewDocuments(PET_ID)
+            const documents = await fetchPendingReviewDocuments(PET_SCOPE)
             setPendingReviewDocs(documents)
         } catch (err) {
             console.error("[dashboard] pending review load failed:", err)
@@ -113,7 +113,7 @@ export default function Dashboard() {
 
     const loadVerifiedDocuments = useCallback(async () => {
         try {
-            const documents = await fetchVerifiedDocuments(PET_ID)
+            const documents = await fetchVerifiedDocuments(PET_SCOPE)
             setVerifiedDocuments(documents)
         } catch (err) {
             console.error("[dashboard] verified documents load failed:", err)
@@ -122,7 +122,7 @@ export default function Dashboard() {
 
     const loadCareSummary = useCallback(async () => {
         try {
-            const summary = await fetchCareSummary(PET_ID)
+            const summary = await fetchCareSummary(PET_SCOPE)
             setCareSummary(summary)
         } catch (err) {
             console.error("[dashboard] care summary load failed:", err)
@@ -131,7 +131,7 @@ export default function Dashboard() {
 
     const loadPendingCareActions = useCallback(async () => {
         try {
-            const result = await fetchPendingCareActions(PET_ID)
+            const result = await fetchPendingCareActions(PET_SCOPE)
             setPendingActionCount(result.count)
             setPendingActions(result.actions)
         } catch (err) {
@@ -149,7 +149,7 @@ export default function Dashboard() {
         setRemindersError("")
 
         try {
-            const items = await fetchReminders(PET_ID)
+            const items = await fetchReminders(PET_SCOPE)
             setReminders(items)
         } catch (err) {
             setRemindersError(err.message)
@@ -399,7 +399,9 @@ export default function Dashboard() {
     }
 
     async function navigateAttentionTarget(target) {
-        const effect = getAttentionNavigationEffect(target, { petId: PET_ID })
+        const effect = getAttentionNavigationEffect(target, {
+            petId: careSummary?.pet_profile?.id,
+        })
         if (!effect) return
 
         if (effect.type === "profile") {
@@ -472,7 +474,7 @@ export default function Dashboard() {
 
         try {
             const preparation = await prepareLibrelaAppointmentRequest({
-                petId: PET_ID,
+                petId: PET_SCOPE,
                 orchestrationRunId,
                 reminderId,
                 injectionId,
@@ -750,13 +752,13 @@ export default function Dashboard() {
             const data =
                 actionFlow.actionType === MARK_INSURANCE_CLAIM_FILED
                     ? await prepareInsuranceClaimFiled({
-                          petId: PET_ID,
+                          petId: PET_SCOPE,
                           reminderId: actionFlow.reminder.id,
                           filedDate: actionFlow.selectedDate,
                           requestedBy: CARE_ACTOR,
                       })
                     : await prepareHomeMedicationGiven({
-                          petId: PET_ID,
+                          petId: PET_SCOPE,
                           reminderId: actionFlow.reminder.id,
                           administeredDate: actionFlow.selectedDate,
                           requestedBy: CARE_ACTOR,
@@ -1037,7 +1039,7 @@ export default function Dashboard() {
                 )}
 
                 <AssistantPanel
-                    petId={PET_ID}
+                    petId={PET_SCOPE}
                     reminders={reminders}
                     pendingActionCount={pendingActionCount}
                     pendingActions={pendingActions}

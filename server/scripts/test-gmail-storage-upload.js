@@ -1,11 +1,15 @@
 import { fetchCanonicalReceiptEmails } from "../gmail/gmailInbox.js"
+import process from "node:process"
 import {
     buildGmailStorageKey,
     uploadPdfToTomoDocs,
 } from "../gmail/storage.js"
 
-const TOMO_PET_ID =
-    process.env.TOMO_PET_ID || "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95";
+const TOMO_PET_ID = process.env.TOMO_PET_ID?.trim();
+
+if (!TOMO_PET_ID) {
+    throw new Error("TOMO_PET_ID is required.");
+}
 
 const emails = await fetchCanonicalReceiptEmails({
     maxResults: 5,

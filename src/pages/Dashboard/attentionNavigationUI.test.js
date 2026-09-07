@@ -29,7 +29,10 @@ test("routes each governed target to its existing view or trusted calendar URL",
         readFile(sidebarUrl, "utf8"),
     ])
 
-    assert.match(dashboard, /getAttentionNavigationEffect\(target, \{ petId: PET_ID \}\)/)
+    assert.match(
+        dashboard,
+        /getAttentionNavigationEffect\(target, \{[\s\S]*petId: careSummary\?\.pet_profile\?\.id[\s\S]*\}/
+    )
     assert.match(
         dashboard,
         /effect\.type === "profile"[\s\S]*section: HOME_SECTIONS\.PROFILE/

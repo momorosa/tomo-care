@@ -3,9 +3,6 @@ import { fetchCanonicalReceiptEmails } from "./gmailInbox.js"
 import { buildGmailStorageKey } from "./storageKey.js"
 import { buildGmailDocumentProvenance } from "./documentProvenance.js"
 
-const DEFAULT_PET_ID =
-    process.env.TOMO_PET_ID || "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
-
 function inferDocType(attachment) {
     const filename = attachment.filename.toLowerCase()
 
@@ -160,11 +157,15 @@ async function createDocumentRow({
 }
 
 export async function ingestGmailReceipts({
-    petId = DEFAULT_PET_ID,
+    petId = process.env.TOMO_PET_ID,
     maxResults = 25,
     dryRun = false,
     dependencies = {},
 } = {}) {
+    if (!petId?.trim()) {
+        throw new Error("TOMO_PET_ID is required for Gmail intake.")
+    }
+
     const fetchEmails =
         dependencies.fetchCanonicalReceiptEmails ||
         fetchCanonicalReceiptEmails

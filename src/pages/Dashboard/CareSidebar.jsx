@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import momoPortrait from "../../../assets/momoPic.png"
 import { formatDisplayDate } from "../../lib/displayDate.js"
 import { formatAgeValue } from "../../lib/petAge.js"
+import { useRuntimeContext } from "../../runtime/RuntimeContext.jsx"
 import { HOME_SECTIONS } from "./conversationalHomeState.js"
 import { getInboxErrorPresentation } from "./inboxErrorPresentation.js"
 import { getCompactReminderPresentation } from "./reminderPresentation.js"
@@ -213,6 +214,7 @@ function ContextHeading({ section }) {
 }
 
 function ProfileContext({ careSummary, reminderCount }) {
+    const runtime = useRuntimeContext()
     const profile = careSummary.pet_profile || {}
     const name = profile.name || "Momo"
     const species = profile.species
@@ -296,8 +298,12 @@ function ProfileContext({ careSummary, reminderCount }) {
                         )}
                     />
                     <ContextFact label="Active reminders" value={reminderCount} />
-                    <ContextFact label="Primary clinic" value="SoMa AH" />
-                    <ContextFact label="Insurance" value="Nationwide" />
+                    {runtime.mode === "real" && (
+                        <>
+                            <ContextFact label="Primary clinic" value="SoMa AH" />
+                            <ContextFact label="Insurance" value="Nationwide" />
+                        </>
+                    )}
                 </dl>
             </section>
         </div>

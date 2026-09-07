@@ -1,6 +1,8 @@
 import { google } from "googleapis"
 import "dotenv/config"
+import process from "node:process"
 import { getAppTimeZone } from "./lib/careDates.js"
+import { assertExternalSideEffectAllowed } from "./config/externalSideEffects.js"
 
 export const GOOGLE_CALENDAR_SCOPE =
     "https://www.googleapis.com/auth/calendar.events"
@@ -35,6 +37,8 @@ export function getGoogleCalendarConfig() {
 }
 
 export function getGoogleCalendarService() {
+    assertExternalSideEffectAllowed("Google Calendar")
+
     const { clientId, clientSecret, refreshToken } =
         getGoogleCalendarConfig()
 

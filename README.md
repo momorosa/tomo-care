@@ -8,7 +8,7 @@ It ingests vet receipts, lab reports, and visit notes; extracts the facts that m
 
 **Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff and the bounded Animate Tomo reliability-and-recovery slice are also shipped. The next bounded slice is the Demo Environment and Resettable Synthetic Dataset.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), and [Animate Tomo reliability closeout and demo-environment handover](./docs/AnimateTomo_Reliability_Closeout_and_Demo_Environment_Handover.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Animate Tomo reliability closeout and demo-environment handover](./docs/AnimateTomo_Reliability_Closeout_and_Demo_Environment_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -206,6 +206,13 @@ Correctness, provenance, and governance come before polish.
 ## Repo note
 
 This project uses real pet-care data in development, so private PDFs, API keys, OAuth tokens, and environment files are not included in the repository.
+
+The portfolio environment uses the same application against a separate hosted
+Supabase project. Its runtime mode is confirmed by the server before care data
+renders, the global header labels fictional data, and its administrative reset
+is guarded by the exact project, mode, pet, table, and Storage-prefix
+allowlists. See [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md)
+for the one-time migration, local configuration, reset, and validation steps.
 
 ## Voice troubleshooting
 

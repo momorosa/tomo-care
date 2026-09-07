@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js"
 import "dotenv/config"
+import { getSupabaseServerConfig } from "./config/supabaseConfig.js"
 
-export const sbAdmin = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const { url, secretKey } = getSupabaseServerConfig()
+
+export const sbAdmin = createClient(url, secretKey, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+    },
+})

@@ -6,8 +6,6 @@ from typing import Any, Dict, List
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from tomo.tools.supabase_client import get_supabase
 
-PET_ID_DEFAULT = "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
-
 LIBRELA_RECEIPT_DATES_DEFAULT = [
     "2025-02-17",
     "2025-04-16",
@@ -138,7 +136,9 @@ def _upsert_planned_reminder(
 def main():
     sb = get_supabase()
 
-    pet_id = os.environ.get("TOMO_PET_ID", PET_ID_DEFAULT)
+    pet_id = os.environ.get("TOMO_PET_ID")
+    if not pet_id:
+        raise SystemExit("TOMO_PET_ID is required.")
     dates = os.environ.get("TOMO_LIBRELA_DATES")
     receipt_dates = [d.strip() for d in dates.split(",")] if dates else LIBRELA_RECEIPT_DATES_DEFAULT
 

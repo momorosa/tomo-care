@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom"
 import tomoCareLogo from "../../assets/tomocare-logo.png"
+import { useRuntimeContext } from "../runtime/RuntimeContext.jsx"
 
 export default function Header() {
+    const runtime = useRuntimeContext()
+
     return (
         <header className="tomo-app-header h-[73px] border-b border-tomo-border bg-tomo-bg">
-            <div className="flex h-full items-center px-4 md:px-5">
+            <div className="flex h-full items-center justify-between gap-4 px-4 md:px-5">
                 <Link
                     to="/"
                     aria-label="Go to TomoCare dashboard"
@@ -40,6 +43,19 @@ export default function Header() {
                         TomoCare
                     </h1>
                 </Link>
+
+                {runtime.mode === "demo" && (
+                    <div
+                        className="tomo-demo-indicator"
+                        role="status"
+                        aria-label="Demo environment. Fictional data only."
+                    >
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                            science
+                        </span>
+                        <span>Demo data</span>
+                    </div>
+                )}
             </div>
         </header>
     )

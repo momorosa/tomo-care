@@ -6,8 +6,11 @@ import {
     evaluateAssistantResponse,
 } from "../assistant/evalAssertions.js"
 
-const PET_ID =
-    process.env.PET_ID || "6e90e0b7-ad8c-4fde-97f9-2d2554b59c95"
+const PET_ID = process.env.PET_ID || process.env.TOMO_PET_ID
+
+if (!PET_ID?.trim()) {
+    throw new Error("PET_ID or TOMO_PET_ID is required.")
+}
 
 const BASE_URL =
     process.env.ASSISTANT_BASE_URL || "http://localhost:3001"
