@@ -28,6 +28,19 @@ test("uses light retry guidance for a temporary inbox failure", () => {
     )
 })
 
+test("explains a missing demo inbox allowlist without naming an address", () => {
+    const presentation = getInboxErrorPresentation({
+        reason: "demo_gmail_configuration_required",
+        retryable: false,
+    })
+
+    assert.deepEqual(presentation, {
+        title: "The demo inbox needs its allowlist.",
+        message: "Add the demo sender and recipient locally, then restart TomoCare.",
+    })
+    assert.doesNotMatch(JSON.stringify(presentation), /@/)
+})
+
 test("does not display an unknown provider error to the user", () => {
     assert.deepEqual(getInboxErrorPresentation(new Error("invalid_grant")), {
         title: "The inbox is playing hard to fetch.",

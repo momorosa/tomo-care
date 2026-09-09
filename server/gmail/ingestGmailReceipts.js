@@ -2,6 +2,11 @@ import process from "node:process"
 import { fetchCanonicalReceiptEmails } from "./gmailInbox.js"
 import { buildGmailStorageKey } from "./storageKey.js"
 import { buildGmailDocumentProvenance } from "./documentProvenance.js"
+import { getRuntimeMode, RUNTIME_MODES } from "../config/runtimeContext.js"
+import {
+    evaluateDemoGmailAttachment,
+    getDemoGmailIntakeContract,
+} from "../demo/demoGmailIntakeContract.js"
 
 function inferDocType(attachment) {
     const filename = attachment.filename.toLowerCase()
@@ -44,8 +49,8 @@ async function uploadOrReusePdf({ storageKey, buffer }) {
         const { uploadPdfToTomoDocs } = await import("./storage.js")
         const uploaded = await uploadPdfToTomoDocs({
             storageKey,
-        buffer,
-        upsert: false,
+            buffer,
+            upsert: false,
         })
 
         return {
@@ -68,8 +73,23 @@ async function uploadOrReusePdf({ storageKey, buffer }) {
     }
 }
 
-async function findExistingDocument({ contentSha256, storageKey }) {
+async function findExistingDocument({
+    documentId = null,
+    contentSha256,
+    storageKey,
+}) {
     const { sbAdmin } = await import("../supabase.js")
+
+    if (documentId) {
+        const { data, error } = await sbAdmin
+            .from("documents")
+            .select("id, file_url, status, external_refs")
+            .eq("id", documentId)
+            .maybeSingle()
+
+        if (error) throw error
+        if (data) return data
+    }
 
     if (contentSha256) {
         const { data, error } = await sbAdmin
@@ -96,18 +116,22 @@ async function findExistingDocument({ contentSha256, storageKey }) {
     return null
 }
 
-async function createDocumentRow({
+export function buildGmailDocumentPayload({
     petId,
     email,
     attachment,
     storageKey,
+    documentId = null,
+    demoContract = null,
 }) {
-    const { sbAdmin } = await import("../supabase.js")
     const provenance = buildGmailDocumentProvenance(email)
     const payload = {
+        ...(documentId ? { id: documentId } : {}),
         pet_id: petId,
         doc_type: inferDocType(attachment),
-        title: buildDocumentTitle({ email, attachment }),
+        title: demoContract
+            ? demoContract.title
+            : buildDocumentTitle({ email, attachment }),
 
         // Leave doc_date null for now.
         // The extractor/verification flow should determine the actual document date.
@@ -122,7 +146,9 @@ async function createDocumentRow({
 
         status: "ingested",
 
-        remarks: "Imported from TomoCare Gmail inbox.",
+        remarks: demoContract
+            ? "SAMPLE — DEMO DATA. Imported through the allowlisted demo Gmail intake."
+            : "Imported from TomoCare Gmail inbox.",
 
         external_refs: {
             source: "email",
@@ -136,12 +162,28 @@ async function createDocumentRow({
             content_sha256: attachment.contentSha256,
             received_at: email.receivedAt,
 
-            forwarded_by: provenance.transport.forwarded_by,
-            original_sender: provenance.transport.original_sender,
-
             intake_reason: attachment.intakeReason,
+            ...(demoContract
+                ? {
+                      demo_owned: true,
+                      scenario_id: demoContract.scenarioId,
+                      fixture_kind: demoContract.fixtureKind,
+                      demo_sender_verified: true,
+                      demo_recipient_verified: true,
+                  }
+                : {
+                      forwarded_by: provenance.transport.forwarded_by,
+                      original_sender: provenance.transport.original_sender,
+                  }),
         },
     }
+
+    return payload
+}
+
+async function createDocumentRow(input) {
+    const { sbAdmin } = await import("../supabase.js")
+    const payload = buildGmailDocumentPayload(input)
 
     const { data, error } = await sbAdmin
         .from("documents")
@@ -157,13 +199,24 @@ async function createDocumentRow({
 }
 
 export async function ingestGmailReceipts({
-    petId = process.env.TOMO_PET_ID,
+    env = process.env,
+    petId = env.TOMO_PET_ID,
     maxResults = 25,
     dryRun = false,
     dependencies = {},
 } = {}) {
     if (!petId?.trim()) {
         throw new Error("TOMO_PET_ID is required for Gmail intake.")
+    }
+
+    const mode = getRuntimeMode(env)
+    const demoContract =
+        mode === RUNTIME_MODES.DEMO
+            ? getDemoGmailIntakeContract(env)
+            : null
+
+    if (demoContract && petId !== demoContract.petId) {
+        throw new Error("Demo Gmail intake requires the allowlisted demo pet.")
     }
 
     const fetchEmails =
@@ -177,6 +230,7 @@ export async function ingestGmailReceipts({
 
     const emails = await fetchEmails({
         maxResults,
+        env,
     })
 
     const summary = {
@@ -187,6 +241,7 @@ export async function ingestGmailReceipts({
         skippedDuplicates: 0,
         uploadedObjects: 0,
         reusedStorageObjects: 0,
+        rejectedAttachments: 0,
         dryRun,
         items: [],
     }
@@ -195,19 +250,54 @@ export async function ingestGmailReceipts({
         for (const attachment of email.attachments) {
             summary.attachmentsFound += 1
 
-            const storageKey = buildGmailStorageKey({
-                petId,
-                receivedAt: email.receivedAt,
-                filename: attachment.filename,
-                contentSha256: attachment.contentSha256,
-            })
+            if (demoContract) {
+                const contentDecision = evaluateDemoGmailAttachment({
+                    attachment,
+                    contract: demoContract,
+                })
+
+                if (!contentDecision.accepted) {
+                    summary.rejectedAttachments += 1
+                    summary.items.push({
+                        action: "reject_demo_attachment",
+                        filename: attachment.filename,
+                        reason: contentDecision.reason,
+                    })
+                    continue
+                }
+            }
+
+            const storageKey = demoContract
+                ? demoContract.storageKey
+                : buildGmailStorageKey({
+                      petId,
+                      receivedAt: email.receivedAt,
+                      filename: attachment.filename,
+                      contentSha256: attachment.contentSha256,
+                  })
+            const documentId = demoContract
+                ? demoContract.documentId
+                : null
 
             const existingDoc = await findDocument({
+                documentId,
                 contentSha256: attachment.contentSha256,
                 storageKey,
             })
 
             if (existingDoc) {
+                if (
+                    demoContract &&
+                    (existingDoc.id !== demoContract.documentId ||
+                        existingDoc.file_url !== demoContract.storageKey ||
+                        existingDoc.external_refs?.content_sha256 !==
+                            demoContract.contentSha256)
+                ) {
+                    throw new Error(
+                        "The demo invoice identity conflicts with existing TomoCare state. Run the guarded demo reset before retrying."
+                    )
+                }
+
                 const retryable = existingDoc.status === "ingested"
 
                 if (retryable) {
@@ -247,6 +337,12 @@ export async function ingestGmailReceipts({
                 buffer: attachment.data,
             })
 
+            if (demoContract && uploaded.reusedExistingObject) {
+                throw new Error(
+                    "The demo invoice Storage key already exists without its matching document. Run the guarded demo reset before retrying."
+                )
+            }
+
             if (uploaded.uploaded) {
                 summary.uploadedObjects += 1
             }
@@ -260,6 +356,8 @@ export async function ingestGmailReceipts({
                 email,
                 attachment,
                 storageKey,
+                documentId,
+                demoContract,
             })
 
             summary.documentsCreated += 1

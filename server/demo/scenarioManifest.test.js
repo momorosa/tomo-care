@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
     buildDemoScenario,
+    DEMO_INTAKE_FIXTURE,
     DEMO_OWNED_TABLES,
     DEMO_PET_ID,
     DEMO_PROJECT_REF,
@@ -30,6 +31,15 @@ test("builds one deterministic fictional scenario from the care date", () => {
         care_actions: 0,
         apple_messages_handoffs: 0,
     })
+    assert.ok(
+        DEMO_INTAKE_FIXTURE.storageKey.startsWith(`${DEMO_STORAGE_PREFIX}/`)
+    )
+    assert.equal(
+        first.tables.documents.some(
+            (document) => document.id === DEMO_INTAKE_FIXTURE.documentId
+        ),
+        false
+    )
 })
 
 test("resolves care dates as stable offsets without changing the product clock", () => {

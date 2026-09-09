@@ -100,9 +100,41 @@ APP_TIME_ZONE=America/Los_Angeles
 ```
 
 For Chat and Voice validation, also copy the existing server-only OpenAI
-configuration into `.env.demo` locally. Do not add Gmail, Google Calendar, SMS,
-clinic-recipient, or Messages destination configuration. Those capabilities
-fail closed in demo mode during this slice.
+configuration into `.env.demo` locally.
+
+For the allowlisted synthetic-invoice intake, reuse the existing TomoCare
+inbox's server-only Gmail OAuth configuration and add these two local values:
+
+```text
+GMAIL_CLIENT_ID=YOUR_EXISTING_TOMOCARE_GMAIL_CLIENT_ID
+GMAIL_CLIENT_SECRET=YOUR_EXISTING_TOMOCARE_GMAIL_CLIENT_SECRET
+GMAIL_REFRESH_TOKEN=YOUR_EXISTING_TOMOCARE_GMAIL_REFRESH_TOKEN
+GMAIL_REDIRECT_URI=YOUR_EXISTING_TOMOCARE_GMAIL_REDIRECT_URI
+DEMO_GMAIL_ALLOWED_SENDER=YOUR_OTHER_SENDER_EMAIL
+DEMO_GMAIL_RECIPIENT=YOUR_EXISTING_TOMOCARE_INBOX_EMAIL
+```
+
+The sender account requires no OAuth setup. It only sends the synthetic
+message. Demo mode uses the existing inbox connection but constructs one
+server-owned Gmail query from the configured sender and recipient, then
+revalidates the authenticated inbox, direct sender, recipient, subject prefix,
+attachment filename, MIME type, and PDF hash before ingestion. It does not use
+the broad real-care Gmail query in demo mode.
+
+Send this repository fixture from the configured sender to the configured
+recipient:
+
+```text
+Attachment: demo/fixtures/tomocare-demo-v1-harborlight-invoice.pdf
+Subject:    [TomoCare Demo] Librela visit
+```
+
+The text after `[TomoCare Demo]` may vary. The marker must begin at the first
+character of the subject. Do not rename or modify the PDF; changed bytes fail
+the manifest-owned content check.
+
+Do not add Google Calendar, SMS, clinic-recipient, or Messages destination
+configuration. Those capabilities remain blocked in demo mode.
 
 Keep `.env.demo` out of Git, ZIP files, chat, screenshots, and browser code.
 
@@ -184,9 +216,12 @@ Expected reason:
 project_confirmation_mismatch
 ```
 
-In the demo UI, Gmail inbox checks, Google Calendar writes, and Apple Messages
-handoff preparation return a bounded `demo_external_action_blocked` response.
-They do not call a provider, open a native destination, or claim success.
+In the demo UI, only the exact synthetic Gmail intake contract may contact a
+provider. Missing allowlist configuration, the wrong authenticated recipient,
+or a nonmatching sender, subject, filename, MIME type, or PDF hash is rejected
+or ignored before document creation. Google Calendar writes and Apple Messages
+handoff preparation continue to return `demo_external_action_blocked`. They do
+not call a provider, open a native destination, or claim success.
 
 ## Returning to real-care mode
 

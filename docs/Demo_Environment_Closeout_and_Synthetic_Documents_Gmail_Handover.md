@@ -117,7 +117,7 @@ The command does not truncate tables or perform unconstrained deletion. It remov
 
 ### Side effects remain fail closed
 
-In demo mode, the existing Gmail polling, Google Calendar mutation, and Apple Messages handoff paths stop before provider execution with `demo_external_action_blocked`. They must not claim that an inbox was checked, a Calendar event was created, a native destination was opened, a message was sent, or an appointment was booked.
+In demo mode, general Gmail polling, Google Calendar mutation, and Apple Messages handoff paths stop before provider execution with `demo_external_action_blocked`. Only the exact server-validated synthetic Gmail intake capability may reach Gmail; it must not imply access to arbitrary mail. Calendar and Messages must not claim that an event was created, a native destination was opened, a message was sent, or an appointment was booked.
 
 OpenAI-backed Chat and Voice and the optional Animate Tomo presentation may continue to operate over fictional care content through their existing contracts. They do not receive reset authority.
 
@@ -159,7 +159,7 @@ Manual inspection confirmed:
 - Reset must verify the exact allowlisted project before its first mutation.
 - Reset may touch only explicit manifest-owned identifiers and the exact demo Storage prefix.
 - Candidate truth still requires human review and approval before trusted materialization.
-- Gmail, Calendar, and Messages remain blocked in demo mode until a later bounded contract explicitly opens a safe path.
+- Gmail, Calendar, and Messages remain blocked by default in demo mode; Gate 1 opens only the exact synthetic Gmail intake contract.
 - Prepared, reviewed, handed off, sent, delivered, received, booked, and completed remain distinct states.
 - Missing evidence produces an honest missing state, not synthetic inference.
 
@@ -167,7 +167,7 @@ Manual inspection confirmed:
 
 - The five baseline documents have no `file_url`, `raw_text`, `text_extracted`, or `triage_result`.
 - Verify can list those verified anchors but cannot render a source PDF or candidate working panel for them.
-- The demo cannot currently check any Gmail inbox.
+- The demo can inspect only the exact allowlisted synthetic Gmail message; general inbox checking remains unavailable.
 - The demo has no configured clinic contact, Calendar destination, or Messages destination.
 - There is no pending document awaiting human review in the reset baseline.
 - The synthetic invoice, final end-to-end demo path, UI polish, screenshots, recording, case study update, and portfolio release tag are not complete.
@@ -188,7 +188,7 @@ These are intentional handoff boundaries, not claims that the portfolio checkpoi
 
 The environment is now safe and repeatable, but the portfolio cannot yet demonstrate TomoCare's central source-to-trusted-memory story. The current Verify archive contains fictional metadata without a source file or candidate extraction, so it cannot show how a real incoming document moves through preservation, AI-assisted review, human correction, and trusted materialization.
 
-The next slice should complete that story once, using one wholly fictional document and one dedicated demo intake boundary.
+The next slice should complete that story once, using one wholly fictional document and one narrowly allowlisted demo intake boundary inside the existing dedicated TomoCare inbox.
 
 ### Accepted outcome
 
@@ -196,8 +196,8 @@ After this slice:
 
 1. One polished fictional veterinary invoice is clearly labeled `SAMPLE — DEMO DATA` in the file and application metadata.
 2. The invoice uses only fictional clinic, staff, account, patient, policy, invoice, contact, and medical-administrative values.
-3. One dedicated demo Gmail identity and narrow allowlist replace the blanket Gmail block for this exact intake path only.
-4. The same Gmail implementation remains blocked from Momo's real inbox and arbitrary messages while in demo mode.
+3. The existing OAuth-connected TomoCare intake inbox and a separate allowlisted sender replace the blanket Gmail block for this exact synthetic message path only.
+4. Demo mode never runs the broad real-care Gmail query and ignores Momo's real-care messages and arbitrary mail.
 5. The accepted attachment is written only beneath `tomo-docs/demo/tomocare-demo-v1` using a deterministic manifest-owned object key.
 6. Rechecking the inbox does not create a second document or duplicate downstream records.
 7. The source, extracted candidate, Verification Intelligence result, and human edits are visible in Verify.
@@ -223,11 +223,11 @@ Create one invoice, not a fixture library. It should contain only enough informa
 
 The document should contain one meaningful review moment rather than artificial ambiguity everywhere. A reviewer should be able to understand why TomoCare asks for attention and what changes when Rosa approves the corrected candidate.
 
-#### One dedicated demo Gmail boundary
+#### One allowlisted message boundary
 
-Use a separate demo Gmail account or identity that contains no real-care mail. Allow only the exact intended recipient/account, sender, label, subject marker, attachment filename, and `application/pdf` content type required for the scenario.
+Reuse the existing dedicated TomoCare intake inbox and its server-only OAuth connection. Send the fixture from a different allowlisted account. Demo mode must construct its own narrow query and allow only the exact authenticated recipient, direct sender, subject prefix, attachment filename, `application/pdf` content type, and manifest-owned PDF hash required for the scenario.
 
-Do not enable general demo mailbox scanning. Do not copy the real Gmail refresh token or reuse the real-care inbox identity. OAuth credentials and refresh tokens remain untracked server-only configuration.
+This is query- and content-isolated intake, not a claim of separate mailbox-level OAuth authority. Do not enable general demo mailbox scanning or run the broad real-care query in demo mode. OAuth credentials, refresh tokens, sender, and recipient remain untracked server-only configuration. The validated personal sender address must not be copied into the demo database or browser response.
 
 #### One replayable message
 
@@ -239,7 +239,7 @@ Do not delete email from Gmail as part of reset. Reset restores TomoCare state; 
 
 The desired demo is not “email arrives and facts appear automatically.” It is:
 
-1. Rosa checks the dedicated demo inbox.
+1. Rosa checks the allowlisted demo message path in the dedicated TomoCare inbox.
 2. TomoCare preserves the accepted PDF and creates candidate truth.
 3. Verification Intelligence focuses attention on the consequential or uncertain field.
 4. Rosa inspects the source, edits if needed, and explicitly verifies.
@@ -289,7 +289,7 @@ The next slice should prove:
 
 1. Demo Gmail intake remains unavailable without exact validated demo configuration.
 2. Real-care Gmail identity or credentials cannot satisfy the demo contract.
-3. Only the dedicated account, sender, label, subject marker, filename, and PDF type are accepted.
+3. Only the authenticated TomoCare inbox, allowlisted direct sender, subject prefix, filename, PDF type, and manifest-owned content hash are accepted.
 4. Unrelated demo-mailbox messages and attachments are ignored without creating records or objects.
 5. Accepted content is stored only under the exact demo scenario prefix.
 6. Repeated inbox checks do not duplicate documents, objects, candidates, or trusted rows.
@@ -310,7 +310,7 @@ The next slice should prove:
 1. Run the guarded reset and start TomoCare in demo mode.
 2. Confirm the persistent **Demo data** indicator appears before baseline care data.
 3. Confirm Verify has no pending document.
-4. Send or retain the one allowlisted fictional email in the dedicated demo inbox.
+4. Send or retain the one allowlisted fictional email in the dedicated TomoCare inbox.
 5. Select **Check inbox** and confirm exactly one pending document appears.
 6. Open it and confirm the labeled PDF, candidate fields, and Verification Intelligence guidance render together.
 7. Correct the planned review field and save without verifying; confirm trusted views do not change.
@@ -323,7 +323,7 @@ The next slice should prove:
 
 ### Explicitly out of scope
 
-- Momo's real Gmail account, OAuth identity, email, documents, records, clinic, insurer, or identifiers
+- Momo's personal mailbox, real-care messages, documents, records, clinic, insurer, or identifiers
 - General-purpose or arbitrary Gmail ingestion in demo mode
 - More than one synthetic source document or scenario
 - A document generator, fixture editor, scenario picker, or public reset button
@@ -342,7 +342,7 @@ The next slice should prove:
 Synthetic Veterinary Documents and Demo-Safe Gmail Intake is complete only when:
 
 - one labeled fictional PDF travels through the real governed intake and review architecture;
-- demo Gmail access is narrower than the real-care path and cannot read the real inbox;
+- demo Gmail access never runs the broad real-care query and accepts only the exact synthetic envelope and content contract;
 - the source is stored only at one deterministic demo-owned key;
 - candidate truth remains editable and untrusted until explicit verification;
 - approved rows remain source-linked and match the reviewed candidate;
@@ -374,9 +374,9 @@ We are beginning the bounded Synthetic Veterinary Documents and Demo-Safe Gmail 
 
 First inspect the current Gmail query, OAuth, message, attachment, storage, idempotency, extraction, triage, Verification Intelligence, VerifyDocs, materialization, scenario-manifest, reset, care-date, and external-side-effect seams. Then walk me through the smallest product and technical decisions before preparing the code packet.
 
-Create one polished SAMPLE — DEMO DATA fictional veterinary invoice and one dedicated, narrowly allowlisted demo Gmail path. Carry that source through the existing private demo Storage prefix, candidate extraction, Verification Intelligence, human correction and approval, and existing source-linked trusted materialization. Keep exact scenario-owned row and object identities in the manifest so repeated inbox checks and reset/replay remain idempotent.
+Create one polished SAMPLE — DEMO DATA fictional veterinary invoice and one narrowly allowlisted demo Gmail path inside the existing dedicated TomoCare inbox. Carry that source through the existing private demo Storage prefix, candidate extraction, Verification Intelligence, human correction and approval, and existing source-linked trusted materialization. Keep exact scenario-owned row and object identities in the manifest so repeated inbox checks and reset/replay remain idempotent.
 
-Keep Gmail, Calendar, and Messages blocked by default in demo mode. Open only the exact demo Gmail intake capability after the server validates the demo runtime, dedicated account, sender, label, subject marker, attachment filename, and PDF type. Never expose OAuth tokens, mailbox identity, server keys, or reset authority to the browser. Do not delete the fixture email during reset.
+Keep Gmail, Calendar, and Messages blocked by default in demo mode. Open only the exact demo Gmail intake capability after the server validates the demo runtime, authenticated TomoCare inbox, direct sender, subject prefix, attachment filename, PDF type, and manifest-owned content hash. Never expose OAuth tokens, mailbox identity, personal sender address, server keys, or reset authority to the browser. Do not delete the fixture email during reset.
 
-Do not use Momo's real inbox, OAuth identity, data, documents, clinic, insurer, contacts, or identifiers; accept arbitrary mail; create multiple documents or scenarios; add a parallel demo importer; auto-verify candidate truth; configure Calendar or Messages destinations; add providers, medical intelligence, broader care coverage, final UI or animation polish, portfolio evidence, case-study work, or release tagging.
+Do not query or accept Momo's real-care messages, data, documents, clinic, insurer, contacts, or identifiers; accept arbitrary mail; create multiple documents or scenarios; add a parallel demo importer; auto-verify candidate truth; configure Calendar or Messages destinations; add providers, medical intelligence, broader care coverage, final UI or animation polish, portfolio evidence, case-study work, or release tagging.
 ```

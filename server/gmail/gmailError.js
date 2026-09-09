@@ -25,6 +25,37 @@ export function isGmailConfigurationError(error) {
 }
 
 export function toGmailErrorResponse(error) {
+    if (error?.reason === "demo_gmail_configuration_required") {
+        return {
+            status: 503,
+            body: {
+                ok: false,
+                reason: "demo_gmail_configuration_required",
+                error: "The demo inbox allowlist is incomplete.",
+                recovery: "configure_demo_gmail",
+                retryable: false,
+            },
+        }
+    }
+
+    if (
+        new Set([
+            "demo_gmail_account_mismatch",
+            "demo_gmail_runtime_mismatch",
+        ]).has(error?.reason)
+    ) {
+        return {
+            status: 403,
+            body: {
+                ok: false,
+                reason: error.reason,
+                error: "The connected inbox does not match the demo allowlist.",
+                recovery: "review_demo_gmail_configuration",
+                retryable: false,
+            },
+        }
+    }
+
     if (isGmailReauthorizationError(error)) {
         return {
             status: 401,

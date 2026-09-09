@@ -339,7 +339,7 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 
 **Animate Tomo Reliability and Recovery is shipped.** Startup, unexpected disconnect, session expiry, and playback failure now resolve through typed non-sensitive presentation state; intentional ending remains a normal outcome; local Voice continues exactly once; and transient failures offer one user-initiated retry after complete cleanup. The slice added no automatic reconnect, answer or speech change, provider, avatar redesign, demo behavior, or trusted-state mutation.
 
-**Demo Environment and Resettable Synthetic Dataset is shipped.** One codebase now runs against a separately configured hosted Supabase demo project, with server-owned runtime identity, one deterministic fictional scenario, a persistent Demo indicator, and one guarded idempotent reset command. Gmail, Calendar, and Messages side effects remain blocked in demo mode.
+**Demo Environment and Resettable Synthetic Dataset is shipped.** One codebase now runs against a separately configured hosted Supabase demo project, with server-owned runtime identity, one deterministic fictional scenario, a persistent Demo indicator, and one guarded idempotent reset command. External actions remain blocked in demo mode except for the exact server-validated synthetic Gmail intake contract; Calendar and Messages remain blocked.
 
 The next bounded slice is **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**. It will add one polished fictional source document and one narrowly allowlisted demo inbox path from receipt through extraction, human review, approval, and trusted materialization. It will not configure demo Calendar or Messages destinations. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
 
@@ -423,11 +423,11 @@ The baseline contains fictional Profile, weight, Librela, Simparica, and clinic-
 
 ### Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Next
 
-The next slice will turn one fictional veterinary invoice into the first complete portfolio source-to-trusted-record story. A clearly labeled `SAMPLE — DEMO DATA` document will arrive through one dedicated, narrowly allowlisted demo Gmail identity, be stored only under the demo scenario prefix, proceed through extraction and Verification Intelligence, and remain candidate truth until Rosa edits and approves it.
+The next slice will turn one fictional veterinary invoice into the first complete portfolio source-to-trusted-record story. A clearly labeled `SAMPLE — DEMO DATA` document will arrive from a separate allowlisted sender through one narrowly constrained message path in the existing dedicated TomoCare inbox, be stored only under the demo scenario prefix, proceed through extraction and Verification Intelligence, and remain candidate truth until Rosa edits and approves it.
 
 The approved result must materialize only the existing allowlisted source-linked records needed for the demonstration. The document should support a realistic Librela visit, one weight, itemized cost and insurance-relevant administrative information, while keeping vaccine-status language separate from proof of administration. Reset must restore the same starting state and remove only the demo-owned message-derived rows and Storage objects.
 
-This slice will not reuse the real inbox or OAuth identity, ingest arbitrary email, add multiple documents or scenarios, bypass human review, configure Calendar or Messages destinations, add medical interpretation or providers, or begin final UI polish and portfolio capture.
+This slice will reuse the existing TomoCare inbox connection without running its broad real-care query. It will not accept real-care or arbitrary email, persist the personal sender address in demo data, add multiple documents or scenarios, bypass human review, configure Calendar or Messages destinations, add medical interpretation or providers, or begin final UI polish and portfolio capture.
 
 **Phase thesis:** A convincing source-to-memory demonstration begins with a safe source boundary and ends only when a human promotes reviewed candidate truth.
 
