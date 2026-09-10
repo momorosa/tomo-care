@@ -7,7 +7,7 @@ import {
 const OUTCOME_LABEL = {
     consistent_pattern: "Consistent",
     new_or_limited_history: "Source supported",
-    conflict_or_uncertainty: "Check this",
+    conflict_or_uncertainty: "Needs correction",
     manual_review: "Manual review",
 }
 

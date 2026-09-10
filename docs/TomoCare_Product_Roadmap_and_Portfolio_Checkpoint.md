@@ -146,13 +146,12 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Blocks Gmail, Calendar, and Messages side effects before provider execution in demo mode.
    - Leaves five metadata-only source anchors for baseline reads while deferring actual source files and intake.
 
-9. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Next**
-   - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
-   - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
-   - Send it through one dedicated allowlisted demo inbox and demo-only Storage prefix.
-   - Exercise extraction, Verification Intelligence, human correction, approval, and source-linked materialization.
-   - Make reset remove and recreate only the message-derived scenario state.
-   - Prevent the workflow from reading Momo's inbox or affecting live records and external destinations.
+9. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Gate 3 validation**
+   - Gate 1 finalized a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers and added its exact allowlisted Gmail-to-demo-Storage path.
+   - Gate 2 captures the Librela visit, weight, costs, total, and clinic-reported vaccine status as untrusted candidate truth, then uses Verification Intelligence to focus one correction on the missing insurance-relevant invoice number.
+   - Gate 3 exercises explicit approval, source-linked Librela, weight, cost, and clinic-status materialization, and the existing Dashboard, Chat, and Voice reads.
+   - Reset now derives every destructive row selector and the one removable Storage object from the frozen scenario manifest; duplicate inbox checks skip the verified document and post-reset replay returns the same logical state.
+   - Prevent the workflow from accepting Momo's real-care messages or affecting live records and external destinations.
 
 10. **Governed follow-through demo checkpoint**
    - Decide whether the portfolio uses an explicitly allowlisted safe demo Messages destination or a rehearsed draft-and-review path with a recorded fallback.
@@ -259,9 +258,9 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**. Add one polished `SAMPLE — DEMO DATA` fictional invoice and one dedicated allowlisted demo Gmail path. Carry that source through demo-only Storage, extraction, Verification Intelligence, human correction and approval, and the existing source-linked trusted materialization contracts. Extend the guarded reset only for explicitly manifest-owned message-derived rows and objects, and prove replay safety without weakening the existing runtime or side-effect boundary.
+Begin **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**. Add one polished `SAMPLE — DEMO DATA` fictional invoice and one narrowly allowlisted demo Gmail path inside the existing dedicated TomoCare inbox. Carry that source through demo-only Storage, extraction, Verification Intelligence, human correction and approval, and the existing source-linked trusted materialization contracts. Extend the guarded reset only for explicitly manifest-owned message-derived rows and objects, and prove replay safety without weakening the existing runtime or side-effect boundary.
 
-Do not reuse Momo's inbox, OAuth identity, records, documents, clinic, Calendar, or Messages destination. Do not add arbitrary mailbox ingestion, multiple synthetic documents or scenarios, automatic verification, new providers, medical interpretation, broader care coverage, final UI or animation polish, case-study capture, or release tagging in this slice.
+Do not accept Momo's real-care messages or reuse Momo's records, documents, clinic, Calendar, or Messages destination. The existing dedicated TomoCare intake inbox and OAuth identity may be reused only through the exact server-validated synthetic-message contract. Do not add arbitrary mailbox ingestion, multiple synthetic documents or scenarios, automatic verification, new providers, medical interpretation, broader care coverage, final UI or animation polish, case-study capture, or release tagging in this slice.
 
 ## Maintenance rule
 

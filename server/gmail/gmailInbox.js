@@ -1,30 +1,50 @@
-import "dotenv/config";
 import crypto from "node:crypto";
 import { Buffer } from "node:buffer";
 import process from "node:process";
-import { google } from "googleapis";
-import { assertExternalSideEffectAllowed } from "../config/externalSideEffects.js";
-
-const {
-  GMAIL_CLIENT_ID,
-  GMAIL_CLIENT_SECRET,
-  GMAIL_REFRESH_TOKEN,
-  GMAIL_REDIRECT_URI,
-} = process.env;
+import {
+  assertExternalSideEffectAllowed,
+  EXTERNAL_CAPABILITIES,
+} from "../config/externalSideEffects.js";
+import { getRuntimeMode, RUNTIME_MODES } from "../config/runtimeContext.js";
+import {
+  DemoGmailIntakeConfigurationError,
+  evaluateDemoGmailAccount,
+  evaluateDemoGmailAttachment,
+  evaluateDemoGmailEnvelope,
+  getDemoGmailIntakeContract,
+} from "../demo/demoGmailIntakeContract.js";
 
 export const SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"];
 
 export const DEFAULT_GMAIL_QUERY =
   "has:attachment filename:pdf newer_than:60d";
 
-export function getGmailClient() {
-  assertExternalSideEffectAllowed("Gmail intake");
+export async function getGmailClient({ env = process.env } = {}) {
+  if (env === process.env) {
+    await import("dotenv/config");
+  }
+
+  const mode = getRuntimeMode(env);
+  const capability =
+    mode === RUNTIME_MODES.DEMO
+      ? EXTERNAL_CAPABILITIES.DEMO_GMAIL_INTAKE
+      : EXTERNAL_CAPABILITIES.GMAIL_INTAKE;
+  assertExternalSideEffectAllowed(capability, env);
+
+  const {
+    GMAIL_CLIENT_ID,
+    GMAIL_CLIENT_SECRET,
+    GMAIL_REFRESH_TOKEN,
+    GMAIL_REDIRECT_URI,
+  } = env;
 
   if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
     throw new Error(
       "Missing Gmail OAuth env vars: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, or GMAIL_REFRESH_TOKEN."
     );
   }
+
+  const { google } = await import("googleapis");
 
   const oauth2Client = new google.auth.OAuth2(
     GMAIL_CLIENT_ID,
@@ -83,6 +103,13 @@ function parseAddress(raw) {
     name: null,
     email: raw.trim().toLowerCase(),
   };
+}
+
+function parseAddressList(raw) {
+  return String(raw || "")
+    .split(",")
+    .map((value) => parseAddress(value).email)
+    .filter(Boolean);
 }
 
 function collectPdfParts(payload, results = []) {
@@ -222,12 +249,35 @@ async function downloadPdfPart({ gmail, messageId, part }) {
 export async function fetchCanonicalReceiptEmails({
   query = DEFAULT_GMAIL_QUERY,
   maxResults = 25,
+  env = process.env,
+  dependencies = {},
 } = {}) {
-  const gmail = getGmailClient();
+  const mode = getRuntimeMode(env);
+  const demoContract =
+    mode === RUNTIME_MODES.DEMO
+      ? getDemoGmailIntakeContract(env)
+      : null;
+  const gmail = dependencies.gmail || (await getGmailClient({ env }));
+  const activeQuery = demoContract ? demoContract.query : query;
+
+  if (demoContract) {
+    const { data: profile } = await gmail.users.getProfile({ userId: "me" });
+    const accountDecision = evaluateDemoGmailAccount({
+      authenticatedEmail: profile?.emailAddress,
+      contract: demoContract,
+    });
+
+    if (!accountDecision.accepted) {
+      throw new DemoGmailIntakeConfigurationError(
+        accountDecision.reason,
+        "The connected Gmail account does not match the allowlisted demo recipient."
+      );
+    }
+  }
 
   const listRes = await gmail.users.messages.list({
     userId: "me",
-    q: query,
+    q: activeQuery,
     maxResults,
   });
 
@@ -244,7 +294,10 @@ export async function fetchCanonicalReceiptEmails({
     const headers = message.payload?.headers || [];
     const subject = getHeader(headers, "Subject");
     const fromHeader = getHeader(headers, "From");
+    const toHeader = getHeader(headers, "To");
+    const deliveredToHeader = getHeader(headers, "Delivered-To");
     const textBody = getPlainTextBody(message.payload);
+    const senders = resolveSenders({ fromHeader, subject, textBody });
 
     const allPdfParts = collectPdfParts(message.payload);
 
@@ -252,8 +305,50 @@ export async function fetchCanonicalReceiptEmails({
 
     const attachments = [];
     const skippedAttachments = [];
+    let candidateParts = allPdfParts;
 
-    for (const part of allPdfParts) {
+    if (demoContract) {
+      const envelopeDecision = evaluateDemoGmailEnvelope({
+        fromEmail: senders.forwardedBy.email,
+        recipientEmails: [
+          ...parseAddressList(toHeader),
+          ...parseAddressList(deliveredToHeader),
+        ],
+        subject,
+        isForwarded: senders.isForwarded,
+        attachmentParts: allPdfParts,
+        contract: demoContract,
+      });
+
+      if (!envelopeDecision.accepted) {
+        for (const part of allPdfParts) {
+          skippedAttachments.push({
+            filename: part.filename,
+            mimeType: part.mimeType,
+            reason: envelopeDecision.reason,
+          });
+        }
+
+        results.push({
+          gmailMsgId: message.id,
+          threadId: message.threadId,
+          receivedAt: receivedAt(message),
+          subject,
+          isForwarded: false,
+          forwardedBy: { name: null, email: null },
+          originalSender: { name: null, email: null },
+          demoSenderVerified: false,
+          demoRecipientVerified: false,
+          attachments: [],
+          skippedAttachments,
+        });
+        continue;
+      }
+
+      candidateParts = [...envelopeDecision.attachmentParts];
+    }
+
+    for (const part of candidateParts) {
       const classification = classifyAttachment(part);
 
       if (classification.action === "skip") {
@@ -280,26 +375,44 @@ export async function fetchCanonicalReceiptEmails({
         continue;
       }
 
-      attachments.push({
+      const attachment = {
         filename: part.filename,
         mimeType: part.mimeType,
         sizeBytes: buffer.length,
         contentSha256: sha256(buffer),
         gmailAttachmentId: part.attachmentId,
-        intakeReason: classification.reason,
+        intakeReason: demoContract
+          ? "allowlisted_demo_invoice"
+          : classification.reason,
         data: buffer,
-      });
+      };
+
+      if (demoContract) {
+        const contentDecision = evaluateDemoGmailAttachment({
+          attachment,
+          contract: demoContract,
+        });
+
+        if (!contentDecision.accepted) {
+          skippedAttachments.push({
+            filename: part.filename,
+            mimeType: part.mimeType,
+            reason: contentDecision.reason,
+          });
+          continue;
+        }
+      }
+
+      attachments.push(attachment);
     }
 
     if (attachments.length === 0) {
       results.push({
         gmailMsgId: message.id,
         threadId: message.threadId,
-        receivedAt: message.internalDate
-          ? new Date(Number(message.internalDate)).toISOString()
-          : null,
+        receivedAt: receivedAt(message),
         subject,
-        ...resolveSenders({ fromHeader, subject, textBody }),
+        ...(demoContract ? redactedDemoTransport(false) : senders),
         attachments: [],
         skippedAttachments,
       });
@@ -310,17 +423,31 @@ export async function fetchCanonicalReceiptEmails({
     results.push({
       gmailMsgId: message.id,
       threadId: message.threadId,
-      receivedAt: message.internalDate
-        ? new Date(Number(message.internalDate)).toISOString()
-        : null,
+      receivedAt: receivedAt(message),
       subject,
-      ...resolveSenders({ fromHeader, subject, textBody }),
+      ...(demoContract ? redactedDemoTransport(true) : senders),
       attachments,
       skippedAttachments,
     });
   }
 
   return results;
+}
+
+function receivedAt(message) {
+  return message.internalDate
+    ? new Date(Number(message.internalDate)).toISOString()
+    : null;
+}
+
+function redactedDemoTransport(accepted) {
+  return {
+    isForwarded: false,
+    forwardedBy: { name: null, email: null },
+    originalSender: { name: null, email: null },
+    demoSenderVerified: accepted,
+    demoRecipientVerified: accepted,
+  };
 }
 
 export async function logInbox() {

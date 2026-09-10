@@ -33,7 +33,7 @@ const STATE_LABELS = {
     consistent_pattern: "Consistent",
     new_or_limited_history: "Limited history",
     changed_from_pattern: "Changed",
-    conflict_or_uncertainty: "Check this",
+    conflict_or_uncertainty: "Needs correction",
     not_captured: "Not captured",
     manual_review: "Manual review",
     historical_review: "Historical review",
@@ -216,8 +216,7 @@ export default function WorkingPanel({
     validationErrors = {},
     onStartEdit = null,
     onCancelEdit = null,
-    onSaveDraft = null,
-    onSaveAndVerify = null,
+    onSaveAndRecheck = null,
     onUpdateInvoiceId = null,
     onUpdateSourceOrg = null,
     onUpdateDocDate = null,
@@ -489,7 +488,7 @@ export default function WorkingPanel({
                             </div>
                         ) : (
                             <>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-2 gap-2">
                                     <button
                                         className="tomo-btn tomo-btn-secondary w-full"
                                         onClick={onCancelEdit || undefined}
@@ -499,24 +498,17 @@ export default function WorkingPanel({
                                     </button>
 
                                     <button
-                                        className="tomo-btn tomo-btn-secondary w-full disabled:opacity-50"
-                                        onClick={onSaveDraft || undefined}
-                                        disabled={!onSaveDraft || !dirty}
-                                    >
-                                        Save draft
-                                    </button>
-
-                                    <button
                                         className="tomo-btn tomo-btn-primary w-full disabled:opacity-50"
-                                        onClick={onSaveAndVerify || undefined}
-                                        disabled={!onSaveAndVerify || !dirty}
+                                        onClick={onSaveAndRecheck || undefined}
+                                        disabled={!onSaveAndRecheck || !dirty}
                                     >
-                                        Save &amp; recheck
+                                        Save correction &amp; recheck
                                     </button>
                                 </div>
 
                                 <p className="mt-2 text-[11px] text-tomo-text">
-                                    Editing candidate truth
+                                    Editing candidate truth · saving will recheck,
+                                    not verify
                                     {dirty ? " · unsaved changes" : ""}
                                 </p>
                             </>
@@ -649,6 +641,22 @@ function FieldsView({
 
     return (
         <div className="space-y-5 pb-6">
+            {editMode && editTargetPath && (
+                <section
+                    className="rounded-lg border border-tomo-accent/50 bg-tomo-accent/10 px-3 py-3"
+                    aria-live="polite"
+                >
+                    <p className="text-sm font-medium text-tomo-text-h">
+                        Update {displayReviewLabel(editTargetPath)}
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-tomo-text">
+                        Update the highlighted field, then save the correction
+                        and recheck it. Nothing will be added to trusted records
+                        until you verify separately.
+                    </p>
+                </section>
+            )}
+
             {isLegacyReview && (
                 <LegacyReviewSection data={data} triageMap={triageMap} />
             )}
@@ -667,6 +675,7 @@ function FieldsView({
                     value={data?.doc_date || ""}
                     error={validationErrors["doc_date"]}
                     onChange={(value) => onUpdateDocDate?.(value)}
+                    focusOnMount={editTargetPath === "doc_date"}
                 />
             )}
 
@@ -686,6 +695,7 @@ function FieldsView({
                     placeholder="e.g., i-11250003597"
                     error={validationErrors["invoice_id"]}
                     onChange={(v) => onUpdateInvoiceId && onUpdateInvoiceId(v)}
+                    focusOnMount={editTargetPath === "invoice_id"}
                 />
             )}
 
@@ -881,7 +891,7 @@ function FlaggedFieldsSection({
                 <p className="text-sm text-tomo-success">
                     {isVerified
                         ? "No fields were escalated during review."
-                        : "All fields look good. Review the confirmed summary below, then approve."}
+                        : "No items need attention. Review the confirmed summary, then verify and add this document to the care record when you are ready."}
                 </p>
             </div>
         )
@@ -911,49 +921,54 @@ function FlaggedFieldsSection({
                     return (
                         <div
                             key={f.path}
-                            className={`tomo-review-card ${cardClass}`}
+                            className={`tomo-review-card ${cardClass} transition-colors ${
+                                accepted
+                                    ? ""
+                                    : "hover:border-tomo-accent/70 hover:bg-white/[0.04]"
+                            }`}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="text-xs font-mono text-tomo-accent break-all">
-                                            {displayReviewLabel(f.path)}
-                                        </p>
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                <ReviewStatusBadge
+                                    state={reviewState(f)}
+                                    accepted={accepted}
+                                    isVerified={isVerified}
+                                />
 
-                                        <ReviewStatusBadge
-                                            state={reviewState(f)}
-                                            accepted={accepted}
-                                            isVerified={isVerified}
-                                        />
-                                    </div>
+                                {!accepted && (
+                                    <button
+                                        type="button"
+                                        className="shrink-0 whitespace-nowrap rounded-full border border-tomo-accent px-3 py-1.5 text-xs text-tomo-text-h transition-colors hover:bg-tomo-accent/20"
+                                        onClick={() => onAcceptField?.(f.path)}
+                                    >
+                                        Keep as shown
+                                    </button>
+                                )}
+                            </div>
 
-                                    <p className="text-sm font-medium text-tomo-text-h break-words">
+                            <div>
+                                <button
+                                    type="button"
+                                    className={`w-full rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-tomo-accent ${
+                                        accepted
+                                            ? "cursor-default"
+                                            : "cursor-pointer"
+                                    }`}
+                                    onClick={() =>
+                                        !accepted && onCorrectField?.(f.path)
+                                    }
+                                    disabled={accepted || !onCorrectField}
+                                    aria-label={`Edit ${displayReviewLabel(f.path)}`}
+                                >
+                                    <p className="text-sm font-semibold text-tomo-accent break-words">
+                                        {displayReviewLabel(f.path)}
+                                    </p>
+
+                                    <p className="mt-2 text-sm font-medium text-tomo-text-h break-words">
                                         {displayReviewValue(f.extracted_value)}
                                     </p>
 
                                     <TriageReason reason={f.reason} />
-                                </div>
-
-                                {!accepted && (
-                                    <div className="flex shrink-0 flex-col gap-2">
-                                        {f.path === "source_org" && (
-                                            <button
-                                                className="text-xs px-3 py-1.5 rounded-full border border-tomo-border text-tomo-text-h hover:border-tomo-accent"
-                                                onClick={() =>
-                                                    onCorrectField?.(f.path)
-                                                }
-                                            >
-                                                Correct
-                                            </button>
-                                        )}
-                                        <button
-                                            className="text-xs px-3 py-1.5 rounded-full border transition-colors border-[color:var(--tomo-success-border)] text-tomo-success hover:bg-[var(--tomo-success-bg)]"
-                                            onClick={() => onAcceptField?.(f.path)}
-                                        >
-                                            Accept
-                                        </button>
-                                    </div>
-                                )}
+                                </button>
                             </div>
                         </div>
                     )

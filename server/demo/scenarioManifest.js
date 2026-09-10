@@ -6,6 +6,19 @@ export const DEMO_PROJECT_URL = `https://${DEMO_PROJECT_REF}.supabase.co`
 export const DEMO_PET_ID = "d3000000-0000-4000-8000-000000000001"
 export const DEMO_STORAGE_BUCKET = "tomo-docs"
 export const DEMO_STORAGE_PREFIX = `demo/${DEMO_SCENARIO_ID}`
+export const DEMO_INTAKE_DOCUMENT_ID =
+    "d3100000-0000-4000-8000-000000000006"
+export const DEMO_INTAKE_FIXTURE = Object.freeze({
+    documentId: DEMO_INTAKE_DOCUMENT_ID,
+    filename: "tomocare-demo-v1-harborlight-invoice.pdf",
+    mimeType: "application/pdf",
+    contentSha256:
+        "d6e63c3b9f9dfdb4631d425bbdfc41f370e52f32d40922d31ab6e1fe725cb702",
+    subjectPrefix: "[TomoCare Demo]",
+    storageKey: `${DEMO_STORAGE_PREFIX}/intake/tomocare-demo-v1-harborlight-invoice.pdf`,
+    title: "SAMPLE — DEMO DATA — Harborlight Veterinary invoice",
+    fixtureKind: "gmail-intake-invoice",
+})
 
 export const DEMO_OWNED_TABLES = Object.freeze([
     "apple_messages_handoffs",
@@ -46,6 +59,42 @@ export const DEMO_RECORD_IDS = Object.freeze({
         "d3400000-0000-4000-8000-000000000001",
     ]),
     providerContacts: Object.freeze([]),
+    intakeDocument: DEMO_INTAKE_DOCUMENT_ID,
+})
+
+export const DEMO_RESET_TARGETS = Object.freeze({
+    storage: Object.freeze({
+        bucket: DEMO_STORAGE_BUCKET,
+        objectPaths: Object.freeze([DEMO_INTAKE_FIXTURE.storageKey]),
+    }),
+    rows: Object.freeze({
+        documents: Object.freeze({
+            ids: Object.freeze([
+                ...DEMO_RECORD_IDS.documents,
+                DEMO_RECORD_IDS.intakeDocument,
+            ]),
+        }),
+        events: Object.freeze({
+            ids: DEMO_RECORD_IDS.events,
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        facts: Object.freeze({
+            ids: DEMO_RECORD_IDS.facts,
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        cost_items: Object.freeze({
+            ids: DEMO_RECORD_IDS.costItems,
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        labs: Object.freeze({
+            ids: Object.freeze([]),
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        provider_contacts: Object.freeze({
+            ids: DEMO_RECORD_IDS.providerContacts,
+        }),
+        pets: Object.freeze({ ids: Object.freeze([DEMO_PET_ID]) }),
+    }),
 })
 
 const WEIGHT_READINGS = Object.freeze([

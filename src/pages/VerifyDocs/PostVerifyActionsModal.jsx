@@ -1,7 +1,16 @@
+import { useState } from "react"
 import { getSavedOnlyCalendarButton } from "./postVerifyCalendarRecovery.js"
 
 export default function PostVerifyActionsModal({
     open,
+    ...props
+}) {
+    if (!open) return null
+
+    return <OpenPostVerifyActionsModal {...props} />
+}
+
+function OpenPostVerifyActionsModal({
     onClose,
     documentTitle,
     isLibrela = false,
@@ -16,7 +25,7 @@ export default function PostVerifyActionsModal({
     onRetryLibrelaCalendar,
     onRetryInsuranceCalendar,
 }) {
-    if (!open) return null
+    const [step, setStep] = useState("confirmation")
 
     const actionInFlight =
         weightLoading || librelaLoading || insuranceClaimLoading
@@ -58,16 +67,79 @@ export default function PostVerifyActionsModal({
         actionStatus.insurance?.phase === "synced" ||
         actionStatus.insurance?.phase === "saved_only"
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-            <div className="w-full max-w-[640px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]">
-                <div className="mb-5">
+    if (step === "confirmation") {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+                <div
+                    className="w-full max-w-[560px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="verification-confirmation-title"
+                >
                     <p className="tomo-section-label mb-3">
                         Verified and saved
                     </p>
 
-                    <h2 className="text-2xl font-semibold text-tomo-text-h">
-                        What should TomoCare help with next?
+                    <h2
+                        id="verification-confirmation-title"
+                        className="text-2xl font-semibold text-tomo-text-h"
+                    >
+                        Added to Momo’s trusted care record
+                    </h2>
+
+                    <p className="mt-3 text-sm leading-6 text-tomo-text">
+                        Verification is complete. No reminders or follow-up
+                        actions have been created yet.
+                    </p>
+
+                    {documentTitle && (
+                        <p className="mt-4 rounded-xl border border-tomo-border bg-white/[0.025] px-3 py-2 text-xs text-tomo-text">
+                            Source:{" "}
+                            <span className="text-tomo-text-h">
+                                {documentTitle}
+                            </span>
+                        </p>
+                    )}
+
+                    <div className="mt-6 flex flex-wrap justify-end gap-3">
+                        <button
+                            type="button"
+                            className="tomo-btn tomo-btn-secondary"
+                            onClick={onClose}
+                        >
+                            Done
+                        </button>
+                        <button
+                            type="button"
+                            className="tomo-btn tomo-btn-primary"
+                            onClick={() => setStep("actions")}
+                        >
+                            Continue to next steps
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+            <div
+                className="w-full max-w-[640px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="post-verify-actions-title"
+            >
+                <div className="mb-5">
+                    <p className="tomo-section-label mb-3">
+                        Optional next steps
+                    </p>
+
+                    <h2
+                        id="post-verify-actions-title"
+                        className="text-2xl font-semibold text-tomo-text-h"
+                    >
+                        Choose what TomoCare should help with next
                     </h2>
 
                     <p className="mt-3 text-sm leading-6 text-tomo-text">

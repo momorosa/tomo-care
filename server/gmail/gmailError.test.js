@@ -62,6 +62,28 @@ test("makes ordinary Gmail failures retryable without exposing provider details"
     })
 })
 
+test("maps demo Gmail contract failures without exposing mailbox details", () => {
+    const missingAllowlist = new Error("private sender missing")
+    missingAllowlist.reason = "demo_gmail_configuration_required"
+    assert.deepEqual(toGmailErrorResponse(missingAllowlist), {
+        status: 503,
+        body: {
+            ok: false,
+            reason: "demo_gmail_configuration_required",
+            error: "The demo inbox allowlist is incomplete.",
+            recovery: "configure_demo_gmail",
+            retryable: false,
+        },
+    })
+
+    const accountMismatch = new Error("private mailbox mismatch")
+    accountMismatch.reason = "demo_gmail_account_mismatch"
+    const response = toGmailErrorResponse(accountMismatch)
+    assert.equal(response.status, 403)
+    assert.equal(response.body.reason, "demo_gmail_account_mismatch")
+    assert.doesNotMatch(JSON.stringify(response), /private/)
+})
+
 test("safe Gmail logs exclude OAuth request data and refresh tokens", () => {
     const privateValue = ["sensitive", "oauth", "value"].join("-")
     const error = new Error("invalid_grant")

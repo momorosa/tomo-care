@@ -11,6 +11,7 @@ import {
     buildManualReviewWarning,
     getProcessingFailurePresentation,
 } from "./documentProcessingFallback.js"
+import { buildDemoInvoiceCandidate } from "../demo/demoInvoiceReviewContract.js"
 
 export { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
 
@@ -99,6 +100,48 @@ async function extractDocument(docId) {
         [EXTRACT_DOCUMENT_SCRIPT, docId],
         "extract_document"
     )
+}
+
+async function extractDocumentForReview(document) {
+    const demoCandidate = buildDemoInvoiceCandidate({
+        document,
+        rawText: document.raw_text,
+    })
+
+    if (!demoCandidate) {
+        const result = await extractDocument(document.id)
+        return { ...result, deterministicDemoCandidate: false }
+    }
+
+    const { error } = await sbAdmin
+        .from("documents")
+        .update({
+            text_extracted: demoCandidate,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", document.id)
+
+    if (error) throw error
+
+    return {
+        label: "extract_document",
+        stdout: "deterministic demo candidate persisted",
+        stderr: "",
+        deterministicDemoCandidate: true,
+    }
+}
+
+async function loadDocumentForProcessing(docId) {
+    const { data, error } = await sbAdmin
+        .from("documents")
+        .select(
+            "id, pet_id, title, doc_type, doc_date, source_org, status, file_url, external_refs, raw_text, text_extracted, triage_result"
+        )
+        .eq("id", docId)
+        .single()
+
+    if (error) throw error
+    return data
 }
 
 async function runTriage(docId) {
@@ -200,17 +243,12 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
         steps: [],
     }
 
-    const { data: document, error: documentError } = await sbAdmin
-        .from("documents")
-        .select(
-            "id, pet_id, title, doc_type, doc_date, source_org, status, raw_text, text_extracted, triage_result"
-        )
-        .eq("id", docId)
-        .single()
-
-    if (documentError) {
+    let document
+    try {
+        document = await loadDocumentForProcessing(docId)
+    } catch (error) {
         result.status = "failed"
-        result.error = `[load_document] ${documentError.message}`
+        result.error = `[load_document] ${error.message}`
         return result
     }
 
@@ -235,6 +273,7 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
                 ok: true,
                 outputReceived: Boolean(rawTextResult.stdout),
             })
+            document = await loadDocumentForProcessing(docId)
         } else {
             result.steps.push({
                 step: "populate_raw_text",
@@ -243,16 +282,18 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
                 reason: "raw_text already exists",
             })
         }
-    
+
 
         currentStep = "extract_document"
 
         if (!document.text_extracted || force) {
-            const extractionResult = await extractDocument(docId)
+            const extractionResult = await extractDocumentForReview(document)
             result.steps.push({
                 step: "extract_document",
                 ok: true,
                 outputReceived: Boolean(extractionResult.stdout),
+                deterministicDemoCandidate:
+                    extractionResult.deterministicDemoCandidate,
             })
         } else {
             result.steps.push({

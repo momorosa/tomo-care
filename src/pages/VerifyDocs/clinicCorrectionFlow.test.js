@@ -15,8 +15,8 @@ test("exposes Clinic as editable candidate truth and wires the correction", asyn
 
     assert.match(workingPanel, /label="Clinic"[\s\S]*onUpdateSourceOrg/)
     assert.match(workingPanel, /placeholder="e\.g\., SoMa Animal Hospital"/)
-    assert.match(workingPanel, /f\.path === "source_org"/)
-    assert.match(workingPanel, />\s*Correct\s*</)
+    assert.match(workingPanel, /onCorrectField\?\.\(f\.path\)/)
+    assert.match(workingPanel, /Update \{displayReviewLabel\(editTargetPath\)\}/)
     assert.match(workingPanel, /focusOnMount=\{editTargetPath === "source_org"\}/)
     assert.match(verifyDocs, /onUpdateSourceOrg=\{draft\.onUpdateSourceOrg\}/)
     assert.match(editor, /function onUpdateSourceOrg\(value\)/)

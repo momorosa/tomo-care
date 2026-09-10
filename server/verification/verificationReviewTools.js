@@ -11,6 +11,7 @@ import {
     buildSourceReviewUserPrompt,
     parseSourceReview,
 } from "./sourceReviewContract.js"
+import { buildDemoInvoiceSourceReview } from "../demo/demoInvoiceReviewContract.js"
 
 const DOCUMENT_COLUMNS = [
     "id",
@@ -23,6 +24,8 @@ const DOCUMENT_COLUMNS = [
     "source_org",
     "title",
     "status",
+    "file_url",
+    "external_refs",
     "updated_at",
 ].join(", ")
 
@@ -73,6 +76,17 @@ export function createVerificationReviewTools({
         },
 
         async compare_current_source({ document }, { signal } = {}) {
+            const demoReview = buildDemoInvoiceSourceReview({
+                document,
+                rawText: String(document.raw_text || "").trim(),
+                extracted: document.text_extracted,
+                fields: enumerateVerificationFields(
+                    document.text_extracted
+                ),
+            })
+
+            if (demoReview) return demoReview
+
             return sourceReviewer({
                 rawText: String(document.raw_text || "").trim(),
                 extracted: document.text_extracted,

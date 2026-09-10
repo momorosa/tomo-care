@@ -504,6 +504,27 @@ function buildCostPatternAssessments(extracted, history, sourceReview) {
     return fields
 }
 
+function comparableCostHistory(history, extracted, document) {
+    const currentType = normalizeText(
+        extracted?.doc_type || document?.doc_type
+    )
+    const currentSource = normalizeText(
+        extracted?.source_org || document?.source_org
+    )
+
+    return history.filter((record) => {
+        const historicalDocument = record?.document || record || {}
+        const sameType =
+            !currentType ||
+            normalizeText(historicalDocument.doc_type) === currentType
+        const sameSource =
+            !currentSource ||
+            normalizeText(historicalDocument.source_org) === currentSource
+
+        return sameType && sameSource
+    })
+}
+
 function latestHistoricalWeight(history) {
     for (const record of history) {
         const fact = record.facts?.find(
@@ -865,7 +886,11 @@ export function buildVerificationAssessment({
         fields.push(
             ...buildCostPatternAssessments(
                 extracted,
-                boundedHistory,
+                comparableCostHistory(
+                    boundedHistory,
+                    extracted,
+                    document
+                ),
                 sourceReview
             )
         )

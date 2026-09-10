@@ -1,11 +1,15 @@
 import { RUNTIME_MODES } from "../config/runtimeContext.js"
+import { EXTERNAL_CAPABILITIES } from "../config/externalSideEffects.js"
 
-const BLOCKED_DEMO_REQUESTS = Object.freeze([
+const ALLOWED_DEMO_REQUESTS = Object.freeze([
     Object.freeze({
         method: "POST",
         pattern: /^\/api\/gmail\/check-inbox\/?$/,
-        capability: "Gmail intake",
+        capability: EXTERNAL_CAPABILITIES.DEMO_GMAIL_INTAKE,
     }),
+])
+
+const BLOCKED_DEMO_REQUESTS = Object.freeze([
     Object.freeze({
         method: "POST",
         pattern: /^\/api\/events\/[^/]+\/actions\/sync-google-calendar\/?$/,
@@ -25,6 +29,19 @@ const BLOCKED_DEMO_REQUESTS = Object.freeze([
 
 export function getRuntimeBoundaryDecision({ method, pathname, runtime }) {
     if (runtime.mode === RUNTIME_MODES.DEMO) {
+        const allowed = ALLOWED_DEMO_REQUESTS.find(
+            (rule) =>
+                rule.method === method.toUpperCase() &&
+                rule.pattern.test(pathname)
+        )
+
+        if (allowed) {
+            return Object.freeze({
+                type: "allow_demo_capability",
+                capability: allowed.capability,
+            })
+        }
+
         const blocked = BLOCKED_DEMO_REQUESTS.find(
             (rule) =>
                 rule.method === method.toUpperCase() &&
