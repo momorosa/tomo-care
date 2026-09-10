@@ -3,7 +3,7 @@
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
 **Status:** Active personal and portfolio project
-**Last updated:** September 7, 2026
+**Last updated:** September 10, 2026
 
 ---
 
@@ -336,6 +336,7 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 - **3E.7a shipped:** a strict Rabies evidence foundation from Gmail intake through Verification Intelligence, human correction and approval, server-only materialization, and grounded Agent Tomo answers; certificate-backed administration, clinic-reported due/status, and product expiration remain separate meanings; receipt failures and review timeouts preserve recoverable untrusted work without creating reminders or other actions
 - **3E.8 shipped:** one typed verified weight-trend contract for the complete requested trusted history; deterministic narrative, summary, accessible source-linked chart, and concise Voice speech; lb-first or kg display choice; explicit selected-point meaning; and the existing ten-card recent evidence limit kept separate from chart calculations
 - **3E.9 shipped:** `pets.microchip_id` added to the allowlisted governed Profile contract and direct Chat and Voice retrieval; direct-only disclosure in assistant responses; clearer Profile-details and Care-overview groups; long-identifier readability; and a default-open, user-collapsible Voice transcript
+- **Governed Follow-Through Demo Checkpoint shipped:** the verified synthetic invoice now produces source-linked Librela and insurance reminders through the shared governed routes; Dashboard, Attention, Chat, and Voice agree on the resulting work; named-month attention preserves future reminder dates; and the editable Librela appointment request remains review-only with no demo recipient, provider execution, or booking claim
 
 **Animate Tomo Reliability and Recovery is shipped.** Startup, unexpected disconnect, session expiry, and playback failure now resolve through typed non-sensitive presentation state; intentional ending remains a normal outcome; local Voice continues exactly once; and transient failures offer one user-initiated retry after complete cleanup. The slice added no automatic reconnect, answer or speech change, provider, avatar redesign, demo behavior, or trusted-state mutation.
 
@@ -430,6 +431,16 @@ The approved result must materialize only the existing allowlisted source-linked
 This slice reuses the existing TomoCare inbox connection without running its broad real-care query. It does not accept real-care or arbitrary email, persist the personal sender address in demo data, add multiple documents or scenarios, bypass human review, configure Calendar or Messages destinations, add medical interpretation or providers, or begin final UI polish and portfolio capture.
 
 **Phase thesis:** A convincing source-to-memory demonstration begins with a safe source boundary and ends only when a human promotes reviewed candidate truth.
+
+### Governed Follow-Through Demo Checkpoint · Shipped
+
+The verified manifest-owned invoice now supports the portfolio's full trusted-memory-to-action story. Rosa can create one source-linked Librela reminder and one insurance reminder through the existing governed routes. Repeated creation reuses the governing state rather than duplicating reminders or actions, and the scenario reset removes the message-derived follow-through state before restoring the same logical replay result.
+
+Dashboard and Attention surface the resulting work from the same reminder records. Chat and Voice explain the same dates and evidence, including named future months such as October. Tomo can prepare an editable appointment-request draft using the fictional clinic name, the verified September 7 injection, the October 19 reminder, and the October 26 due date.
+
+Demo mode exposes no clinic phone number, address, recipient URI, Calendar destination, or Messages destination. The appointment request cannot be approved or sent, and TomoCare does not claim delivery, reply, or booking. Calendar and Messages execution remain blocked before provider access. The review-only draft and copy fallback preserve useful work without simulating an external outcome.
+
+**Phase thesis:** Trusted memory becomes useful when it guides the next step without confusing a reminder or reviewed draft with completed external action.
 
 ### Phase 4 — Governed specialist expansion
 
@@ -535,7 +546,7 @@ TomoCare is Rosa’s flagship example of designing at the architecture layer of 
 
 The portfolio narrative should remain personal first and technical second. It should open with Momo and the real care problem, then reveal the transferable system patterns.
 
-Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded Chat and Voice, a native Apple Messages draft handoff, optional live character animation, a shipped governed manager with Verification Intelligence and Care Operations specialists, and a verified Rabies evidence foundation that preserves the distinction between administration and clinic-reported future status. The product-visible trace shows manager, specialist, bounded evidence, result, recovery, and human-control state without exposing hidden reasoning. The Messages handoff is not evidence that a message was sent, delivered, received, or converted into a booking. Additional vaccines, preventive reminders and lifecycle execution, lab interpretation, inbound reply interpretation, and broader assistant coverage remain unfinished.
+Current public claims should distinguish shipped capability from architectural direction. TomoCare now has approval-gated internal actions, verified lifecycle writes, grounded Chat and Voice, a native Apple Messages draft handoff for real care, optional live character animation, a shipped governed manager with Verification Intelligence and Care Operations specialists, and a verified Rabies evidence foundation that preserves the distinction between administration and clinic-reported future status. The portfolio environment also carries its verified fictional invoice into source-linked reminders, Attention, and an editable review-only appointment draft without exposing or executing a destination. The product-visible trace shows manager, specialist, bounded evidence, result, recovery, and human-control state without exposing hidden reasoning. Neither the real-care Messages handoff nor the demo review-only draft is evidence that a message was sent, delivered, received, or converted into a booking. Additional vaccines, preventive reminders and lifecycle execution, lab interpretation, inbound reply interpretation, and broader assistant coverage remain unfinished.
 
 Portfolio demonstrations should use the separate resettable synthetic environment by default. Real Momo records remain appropriate for private product use and validation, but screenshots, recordings, and interviews should not depend on live clinic, insurance, recipient, or medical data. The portfolio story should demonstrate the same governance rules as the real product rather than relaxing them for convenience.
 

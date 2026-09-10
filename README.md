@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff, Animate Tomo reliability and recovery, the separate resettable demo environment, and the synthetic-document/demo-safe Gmail source-to-memory journey are also shipped. The next bounded slice is the Governed Follow-Through Demo Checkpoint.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff, Animate Tomo reliability and recovery, the separate resettable demo environment, the synthetic-document/demo-safe Gmail source-to-memory journey, and the governed follow-through demo checkpoint are also shipped. The next bounded slice is Final Voice, Animation, and End-to-End UI Polish.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Synthetic Documents/Gmail closeout and governed follow-through handover](./docs/Synthetic_Documents_Gmail_Closeout_and_Governed_Follow_Through_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Governed follow-through closeout and final polish handover](./docs/Governed_Follow_Through_Closeout_and_Final_Polish_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -115,7 +115,7 @@ Shipped the first lifecycle and assistant-coverage slices:
 * Golden Librela-to-Messages path from trusted records through grounded answer, approved draft, verified recipient, and native handoff intent
 * Shared Simparica and Adequan home-medication lifecycle with explicit confirmation, atomic trusted writes, reminder completion, exactly one cadence-based successor, Calendar sync, grounded answers, and retry safety
 * Governed attention summaries across qualifying reminders, pending or recoverable actions, and documents awaiting review
-* Deterministic today, tomorrow, this-week, and this-month attention windows with natural Chat and Voice responses
+* Deterministic today, tomorrow, this-week, this-month, named-month, and calendar-year attention windows with natural Chat and Voice responses
 * Typed navigation to the governing reminder, action, review document, or allowlisted Google Calendar destination without granting write authority
 * Governed Profile answers from the current `pets` record, deterministic age calculation, honest missing-data behavior, warm relationship context, and typed read-only Profile navigation
 * Risk-weighted Verification Intelligence that combines current-source comparison, deterministic checks, and up to five comparable trusted records
@@ -136,6 +136,9 @@ Shipped the first lifecycle and assistant-coverage slices:
 * A default-open, user-collapsible Voice transcript so charts, evidence, links, and limits remain visible during spoken conversations
 * Typed non-sensitive Animate Tomo startup, disconnect, session-expiry, and playback recovery states with intentional ending kept distinct from failure
 * One user-initiated animation retry after complete cleanup, with no automatic reconnect, answer replay, resynthesis, duplicate audio, or loss of local Voice
+* Source-linked Librela and insurance reminders created from the verified synthetic invoice through the shared governed action paths
+* Named-month Attention queries that preserve the requested calendar range and surface future work consistently across Chat and Voice
+* An editable review-only Librela appointment-request draft that exposes no live clinic destination and cannot be approved, sent, or represented as booked in demo mode
 
 The accepted architecture is a small manager-style hybrid multi-agent system:
 
@@ -170,6 +173,7 @@ Shipped a separate, resettable environment for safe portfolio use:
 * No copied, anonymized, or sampled production data
 * One exact fictional invoice that travels from allowlisted Gmail and private Storage through candidate review, human correction, explicit verification, source-linked trusted records, and consistent Dashboard, Chat, and Voice reads
 * Duplicate inbox and post-reset replay safety without deleting the retained Gmail source
+* Governed Librela and insurance follow-through that appears once in Dashboard and Attention, supports grounded Chat and Voice explanation, and stops at an editable review-only appointment draft
 
 ## Next product work
 
@@ -178,12 +182,11 @@ TomoCare now follows one product roadmap with two release tracks:
 * The **real-care track** continues toward a comprehensive long-term health sidekick for Momo.
 * The **portfolio track** creates a reliable, visually polished checkpoint of the same governed product using separate, resettable synthetic demo data.
 
-The resettable environment and the synthetic source-to-memory journey are complete. The remaining near-term sequence is:
+The resettable environment, synthetic source-to-memory journey, and governed follow-through checkpoint are complete. The remaining near-term sequence is:
 
-1. Resolve the governed follow-through demonstration boundary without using a real clinic, Calendar, or Messages destination.
-2. Polish Voice, animation, and the complete end-to-end UI.
-3. Rehearse and capture demo evidence, update the case study, and freeze the portfolio v1 checkpoint.
-4. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
+1. Polish Voice, animation, and the complete end-to-end UI without changing the trusted-data or action contracts.
+2. Rehearse and capture demo evidence, update the case study, and freeze the portfolio v1 checkpoint.
+3. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
 
 Medication refill or renewal, additional preventive-care lifecycle expansion, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. The shipped Rabies foundation is reusable Real-Care infrastructure, not a claim of general vaccine, wellness, or laboratory coverage. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
@@ -373,7 +376,7 @@ care-action, and document-review state. It ranks no more than five supported
 items, explains each item in plain language, discloses unavailable sources, and
 uses typed navigation to the governing TomoCare or Google Calendar destination.
 The same contract supports natural paraphrases and bounded today, tomorrow,
-this-week, and this-month follow-ups across Chat and Voice. Candidate document
+this-week, this-month, named-month, and calendar-year follow-ups across Chat and Voice. Candidate document
 contents remain untrusted, and navigation grants no authority to change care
 state.
 

@@ -2,7 +2,7 @@
 
 **Decision date:** August 16, 2026
 
-**Last revised:** September 7, 2026
+**Last revised:** September 10, 2026
 
 **Owner:** Rosa Choi
 
@@ -77,7 +77,7 @@ Tomo answers through Chat and Voice, explains the verified weight trend, identif
 
 ### 3. Intelligence to governed follow-through
 
-Tomo prepares a Librela appointment request from trusted state, Rosa reviews it, and the native Messages handoff preserves Rosa as the sender without claiming delivery or booking.
+Tomo carries the verified synthetic invoice into source-linked Librela and insurance reminders, explains the resulting work through Attention, Chat, and Voice, and prepares an editable appointment-request draft. The portfolio path remains review-only and does not claim approval, sending, delivery, or booking.
 
 ## Portfolio-readiness sequence
 
@@ -153,15 +153,17 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Reset now derives every destructive row selector and the one removable Storage object from the frozen scenario manifest; duplicate inbox checks skip the verified document and post-reset replay returns the same logical state.
    - Prevent the workflow from accepting Momo's real-care messages or affecting live records and external destinations.
 
-10. **Governed follow-through demo checkpoint · Next**
-   - Use a rehearsed draft-and-review path with a recorded fallback for portfolio v1; do not add a live demo Messages recipient or claim delivery.
-   - Carry the verified invoice into source-linked Librela and insurance reminders, Attention, and one governed appointment-request preview without executing an external destination.
-   - Keep Calendar disabled for the portfolio path unless a separate bounded contract later justifies a demo-only destination.
-   - Preserve truthful handoff state: prepared and reviewed are not sent, delivered, received, or booked.
+10. **Governed Follow-Through Demo Checkpoint · Shipped**
+   - Carries the verified manifest-owned invoice into idempotent, source-linked Librela and insurance reminders through the shared product routes.
+   - Surfaces the resulting work through Dashboard and Attention, including deterministic named-month windows, with consistent grounded explanations in Chat and Voice.
+   - Prepares one editable Librela appointment-request draft using the fictional clinic name and trusted injection and reminder dates without storing or exposing a live destination.
+   - Keeps demo Calendar and Messages execution blocked before provider access and preserves truthful state: reviewed is not approved, sent, delivered, received, or booked.
+   - Extends reset to remove the scenario-derived reminders, actions, previews, and orchestration state so replay returns the same logical result.
 
-11. **Final Voice, animation, and UI polish**
+11. **Final Voice, Animation, and End-to-End UI Polish · Next**
    - Refine listening, thinking, speaking, playback, and idle transitions.
-   - Resolve visual inconsistencies, dead ends, and unclear state changes across the end-to-end demo.
+   - Resolve visual inconsistencies, dead ends, responsive issues, and unclear state changes across the three existing demo stories.
+   - Preserve the current trusted-data, assistant, approval, external-action, reset, and provider boundaries.
 
 12. **Demo evidence and portfolio freeze**
    - Rehearse one deterministic end-to-end path.
@@ -251,7 +253,7 @@ The portfolio checkpoint is ready when:
 - The manager-to-specialist trace makes evidence, approval, and deterministic execution boundaries legible without exposing private content or hidden reasoning.
 - Profile, weight, attention, reminders, and the Librela request agree across UI, Chat, and Voice.
 - Every factual answer or operational calculation has a governing record or trusted source.
-- The Messages experience remains an approved draft handoff and makes no delivery or booking claim.
+- The demo appointment-request experience remains review-only; the real-care Messages experience remains an approved native draft handoff. Neither path claims delivery or booking.
 - Voice and animation failures preserve the answer and provide a visible recovery path.
 - The demo has a rehearsed live path and recorded fallback.
 - Focused tests, the full regression suite, production build, and manual demo validation pass.
@@ -259,9 +261,9 @@ The portfolio checkpoint is ready when:
 
 ## Immediate next step
 
-Begin the **Governed Follow-Through Demo Checkpoint**. Carry the verified synthetic invoice into its existing eligible Librela and insurance reminders, surface the resulting work through Attention, and rehearse one governed appointment-request preview. Use review-only or copy fallback in demo mode: do not configure a live Calendar or Messages destination, send a message, or claim delivery or booking.
+Begin **Final Voice, Animation, and End-to-End UI Polish**. Rehearse the three existing portfolio stories from the resettable synthetic baseline and improve only the presentation, transitions, responsive behavior, recovery clarity, and interaction continuity that make those stories harder to follow or demonstrate.
 
-Reuse the existing trusted records, recommendation, reminder, Attention, Chat, Voice, action, and reset contracts. Keep the work bounded to the single fictional scenario and make duplicate creation, blocked external execution, reset, and replay visibly truthful. Do not add a provider, real recipient, demo Calendar, general action simulator, new medical intelligence, final animation/UI polish, portfolio capture, case-study production, or release tagging in this slice.
+Reuse the current Voice, local-motion, optional live-animation, transcript, navigation, verification, Attention, reminder, and review-only draft contracts. Do not add care capabilities, source types, providers, destinations, database changes, medical intelligence, autonomous behavior, portfolio capture, case-study production, or release tagging in this slice. Any meaning-based character reaction must remain presentation-only and must not alter facts, restraint, action status, or tool authority.
 
 ## Maintenance rule
 
