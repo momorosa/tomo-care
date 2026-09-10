@@ -31,9 +31,22 @@ test("rewrites only the current-pet alias to the server-owned identity", () => {
     )
 })
 
-test("blocks Gmail, Calendar, and Messages boundaries before route execution", () => {
+test("passes only demo Gmail intake to its exact provider-side contract", () => {
+    assert.deepEqual(
+        getRuntimeBoundaryDecision({
+            method: "POST",
+            pathname: "/api/gmail/check-inbox",
+            runtime: DEMO_RUNTIME,
+        }),
+        {
+            type: "allow_demo_capability",
+            capability: "demo_gmail_intake",
+        }
+    )
+})
+
+test("keeps Calendar and Messages blocked before route execution", () => {
     const requests = [
-        ["POST", "/api/gmail/check-inbox", "Gmail intake"],
         [
             "POST",
             "/api/events/event-1/actions/sync-google-calendar",

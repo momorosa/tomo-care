@@ -146,11 +146,10 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Blocks Gmail, Calendar, and Messages side effects before provider execution in demo mode.
    - Leaves five metadata-only source anchors for baseline reads while deferring actual source files and intake.
 
-9. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Next**
-   - Finalize a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers.
-   - Include a realistic Librela visit, weight, costs, insurance-relevant information, and a vaccine-status section.
-   - Send it from a separate allowlisted sender through one narrowly constrained path in the existing dedicated TomoCare inbox and into the demo-only Storage prefix.
-   - Exercise extraction, Verification Intelligence, human correction, approval, and source-linked materialization.
+9. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake · In gated delivery**
+   - Gate 1 finalized a clearly labeled `SAMPLE — DEMO DATA` invoice using a fictional clinic and identifiers and added its exact allowlisted Gmail-to-demo-Storage path.
+   - Gate 2 captures the Librela visit, weight, costs, total, and clinic-reported vaccine status as untrusted candidate truth, then uses Verification Intelligence to focus one correction on the missing insurance-relevant invoice number.
+   - Gate 3 will exercise explicit approval, source-linked materialization, derived product reads, and reset/replay closeout.
    - Make reset remove and recreate only the message-derived scenario state.
    - Prevent the workflow from accepting Momo's real-care messages or affecting live records and external destinations.
 

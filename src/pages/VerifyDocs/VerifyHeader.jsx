@@ -46,17 +46,17 @@ export default function VerifyHeader({
             disabled={!canApprove || approving}
           >
             {approving
-              ? "Saving…"
+              ? "Verifying…"
               : isVerified
                 ? "Saved to records"
-                : "Approve & save record"}
+                : "Verify and add to care record"}
           </button>
         </div>
 
         {showHint && (
           <p className="text-[11px] text-tomo-warning">
-            Review {unreviewedCount} attention item
-            {unreviewedCount > 1 ? "s" : ""} to save
+            Correct or keep {unreviewedCount} attention item
+            {unreviewedCount > 1 ? "s" : ""} before verifying
           </p>
         )}
 

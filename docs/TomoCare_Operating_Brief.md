@@ -341,7 +341,7 @@ Phase 3E first hardened the lifecycle underneath Tomo's answers and actions:
 
 **Demo Environment and Resettable Synthetic Dataset is shipped.** One codebase now runs against a separately configured hosted Supabase demo project, with server-owned runtime identity, one deterministic fictional scenario, a persistent Demo indicator, and one guarded idempotent reset command. External actions remain blocked in demo mode except for the exact server-validated synthetic Gmail intake contract; Calendar and Messages remain blocked.
 
-The next bounded slice is **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**. It will add one polished fictional source document and one narrowly allowlisted demo inbox path from receipt through extraction, human review, approval, and trusted materialization. It will not configure demo Calendar or Messages destinations. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
+**Synthetic Veterinary Documents and Demo-Safe Gmail Intake is in gated delivery.** Gate 1 added the polished fictional invoice and exact allowlisted Gmail-to-demo-Storage boundary. Gate 2 carries only that manifest-owned source through deterministic candidate extraction and bounded Verification Intelligence, with one planned human correction for the missing invoice number. The candidate remains `needs_review`; explicit approval, trusted materialization, derived product reads, and reset/replay closeout remain Gate 3. Calendar and Messages destinations remain blocked. Broader preventive lifecycle expansion—additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, reminders, and completion reconciliation—moves to bounded Real-Care work after the portfolio checkpoint unless Rosa explicitly reprioritizes it.
 
 Phase 3E.3 proved the first attention contract. Calendar navigation uses persisted reminder metadata, while browser-session Calendar errors remain transient and are not durable recovery work. Appointment-state aggregation, stored Inbox coverage, and deeper Recently verified follow-up remain separate future slices.
 
@@ -421,9 +421,9 @@ The baseline contains fictional Profile, weight, Librela, Simparica, and clinic-
 
 **Phase thesis:** A trustworthy portfolio environment should reproduce the governed product without borrowing privacy, state, or side-effect authority from the real-care system.
 
-### Synthetic Veterinary Documents and Demo-Safe Gmail Intake · Next
+### Synthetic Veterinary Documents and Demo-Safe Gmail Intake · In gated delivery
 
-The next slice will turn one fictional veterinary invoice into the first complete portfolio source-to-trusted-record story. A clearly labeled `SAMPLE — DEMO DATA` document will arrive from a separate allowlisted sender through one narrowly constrained message path in the existing dedicated TomoCare inbox, be stored only under the demo scenario prefix, proceed through extraction and Verification Intelligence, and remain candidate truth until Rosa edits and approves it.
+Gate 1 established the exact fictional PDF and allowlisted Gmail source boundary. Gate 2 turns that manifest-owned source into the first review-ready portfolio candidate: Librela, weight, itemized costs, total, and clinic-reported Rabies status are captured without creating Rabies administration evidence, while the printed invoice number is deliberately left for one visible human correction. The document remains candidate truth until Rosa edits and approves it.
 
 The approved result must materialize only the existing allowlisted source-linked records needed for the demonstration. The document should support a realistic Librela visit, one weight, itemized cost and insurance-relevant administrative information, while keeping vaccine-status language separate from proof of administration. Reset must restore the same starting state and remove only the demo-owned message-derived rows and Storage objects.
 

@@ -233,54 +233,7 @@ export default function VerifyDocs() {
         }
     }
 
-    async function saveDraft() {
-        if (!selectedId || !draft.draftExtracted || isVerified) return
-
-        setError("")
-
-        if (Object.keys(draft.validate()).length) return
-
-        try {
-            const previousAssessment = triage.triageResult
-            const previousAcceptedPaths = new Set(triage.acceptedPaths)
-            await api.patchExtracted(selectedId, draft.draftExtracted)
-
-            setDetail((prev) =>
-                prev
-                    ? {
-                          ...prev,
-                          text_extracted: draft.draftExtracted,
-                          status: "needs_review",
-                      }
-                    : prev
-            )
-
-            setDocs((prev) =>
-                prev.map((d) =>
-                    d.id === selectedId ? { ...d, status: "needs_review" } : d
-                )
-            )
-
-            draft.setDirty(false)
-
-            const assessment = await triage.runTriage(selectedId, {
-                force: true,
-            })
-            triage.setAcceptedPaths(
-                preserveUnchangedAcceptedPaths({
-                    previousAssessment,
-                    nextAssessment: assessment,
-                    acceptedPaths: previousAcceptedPaths,
-                })
-            )
-
-            showToast("Saved draft")
-        } catch (e) {
-            if (!e.reason) setError(e.message)
-        }
-    }
-
-    async function saveAndVerify() {
+    async function saveAndRecheck() {
         if (!selectedId || !draft.draftExtracted || isVerified) return
 
         setError("")
@@ -319,19 +272,13 @@ export default function VerifyDocs() {
             )
             draft.reset()
 
-            if (nextReviewState.blocksApprove) {
-                showToast(
-                    `Saved and rechecked · review ${nextReviewState.unreviewedCount} attention item${
-                        nextReviewState.unreviewedCount === 1 ? "" : "s"
-                    } before verifying`
-                )
-                return
-            }
-
-            await approveDoc({
-                assessment,
-                acceptedPaths: preservedAcceptedPaths,
-            })
+            showToast(
+                nextReviewState.blocksApprove
+                    ? `Correction saved and rechecked · review ${nextReviewState.unreviewedCount} attention item${
+                          nextReviewState.unreviewedCount === 1 ? "" : "s"
+                      } before verifying`
+                    : "Correction saved and rechecked · ready to verify"
+            )
         } catch (e) {
             if (!e.reason) setError(e.message)
         }
@@ -486,8 +433,7 @@ export default function VerifyDocs() {
                         validationErrors={draft.validationErrors}
                         onStartEdit={draft.startEdit}
                         onCancelEdit={draft.cancelEdit}
-                        onSaveDraft={saveDraft}
-                        onSaveAndVerify={saveAndVerify}
+                        onSaveAndRecheck={saveAndRecheck}
                         onUpdateInvoiceId={draft.onUpdateInvoiceId}
                         onUpdateSourceOrg={draft.onUpdateSourceOrg}
                         onUpdateDocDate={draft.onUpdateDocDate}

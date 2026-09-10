@@ -133,6 +133,30 @@ The text after `[TomoCare Demo]` may vary. The marker must begin at the first
 character of the subject. Do not rename or modify the PDF; changed bytes fail
 the manifest-owned content check.
 
+Gate 2 carries that exact source through the existing raw-text, extraction, and
+Verification Intelligence path. The synthetic candidate deliberately leaves
+the printed invoice number empty so the review has one meaningful,
+insurance-relevant correction. In Verify, compare the candidate with the PDF,
+enter `HVC-DEMO-090726`, and select **Save draft**. Do not verify it during the
+Gate 2 check: the document should remain `needs_review`, and no trusted event,
+weight, cost, or preventive-status row should be created yet.
+
+Run the focused Gate 2 contract before the manual check:
+
+```bash
+npm run test:demo-gmail-review
+```
+
+Expected review state after a successful non-dry inbox check:
+
+- the source PDF, raw text, and editable candidate render together;
+- Librela, 13.1 kg, four charge lines, the $177.00 paid total, and the
+  clinic-reported Rabies status are present as candidate truth;
+- Rabies administration remains absent;
+- Verification Intelligence shows exactly one blocking item for `invoice_id`;
+- saving the corrected draft reruns the review and clears that block without
+  materializing trusted records.
+
 Do not add Google Calendar, SMS, clinic-recipient, or Messages destination
 configuration. Those capabilities remain blocked in demo mode.
 

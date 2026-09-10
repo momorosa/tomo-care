@@ -167,16 +167,16 @@ Manual inspection confirmed:
 
 - The five baseline documents have no `file_url`, `raw_text`, `text_extracted`, or `triage_result`.
 - Verify can list those verified anchors but cannot render a source PDF or candidate working panel for them.
-- The demo can inspect only the exact allowlisted synthetic Gmail message; general inbox checking remains unavailable.
+- The demo can inspect and review only the exact allowlisted synthetic Gmail message; general inbox checking remains unavailable.
 - The demo has no configured clinic contact, Calendar destination, or Messages destination.
-- There is no pending document awaiting human review in the reset baseline.
-- The synthetic invoice, final end-to-end demo path, UI polish, screenshots, recording, case study update, and portfolio release tag are not complete.
+- There is no pending document awaiting human review in the reset baseline; the exact Gmail source creates it on demand.
+- Gates 1 and 2 cover the source boundary, deterministic candidate extraction, and bounded Verification Intelligence review. Explicit approval, trusted materialization, derived product reads, reset/replay closeout, final UI polish, screenshots, recording, case-study update, and the portfolio release tag remain incomplete.
 
 These are intentional handoff boundaries, not claims that the portfolio checkpoint is finished.
 
 ## Revised near-term sequence
 
-1. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake**
+1. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake — Gate 3: approval, trusted materialization, and replay-safe reset**
 2. **Governed Follow-Through Demo Checkpoint**
 3. **Final Voice, Animation, and End-to-End UI Polish**
 4. **Demo Evidence, Case Study, and Portfolio Checkpoint Freeze**
