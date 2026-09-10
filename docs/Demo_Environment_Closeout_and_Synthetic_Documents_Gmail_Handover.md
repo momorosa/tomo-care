@@ -1,5 +1,7 @@
 # TomoCare Current State: Demo Environment Closeout and Synthetic Documents/Gmail Handover
 
+> Historical handover. Synthetic Veterinary Documents and Demo-Safe Gmail Intake shipped and merged to `main` at `ceba812`. Continue with [Synthetic Documents/Gmail Closeout and Governed Follow-Through Handover](./Synthetic_Documents_Gmail_Closeout_and_Governed_Follow_Through_Handover.md).
+
 **Closeout date:** September 7, 2026
 
 **Current branch:** `main`
@@ -170,17 +172,16 @@ Manual inspection confirmed:
 - The demo can inspect and review only the exact allowlisted synthetic Gmail message; general inbox checking remains unavailable.
 - The demo has no configured clinic contact, Calendar destination, or Messages destination.
 - There is no pending document awaiting human review in the reset baseline; the exact Gmail source creates it on demand.
-- Gates 1 and 2 cover the source boundary, deterministic candidate extraction, and bounded Verification Intelligence review. Gate 3 adds explicit approval, shared source-linked materialization, derived Dashboard/Chat/Voice reads, and manifest-exact reset/replay behavior. Live Gate 3 acceptance, screenshots, recording, case-study update, and the portfolio release tag remain incomplete.
+- Gates 1 and 2 cover the source boundary, deterministic candidate extraction, and bounded Verification Intelligence review. Gate 3 adds explicit approval, shared source-linked materialization, derived Dashboard/Chat/Voice reads, and manifest-exact reset/replay behavior. Live Gate 3 acceptance passed; screenshots, recording, case-study update, and the portfolio release tag remain incomplete.
 
 These are intentional handoff boundaries, not claims that the portfolio checkpoint is finished.
 
 ## Revised near-term sequence
 
-1. **Synthetic Veterinary Documents and Demo-Safe Gmail Intake — Gate 3 live acceptance**
-2. **Governed Follow-Through Demo Checkpoint**
-3. **Final Voice, Animation, and End-to-End UI Polish**
-4. **Demo Evidence, Case Study, and Portfolio Checkpoint Freeze**
-5. **Broader preventive and health-intelligence work as later bounded Real-Care slices**
+1. **Governed Follow-Through Demo Checkpoint**
+2. **Final Voice, Animation, and End-to-End UI Polish**
+3. **Demo Evidence, Case Study, and Portfolio Checkpoint Freeze**
+4. **Broader preventive and health-intelligence work as later bounded Real-Care slices**
 
 ## Next bounded slice: Synthetic Veterinary Documents and Demo-Safe Gmail Intake
 

@@ -6,9 +6,9 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff, Animate Tomo reliability and recovery, and the separate resettable demo environment are also shipped. The next bounded slice is Synthetic Veterinary Documents and Demo-Safe Gmail Intake.
+**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff, Animate Tomo reliability and recovery, the separate resettable demo environment, and the synthetic-document/demo-safe Gmail source-to-memory journey are also shipped. The next bounded slice is the Governed Follow-Through Demo Checkpoint.
 
-Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Demo Environment closeout and synthetic-documents/Gmail handover](./docs/Demo_Environment_Closeout_and_Synthetic_Documents_Gmail_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
+Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Synthetic Documents/Gmail closeout and governed follow-through handover](./docs/Synthetic_Documents_Gmail_Closeout_and_Governed_Follow_Through_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
@@ -165,9 +165,11 @@ Shipped a separate, resettable environment for safe portfolio use:
 * A separate hosted Supabase project built from the complete migration chain
 * One deterministic fictional scenario with current care-date-relative records
 * A persistent accessible **Demo data** indicator before care data appears
-* One server-only reset command guarded by exact mode, project, pet, table, and Storage-prefix allowlists
+* One server-only reset command guarded by exact mode, project, pet, manifest-derived row selectors, and the exact removable Storage object
 * Idempotent reset behavior and fail-closed Gmail, Calendar, and Messages boundaries
 * No copied, anonymized, or sampled production data
+* One exact fictional invoice that travels from allowlisted Gmail and private Storage through candidate review, human correction, explicit verification, source-linked trusted records, and consistent Dashboard, Chat, and Voice reads
+* Duplicate inbox and post-reset replay safety without deleting the retained Gmail source
 
 ## Next product work
 
@@ -176,13 +178,12 @@ TomoCare now follows one product roadmap with two release tracks:
 * The **real-care track** continues toward a comprehensive long-term health sidekick for Momo.
 * The **portfolio track** creates a reliable, visually polished checkpoint of the same governed product using separate, resettable synthetic demo data.
 
-The resettable demo environment is complete. The remaining near-term sequence is:
+The resettable environment and the synthetic source-to-memory journey are complete. The remaining near-term sequence is:
 
-1. Finalize one clearly labeled synthetic veterinary invoice and pass it through a dedicated demo-safe Gmail intake, extraction, review, approval, and trusted-materialization path.
-2. Resolve the remaining governed follow-through demonstration boundary without using a real clinic, Calendar, or Messages destination.
-3. Polish Voice, animation, and the complete end-to-end UI.
-4. Rehearse and capture demo evidence, update the case study, and freeze the portfolio v1 checkpoint.
-5. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
+1. Resolve the governed follow-through demonstration boundary without using a real clinic, Calendar, or Messages destination.
+2. Polish Voice, animation, and the complete end-to-end UI.
+3. Rehearse and capture demo evidence, update the case study, and freeze the portfolio v1 checkpoint.
+4. Return to additional vaccines, annual wellness, annual-lab lifecycle state, preventive screening, and preventive actions as bounded Real-Care work after the portfolio checkpoint or when Rosa explicitly reprioritizes it.
 
 Medication refill or renewal, additional preventive-care lifecycle expansion, lab-result interpretation, longitudinal analyte comparison, urinalysis or imaging intelligence, broad medical-document intelligence, and generic feedback controls remain post-portfolio work unless a later bounded contract promotes them. The shipped Rabies foundation is reusable Real-Care infrastructure, not a claim of general vaccine, wellness, or laboratory coverage. See the [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md) for the complete decision and definition of done.
 
