@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
     ActionExecutionError,
-    executeCareAction,
+    executeCareAction as executeCareActionWithRuntime,
 } from "./executeCareAction.js"
 import { SEND_LIBRELA_APPOINTMENT_REQUEST } from "./librelaAppointmentRequest.js"
 import { createMockSmsProvider } from "../messaging/mockSmsProvider.js"
@@ -10,6 +10,11 @@ import { createMockSmsProvider } from "../messaging/mockSmsProvider.js"
 const ACTION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 const CONTACT_ID = "33333333-3333-4333-8333-333333333333"
 const MESSAGE_HASH = "a".repeat(64)
+const REAL_ENV = Object.freeze({ TOMOCARE_RUNTIME_MODE: "real" })
+
+function executeCareAction(args) {
+    return executeCareActionWithRuntime({ ...args, env: REAL_ENV })
+}
 
 function buildAction(overrides = {}) {
     return {
@@ -114,6 +119,41 @@ test("claims before one mock provider call and persists the sent result", async 
     assert.equal(
         JSON.stringify(result).includes(buildTestSmsAddress()),
         false
+    )
+})
+
+test("demo mode blocks outbound messaging before claim or provider execution", async () => {
+    const repository = buildRepository()
+    let providerCalls = 0
+
+    await assert.rejects(
+        () =>
+            executeCareActionWithRuntime({
+                repository,
+                actionId: ACTION_ID,
+                env: { TOMOCARE_RUNTIME_MODE: "demo" },
+                outboundMessageProvider: {
+                    name: "mock",
+                    mode: "mock",
+                    async sendMessage() {
+                        providerCalls += 1
+                    },
+                },
+            }),
+        (error) => {
+            assert.ok(error instanceof ActionExecutionError)
+            assert.equal(error.status, 409)
+            assert.equal(error.reason, "demo_external_action_blocked")
+            assert.equal(error.retryable, false)
+            assert.match(error.message, /Nothing was contacted outside TomoCare/)
+            return true
+        }
+    )
+
+    assert.equal(providerCalls, 0)
+    assert.deepEqual(
+        repository.calls.claimSendLibrelaAppointmentRequest,
+        []
     )
 })
 

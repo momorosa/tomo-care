@@ -1,3 +1,4 @@
+import process from "node:process"
 import { buildQueryPlan } from "./queryPlanner.js"
 import { composeGroundedAnswer } from "./answerComposer.js"
 import { coordinatePersistedLibrelaAppointmentRequest } from "../orchestration/persistedLibrelaAppointmentWorkflow.js"
@@ -11,6 +12,7 @@ import {
 import { createOpenAiSemanticProvider } from "./openAiSemanticProvider.js"
 import { resolveAssistantPlan } from "./semanticUnderstanding.js"
 import { applyPersonalityFraming } from "./personalityLayer.js"
+import { getRuntimeMode } from "../config/runtimeContext.js"
 
 const ASSISTANT_CARE_ACTOR = "Rosa"
 
@@ -45,6 +47,9 @@ export async function answerAssistantQuestion({
         coordinateAppointmentRequest =
             coordinatePersistedLibrelaAppointmentRequest,
         currentCareDate = getCareDate(),
+        runtimeMode = process.env.TOMOCARE_RUNTIME_MODE
+            ? getRuntimeMode()
+            : "real",
     } = dependencies
 
     const previousContext =
@@ -174,6 +179,7 @@ export async function answerAssistantQuestion({
         messageDraftPreparation,
         attentionSummary,
         profileSummary,
+        runtimeMode,
     })
     const personalizeAnswer =
         dependencies.personalizeAnswer || applyPersonalityFraming

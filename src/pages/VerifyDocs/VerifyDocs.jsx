@@ -17,10 +17,12 @@ import {
     getTriageReviewState,
     preserveUnchangedAcceptedPaths,
 } from "./triageReviewState.js"
+import { useRuntimeContext } from "../../runtime/RuntimeContext.jsx"
 
 export default function VerifyDocs() {
     const { docId } = useParams()
     const navigate = useNavigate()
+    const runtime = useRuntimeContext()
 
     const [docs, setDocs] = useState([])
     const [selectedId, setSelectedId] = useState(null)
@@ -397,6 +399,15 @@ export default function VerifyDocs() {
                     }
                     onRetryInsuranceCalendar={
                         postVerify.handleRetryInsuranceCalendar
+                    }
+                    runtimeMode={runtime.mode}
+                    onDraftAppointmentRequest={() =>
+                        navigate("/", {
+                            state: {
+                                assistantPrompt:
+                                    "Draft a Librela appointment request.",
+                            },
+                        })
                     }
                 />
 

@@ -142,14 +142,17 @@ export async function applyWeightMaterialization(
 
 export async function createInsuranceClaimReminder(
     id,
-    { requestedBy = "rosa", insuranceProvider = "Nationwide" } = {}
+    { requestedBy = "rosa", insuranceProvider } = {}
 ) {
+    const body = { requestedBy }
+    if (insuranceProvider) body.insuranceProvider = insuranceProvider
+
     const r = await fetch(
         `/api/documents/${id}/actions/insurance-claim-reminder`,
         {
             method: "POST",
             headers: JSON_HEADERS,
-            body: JSON.stringify({ requestedBy, insuranceProvider }),
+            body: JSON.stringify(body),
         }
     )
 

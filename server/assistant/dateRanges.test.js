@@ -92,6 +92,21 @@ test("resolves bounded forward-looking attention windows", () => {
     }
 })
 
+test("resolves a named month as a forward-looking attention window", () => {
+    const range = resolveAttentionDateRange(
+        "What needs my attention in October?",
+        "2026-09-10"
+    )
+
+    assert.deepEqual(range, {
+        type: "calendar_month",
+        label: "October 2026",
+        start: "2026-10-01",
+        end: "2026-10-31",
+    })
+    assert.equal(getDateRangePhrase(range), "in October 2026")
+})
+
 test("keeps unbounded attention focused on current governed work", () => {
     assert.deepEqual(
         resolveAttentionDateRange("What needs my attention?", "2026-08-14"),

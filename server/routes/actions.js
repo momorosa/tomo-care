@@ -29,6 +29,7 @@ import {
     INSURANCE_CLAIM_SUBTYPE,
 } from "../lib/insuranceClaimReminder.js"
 import { resolveReminderTimingState } from "../reminders/reminderTiming.js"
+import { getInsuranceProviderForRuntime } from "../lib/insuranceProviderRuntime.js"
 
 const router = express.Router()
 
@@ -733,8 +734,11 @@ router.post(
     "/documents/:docId/actions/insurance-claim-reminder",
     async (req, res) => {
         const { docId } = req.params
-        const { requestedBy = "rosa", insuranceProvider = "Nationwide" } =
+        const { requestedBy = "rosa", insuranceProvider: requestedProvider } =
             req.body || {}
+        const insuranceProvider = getInsuranceProviderForRuntime(
+            requestedProvider
+        )
 
         try {
             const { doc, error: docError } = await loadVerifiedDocument(

@@ -24,6 +24,8 @@ function OpenPostVerifyActionsModal({
     onCreateInsuranceClaimReminder,
     onRetryLibrelaCalendar,
     onRetryInsuranceCalendar,
+    onDraftAppointmentRequest,
+    runtimeMode = "real",
 }) {
     const [step, setStep] = useState("confirmation")
 
@@ -54,10 +56,11 @@ function OpenPostVerifyActionsModal({
         }
 
     const appointmentDraftRecommendation = recommendations?.appointmentDraft || {
-        show: true,
+        show: false,
         disabled: true,
-        badge: "Coming next",
+        badge: "Review required",
     }
+    const isDemo = runtimeMode === "demo"
 
     const hasCompletedAction =
         weightRecommendation.state === "materialized" ||
@@ -194,7 +197,11 @@ function OpenPostVerifyActionsModal({
                     <ActionButton
                         title="Remind me to file insurance claim"
                         badge={insuranceClaimRecommendation.badge}
-                        body="Create a reminder to file the Nationwide claim. Target: within 30 days of treatment. Final eligibility window: 180 days."
+                        body={
+                            isDemo
+                                ? "Create an internal reminder to file the pet insurance claim. Target: within 30 days of treatment. Final eligibility window: 180 days."
+                                : "Create a reminder to file the Nationwide claim. Target: within 30 days of treatment. Final eligibility window: 180 days."
+                        }
                         hidden={!insuranceClaimRecommendation.show}
                         disabled={insuranceClaimRecommendation.disabled}
                         actionInFlight={actionInFlight}
@@ -207,11 +214,29 @@ function OpenPostVerifyActionsModal({
 
                     <ActionButton
                         title="Draft next appointment request"
-                        badge={appointmentDraftRecommendation.badge}
-                        body="Coming next: TomoCare will draft a message for SoMa Animal Hospital."
-                        hidden={!appointmentDraftRecommendation.show}
-                        disabled
+                        badge={
+                            isDemo
+                                ? appointmentDraftRecommendation.badge
+                                : "Coming next"
+                        }
+                        body={
+                            isDemo
+                                ? "Ask Tomo to prepare an editable, review-only request for the trusted fictional clinic. Demo mode has no recipient destination and cannot send it."
+                                : "Coming next: TomoCare will draft a message for SoMa Animal Hospital."
+                        }
+                        hidden={
+                            isDemo
+                                ? !appointmentDraftRecommendation.show
+                                : false
+                        }
+                        disabled={
+                            isDemo
+                                ? appointmentDraftRecommendation.disabled
+                                : true
+                        }
                         actionInFlight={actionInFlight}
+                        buttonLabel={isDemo ? "Ask Tomo" : null}
+                        onClick={onDraftAppointmentRequest}
                     />
                 </div>
 

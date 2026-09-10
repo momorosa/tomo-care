@@ -5,6 +5,7 @@ import { getDemoGmailIntakeContract } from "../demo/demoGmailIntakeContract.js"
 export const EXTERNAL_CAPABILITIES = Object.freeze({
     GMAIL_INTAKE: "gmail_intake",
     DEMO_GMAIL_INTAKE: "demo_gmail_intake",
+    OUTBOUND_MESSAGE: "outbound_message",
 })
 
 export class DemoExternalSideEffectError extends Error {

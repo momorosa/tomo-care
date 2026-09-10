@@ -374,7 +374,11 @@ function isAttentionSummaryQuestion(q) {
     }
 
     const normalized = normalizeOverviewQuestion(q)
-    const time = "(?: (?:today|tomorrow|this week|this month))?"
+    const month =
+        "(?:january|february|march|april|may|june|july|august|september|october|november|december)"
+    const time =
+        `(?: (?:today|tomorrow|this week|this month|` +
+        `(?:in|during|for) ${month}(?: 20\\d{2})?|in 20\\d{2}))?`
     const patterns = [
         `what (?:currently )?needs (?:my )?attention${time}`,
         `show me what needs (?:my )?attention${time}`,

@@ -48,6 +48,11 @@ test("uses the server-owned eligible recommendation contract", () => {
         buttonLabel: "Create",
         body: "Verified evidence confirms a Librela injection.",
     })
+
+    const appointment = getPostVerifyRecommendations(doc).appointmentDraft
+    assert.equal(appointment.show, true)
+    assert.equal(appointment.disabled, true)
+    assert.equal(appointment.badge, "Create reminder first")
 })
 
 test("presents the server-owned repair as an explicit review action", () => {
@@ -97,6 +102,11 @@ test("shows an already-reconciled cycle as complete", () => {
     assert.equal(recommendation.disabled, true)
     assert.equal(recommendation.badge, "Reconciled")
     assert.equal(recommendation.buttonLabel, "Done")
+
+    const appointment = getPostVerifyRecommendations(doc).appointmentDraft
+    assert.equal(appointment.show, true)
+    assert.equal(appointment.disabled, false)
+    assert.equal(appointment.badge, "Review only")
 })
 
 test("a broad client-side Librela mention can only request review", () => {
@@ -123,16 +133,21 @@ test("a broad client-side Librela mention can only request review", () => {
     assert.equal(recommendation.disabled, true)
     assert.equal(recommendation.recommended, false)
     assert.equal(recommendation.badge, "Review required")
+
+    const appointment = getPostVerifyRecommendations(doc).appointmentDraft
+    assert.equal(appointment.show, true)
+    assert.equal(appointment.disabled, true)
+    assert.equal(appointment.badge, "Create reminder first")
 })
 
 test("hides Librela when neither the server nor the document identifies it", () => {
-    const recommendation = getPostVerifyRecommendations(
-        buildInvoice()
-    ).librelaReminder
+    const recommendations = getPostVerifyRecommendations(buildInvoice())
+    const recommendation = recommendations.librelaReminder
 
     assert.equal(recommendation.state, "not_applicable")
     assert.equal(recommendation.show, false)
     assert.equal(recommendation.disabled, true)
+    assert.equal(recommendations.appointmentDraft.show, false)
 })
 
 test("preserves the existing insurance recommendation for invoices", () => {

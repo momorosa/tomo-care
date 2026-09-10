@@ -8,6 +8,7 @@ import { getSupabaseServerConfig } from "../config/supabaseConfig.js"
 import { getAppTimeZone, getCareDate } from "../lib/careDates.js"
 import {
     buildDemoScenario,
+    DEMO_INTAKE_FIXTURE,
     DEMO_OWNED_TABLES,
     DEMO_PET_ID,
     DEMO_PROJECT_REF,
@@ -16,6 +17,7 @@ import {
     DEMO_STORAGE_PREFIX,
     getDemoScenarioCounts,
 } from "../demo/scenarioManifest.js"
+import { LIBRELA_APPOINTMENT_WORKFLOW } from "../orchestration/persistedLibrelaAppointmentWorkflow.js"
 
 const DOCUMENT_DERIVED_DELETE_ORDER = Object.freeze([
     "cost_items",
@@ -214,6 +216,14 @@ export function createSupabaseDemoResetRepository(client) {
             const orchestrationRunIds = (actions || [])
                 .map((action) => action.orchestration_run_id)
                 .filter(Boolean)
+            const sourceLinkedRunIds =
+                await loadSourceLinkedAppointmentRunIds(client)
+            const allOrchestrationRunIds = [
+                ...new Set([
+                    ...orchestrationRunIds,
+                    ...sourceLinkedRunIds,
+                ]),
+            ]
 
             await deleteRowsByIds(
                 client,
@@ -233,7 +243,7 @@ export function createSupabaseDemoResetRepository(client) {
                 client,
                 "orchestration_runs",
                 "id",
-                orchestrationRunIds,
+                allOrchestrationRunIds,
                 "delete manifest-derived demo orchestration runs"
             )
 
@@ -357,6 +367,37 @@ async function loadIdsByExactTargets(client, table, target) {
     }
 
     return [...ids]
+}
+
+async function loadSourceLinkedAppointmentRunIds(client) {
+    const { data, error } = await client
+        .from("orchestration_runs")
+        .select("id, state_json, result_json")
+        .eq("pet_id", DEMO_PET_ID)
+        .eq("workflow_type", LIBRELA_APPOINTMENT_WORKFLOW)
+
+    throwOnSupabaseError(
+        error,
+        "load source-linked demo appointment drafts"
+    )
+
+    return (data || [])
+        .filter((run) =>
+            [
+                run.result_json?.draft?.evidence?.source_document_id,
+                run.result_json?.sourceDocument?.id,
+                run.result_json?.reminder?.doc_id,
+                run.result_json?.reminder?.details_json?.source_document_id,
+                run.state_json?.communication_handoff?.draft?.evidence
+                    ?.source_document_id,
+                run.state_json?.records_handoff?.sourceDocument?.id,
+                run.state_json?.records_handoff?.reminder?.doc_id,
+                run.state_json?.records_handoff?.reminder?.details_json
+                    ?.source_document_id,
+            ].includes(DEMO_INTAKE_FIXTURE.documentId)
+        )
+        .map((run) => run.id)
+        .filter(Boolean)
 }
 
 async function deleteRowsByIds(

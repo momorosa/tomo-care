@@ -168,6 +168,56 @@ test("the Supabase reset repository never scopes destructive work by pet alone o
         from(table) {
             return {
                 select(columns) {
+                    if (table === "orchestration_runs") {
+                        const filters = []
+                        const query = {
+                            eq(column, value) {
+                                filters.push([column, value])
+                                return query
+                            },
+                            then(resolve, reject) {
+                                calls.push([
+                                    "select.eq",
+                                    table,
+                                    columns,
+                                    filters,
+                                ])
+                                return Promise.resolve({
+                                    data: [
+                                        {
+                                            id: "draft-only-demo-run-id",
+                                            state_json: {
+                                                communication_handoff: {
+                                                    draft: {
+                                                        evidence: {
+                                                            source_document_id:
+                                                                DEMO_INTAKE_FIXTURE.documentId,
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            result_json: null,
+                                        },
+                                        {
+                                            id: "unrelated-run-id",
+                                            state_json: null,
+                                            result_json: {
+                                                draft: {
+                                                    evidence: {
+                                                        source_document_id:
+                                                            "unrelated-document-id",
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    ],
+                                    error: null,
+                                }).then(resolve, reject)
+                            },
+                        }
+                        return query
+                    }
+
                     return {
                         async in(column, ids) {
                             calls.push(["select.in", table, column, ids])
@@ -237,7 +287,39 @@ test("the Supabase reset repository never scopes destructive work by pet alone o
                 ids.includes(DEMO_INTAKE_FIXTURE.documentId)
         )
     )
-    assert.equal(calls.some(([, , column]) => column === "pet_id"), false)
+    assert.ok(
+        calls.some(
+            ([operation, table, , filters]) =>
+                operation === "select.eq" &&
+                table === "orchestration_runs" &&
+                filters.some(
+                    ([column, value]) =>
+                        column === "pet_id" && value === DEMO_PET_ID
+                ) &&
+                filters.some(
+                    ([column, value]) =>
+                        column === "workflow_type" &&
+                        value === "librela_appointment_request"
+                )
+        )
+    )
+    const orchestrationDelete = calls.find(
+        ([operation, table]) =>
+            operation === "delete.in" && table === "orchestration_runs"
+    )
+    assert.deepEqual(orchestrationDelete, [
+        "delete.in",
+        "orchestration_runs",
+        "id",
+        ["derived-run-id", "draft-only-demo-run-id"],
+    ])
+    assert.equal(
+        calls.some(
+            ([operation, , column]) =>
+                operation === "delete.in" && column === "pet_id"
+        ),
+        false
+    )
     assert.equal(calls.some(([operation]) => operation === "storage.list"), false)
 
     await assert.rejects(

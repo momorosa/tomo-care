@@ -1,3 +1,4 @@
+import process from "node:process"
 import { MARK_HOME_MEDICATION_GIVEN } from "./homeMedicationGiven.js"
 import { MARK_INSURANCE_CLAIM_FILED } from "./insuranceClaimFiled.js"
 import { SEND_LIBRELA_APPOINTMENT_REQUEST } from "./librelaAppointmentRequest.js"
@@ -7,6 +8,11 @@ import {
 } from "./executeLibrelaAppointmentRequest.js"
 import { createOutboundMessageProvider } from "../messaging/outboundMessageProvider.js"
 import { getCareDate } from "../lib/careDates.js"
+import {
+    assertExternalSideEffectAllowed,
+    DemoExternalSideEffectError,
+    EXTERNAL_CAPABILITIES,
+} from "../config/externalSideEffects.js"
 
 const EXECUTION_ACTOR = "tomo-care-backend"
 const EXECUTION_METHODS = {
@@ -92,6 +98,7 @@ export async function executeCareAction({
     actionId,
     currentCareDate = getCareDate(),
     outboundMessageProvider,
+    env = process.env,
 }) {
     assertRepository(repository)
     assertRequiredString(actionId, "actionId")
@@ -111,6 +118,10 @@ export async function executeCareAction({
         let execution
 
         try {
+            assertExternalSideEffectAllowed(
+                EXTERNAL_CAPABILITIES.OUTBOUND_MESSAGE,
+                env
+            )
             execution = await executeSendLibrelaAppointmentRequest({
                 repository,
                 actionId: action.id,
@@ -119,6 +130,18 @@ export async function executeCareAction({
                     createOutboundMessageProvider(),
             })
         } catch (error) {
+            if (error instanceof DemoExternalSideEffectError) {
+                throw executionError({
+                    status: 409,
+                    reason: error.reason,
+                    message:
+                        "Outbound messaging is unavailable with demo data. Nothing was contacted outside TomoCare.",
+                    recovery: "review_action",
+                    retryable: false,
+                    cause: error,
+                })
+            }
+
             if (error instanceof LibrelaAppointmentExecutionError) {
                 throw executionError({
                     status: error.status,

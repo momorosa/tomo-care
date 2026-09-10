@@ -47,6 +47,7 @@ const SUGGESTED_QUESTIONS = [
 
 export default function AssistantPanel({
     petId,
+    initialQuestion = "",
     pendingActionCount = 0,
     pendingActions = [],
     reminders = [],
@@ -80,6 +81,15 @@ export default function AssistantPanel({
     const lastAnswerRef = useRef(null)
     const transcriptEndRef = useRef(null)
     const avatarMediaRef = useRef(null)
+    const initialQuestionAppliedRef = useRef(false)
+
+    useEffect(() => {
+        if (initialQuestionAppliedRef.current || !initialQuestion.trim()) return
+
+        initialQuestionAppliedRef.current = true
+        setMode(CONVERSATION_MODES.CHAT)
+        setQuestion(initialQuestion.trim())
+    }, [initialQuestion])
 
     useEffect(() => {
         return () => {
