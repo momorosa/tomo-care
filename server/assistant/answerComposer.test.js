@@ -748,6 +748,53 @@ test("returns an editable, unsent Librela appointment-message draft", () => {
     )
 })
 
+test("describes a demo appointment draft as review-only with no recipient destination", () => {
+    const injection = {
+        id: "demo-injection",
+        event_type: "injection",
+        event_date: "2026-09-07",
+        status: "verified",
+        details_json: { subtype: "Librela" },
+    }
+    const reminder = {
+        id: "demo-reminder",
+        event_type: "reminder",
+        event_date: "2026-10-19",
+        status: "planned",
+        details_json: { subtype: "Librela", due_date: "2026-10-26" },
+    }
+    const draft = {
+        recipient_name: "Harborlight Veterinary Center",
+        message_body: "Please help me schedule Momo's next Librela injection.",
+        dates: {
+            last_verified_injection_date: "2026-09-07",
+            reminder_date: "2026-10-19",
+            due_date: "2026-10-26",
+        },
+        delivery: { status: "not_sent", send_available: false },
+    }
+
+    const response = composeGroundedAnswer({
+        question: "Draft a Librela appointment request.",
+        queryPlan: { intent: "librela_appointment_message" },
+        context: {},
+        runtimeMode: "demo",
+        messageDraftPreparation: {
+            status: "prepared",
+            injection,
+            reminder,
+            draft,
+            workflow: { run_id: "demo-run" },
+        },
+    })
+
+    assert.equal(response.answer_type, "message_draft_prepared")
+    assert.match(response.answer, /remains inside TomoCare/)
+    assert.match(response.answer, /nothing can be sent/)
+    assert.match(response.limitations.join(" "), /No recipient destination/)
+    assert.doesNotMatch(response.answer, /open the draft in Messages/i)
+})
+
 test("does not draft a duplicate Librela request when an appointment exists", () => {
     const appointment = {
         id: "librela-appointment",

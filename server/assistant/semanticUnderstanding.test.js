@@ -529,6 +529,32 @@ test("preserves a bounded attention window for a semantic paraphrase", async () 
     })
 })
 
+test("preserves an explicit named month on semantic attention routing", async () => {
+    const result = await resolveAssistantPlan({
+        question: "What needs my attention in October?",
+        currentCareDate: "2026-09-10",
+        buildPlan: unknownPlan,
+        semanticProvider: {
+            async interpret() {
+                return interpretation({
+                    intent: "attention_summary",
+                    subject: "attention",
+                    cost_scope: "none",
+                    interpreted_question: "What needs attention",
+                })
+            },
+        },
+    })
+
+    assert.equal(result.queryPlan.intent, "attention_summary")
+    assert.deepEqual(result.queryPlan.date_range, {
+        type: "calendar_month",
+        label: "October 2026",
+        start: "2026-10-01",
+        end: "2026-10-31",
+    })
+})
+
 test("keeps a deterministic broad overview clarification without model inference", async () => {
     const result = await resolveAssistantPlan({
         question: "Hey Tomo, anything I need to know?",

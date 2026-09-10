@@ -29,6 +29,17 @@ test("external provider execution fails closed in demo mode", () => {
     )
 })
 
+test("the typed outbound-message capability is also closed in demo mode", () => {
+    assert.throws(
+        () =>
+            assertExternalSideEffectAllowed(
+                EXTERNAL_CAPABILITIES.OUTBOUND_MESSAGE,
+                { TOMOCARE_RUNTIME_MODE: "demo" }
+            ),
+        (error) => error.reason === "demo_external_action_blocked"
+    )
+})
+
 test("real mode preserves the existing provider boundary", () => {
     assert.doesNotThrow(() =>
         assertExternalSideEffectAllowed("Google Calendar", {

@@ -15,6 +15,7 @@ export function composeGroundedAnswer({
     messageDraftPreparation = null,
     attentionSummary = null,
     profileSummary = null,
+    runtimeMode = "real",
 }) {
     let response
 
@@ -72,7 +73,8 @@ export function composeGroundedAnswer({
 
         case "librela_appointment_message":
             response = answerLibrelaAppointmentMessage(
-                messageDraftPreparation
+                messageDraftPreparation,
+                runtimeMode
             )
             break
 
@@ -1925,16 +1927,19 @@ function answerHomeMedicationGivenAction(queryPlan, preparation) {
     )
 }
 
-function answerLibrelaAppointmentMessage(preparation) {
+function answerLibrelaAppointmentMessage(preparation, runtimeMode = "real") {
     if (preparation?.status === "prepared") {
         const draft = preparation.draft
+        const isDemo = runtimeMode === "demo"
 
         return {
             answer:
                 `I prepared a Librela appointment request for ${draft.recipient_name} ` +
                 `using Momo’s last verified injection on ${formatDate(draft.dates.last_verified_injection_date)} ` +
                 `and her current due date of ${formatDate(draft.dates.due_date)}. ` +
-                "Review or edit the exact message before approving it. After approval, you can open the draft in Messages and decide whether to send it.",
+                (isDemo
+                    ? "Review, edit, or copy the draft. Demo mode has no clinic destination, so it remains inside TomoCare and nothing can be sent."
+                    : "Review or edit the exact message before approving it. After approval, you can open the draft in Messages and decide whether to send it."),
             answer_type: "message_draft_prepared",
             confidence: "high",
             citations: [
@@ -1947,10 +1952,15 @@ function answerLibrelaAppointmentMessage(preparation) {
                     "Current Librela reminder"
                 ),
             ],
-            limitations: [
-                "Nothing has been sent yet. The Messages handoff remains an editable draft until you choose Send in Messages.",
-                "TomoCare verifies the clinic’s active SMS recipient on the server before freezing the request for approval.",
-            ],
+            limitations: isDemo
+                ? [
+                      "No recipient destination is configured or exposed in demo mode.",
+                      "The request has not been sent, delivered, or booked. Copying is the only review fallback.",
+                  ]
+                : [
+                      "Nothing has been sent yet. The Messages handoff remains an editable draft until you choose Send in Messages.",
+                      "TomoCare verifies the clinic’s active SMS recipient on the server before freezing the request for approval.",
+                  ],
             proposed_action: null,
             message_draft: draft,
             workflow: preparation.workflow,

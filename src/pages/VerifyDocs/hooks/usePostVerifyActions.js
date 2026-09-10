@@ -211,6 +211,16 @@ export function usePostVerifyActions({
             successToast: (syncResult) =>
                 createdToast(syncResult, createResult),
         })
+
+        if (actionKey === "librela" && onReconciled) {
+            try {
+                await onReconciled()
+            } catch {
+                setError(
+                    "The Librela reminder was saved, but this page could not refresh. Refresh the browser to continue to the appointment draft."
+                )
+            }
+        }
     }
 
     async function previewLibrelaRepair() {

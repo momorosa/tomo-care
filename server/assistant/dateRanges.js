@@ -114,6 +114,9 @@ export function resolveAttentionDateRange(question, today = new Date()) {
         }
     }
 
+    const explicitRange = resolveDateRange(question, todayString)
+    if (explicitRange.type !== "all_time") return explicitRange
+
     return {
         type: "all_time",
         label: "current attention",

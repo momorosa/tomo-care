@@ -25,6 +25,7 @@ export default function LibrelaAppointmentMessageDialog({
     onEditMessage,
     onRetryRecovery,
     onDismiss,
+    runtimeMode = "real",
 }) {
     const [messageBody, setMessageBody] = useState(draft.message_body)
     const [copyState, setCopyState] = useState("idle")
@@ -33,6 +34,7 @@ export default function LibrelaAppointmentMessageDialog({
 
     const busy = BUSY_PHASES.has(phase)
     const frozen = Boolean(action)
+    const isDemoReview = runtimeMode === "demo" && phase === "drafting"
     const terminal = [
         "succeeded",
         "failed",
@@ -58,6 +60,10 @@ export default function LibrelaAppointmentMessageDialog({
 
     function handlePrimaryAction() {
         if (phase === "drafting") {
+            if (isDemoReview) {
+                onDismiss?.()
+                return
+            }
             onApproveMessage?.(messageBody)
             return
         }
@@ -100,7 +106,9 @@ export default function LibrelaAppointmentMessageDialog({
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <p className="tomo-section-label text-tomo-accent">
-                                Governed appointment request
+                                {isDemoReview
+                                    ? "Review-only demo draft"
+                                    : "Governed appointment request"}
                             </p>
                             <h2
                                 id="librela-message-title"
@@ -132,6 +140,7 @@ export default function LibrelaAppointmentMessageDialog({
                         error={error}
                         execution={execution}
                         handoff={handoff}
+                        isDemoReview={isDemoReview}
                     />
 
                     <div className="mt-5 rounded-2xl border border-tomo-border bg-white/[0.025] p-5">
@@ -151,13 +160,17 @@ export default function LibrelaAppointmentMessageDialog({
                             >
                                 {frozen
                                     ? "Verified SMS recipient"
-                                    : "Trusted clinic"}
+                                    : isDemoReview
+                                      ? "Trusted fictional clinic"
+                                      : "Trusted clinic"}
                             </span>
                         </div>
                         <p className="mt-2 text-xs leading-5 text-tomo-text">
                             {frozen
                                 ? `TomoCare verified the clinic’s active SMS contact before freezing this request.${handoff?.recipient_display ? ` ${handoff.recipient_display}.` : " The private number stays server-side until the native handoff is prepared."}`
-                                : "TomoCare will verify the clinic’s active SMS contact before approval. The private number will stay server-side."}
+                                : isDemoReview
+                                  ? "The clinic name comes from the verified fictional record. No phone number, address, or launch destination is configured or exposed."
+                                  : "TomoCare will verify the clinic’s active SMS contact before approval. The private number will stay server-side."}
                         </p>
 
                         <p className="tomo-section-label mt-5">Purpose</p>
@@ -190,7 +203,9 @@ export default function LibrelaAppointmentMessageDialog({
                                 ? phase === "reviewing"
                                     ? "This exact version is frozen for the current approval. Choose Edit message to cancel the proposal and create a new one."
                                     : "This is the exact message you approved. It cannot be changed within this action."
-                                : "You can edit this message until you approve it."}
+                                : isDemoReview
+                                  ? "You can edit or copy this review-only draft. It cannot be approved or sent in demo mode."
+                                  : "You can edit this message until you approve it."}
                         </span>
                         <textarea
                             value={messageBody}
@@ -214,13 +229,14 @@ export default function LibrelaAppointmentMessageDialog({
                         </span>
                         <div>
                             <p className="text-sm font-medium text-tomo-text-h">
-                                You make the final sending decision
+                                {isDemoReview
+                                    ? "Nothing can be sent from demo mode"
+                                    : "You make the final sending decision"}
                             </p>
                             <p className="mt-1 text-xs leading-5 text-tomo-text">
-                                After approval, Open in Messages creates an
-                                editable draft to the verified clinic. TomoCare
-                                cannot tell whether you send or cancel it, and it
-                                does not book an appointment.
+                                {isDemoReview
+                                    ? "This draft remains inside TomoCare. Copying it is the only fallback; no recipient is contacted and no appointment is booked."
+                                    : "After approval, Open in Messages creates an editable draft to the verified clinic. TomoCare cannot tell whether you send or cancel it, and it does not book an appointment."}
                             </p>
                         </div>
                     </div>
@@ -272,6 +288,7 @@ export default function LibrelaAppointmentMessageDialog({
                         onResolveHandoff={onResolveHandoff}
                         resolutionChoice={resolutionChoice}
                         onResolutionChoice={setResolutionChoice}
+                        isDemoReview={isDemoReview}
                     />
                 </div>
             </section>
@@ -279,7 +296,42 @@ export default function LibrelaAppointmentMessageDialog({
     )
 }
 
-function DeliveryState({ phase, recipientName, error, execution, handoff }) {
+function DeliveryState({
+    phase,
+    recipientName,
+    error,
+    execution,
+    handoff,
+    isDemoReview = false,
+}) {
+    if (isDemoReview) {
+        return (
+            <div
+                className="rounded-2xl border border-[color:var(--tomo-warning-border)] bg-[var(--tomo-warning-bg)] p-5 text-tomo-warning"
+                role="status"
+            >
+                <div className="flex items-start gap-3">
+                    <span
+                        className="material-symbols-outlined mt-0.5 shrink-0 text-xl"
+                        aria-hidden="true"
+                    >
+                        visibility
+                    </span>
+                    <div>
+                        <p className="text-sm font-semibold">
+                            Review-only draft
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-tomo-text-h">
+                            No clinic destination is configured. You can edit or
+                            copy this draft, and nothing can be sent from demo
+                            mode.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     const state = getDeliveryState({
         phase,
         recipientName,
@@ -523,6 +575,7 @@ function DialogActions({
     onResolveHandoff,
     resolutionChoice,
     onResolutionChoice,
+    isDemoReview = false,
 }) {
     const canCopy = !busy && !terminal
     const canEdit = frozen && phase === "reviewing"
@@ -632,7 +685,7 @@ function DialogActions({
                     onClick={onPrimary}
                     disabled={busy || (!messageBody.trim() && !terminal)}
                 >
-                    {getPrimaryLabel(phase)}
+                    {isDemoReview ? "Done" : getPrimaryLabel(phase)}
                 </button>
             )}
         </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import AssistantPanel from "./AssistantPanel.jsx"
 import { CareContextDrawer, CareNavigation } from "./CareSidebar.jsx"
 import CareActionDialog from "./CareActionDialog.jsx"
@@ -34,6 +34,7 @@ import {
 } from "./careActionRecovery.js"
 import { requestAppleMessagesDraft } from "./appleMessagesHandoff.js"
 import { getAttentionNavigationEffect } from "./attentionNavigation.js"
+import { useRuntimeContext } from "../../runtime/RuntimeContext.jsx"
 
 const PET_SCOPE = "current"
 const CARE_ACTOR = "Rosa"
@@ -74,6 +75,13 @@ function normalizeReviewDocuments(result) {
 
 export default function Dashboard() {
     const navigate = useNavigate()
+    const location = useLocation()
+    const runtime = useRuntimeContext()
+    const [initialAssistantQuestion] = useState(() =>
+        typeof location.state?.assistantPrompt === "string"
+            ? location.state.assistantPrompt
+            : ""
+    )
     const [homeLayout, dispatchHomeLayout] = useReducer(
         reduceConversationalHome,
         undefined,
@@ -101,6 +109,12 @@ export default function Dashboard() {
     const [refreshingReminders, setRefreshingReminders] = useState(false)
     const [calendarSyncByReminder, setCalendarSyncByReminder] = useState({})
     const [focusedReminderId, setFocusedReminderId] = useState(null)
+
+    useEffect(() => {
+        if (!location.state?.assistantPrompt) return
+
+        navigate(location.pathname, { replace: true, state: null })
+    }, [location.pathname, location.state?.assistantPrompt, navigate])
 
     const loadPendingReviewDocs = useCallback(async () => {
         try {
@@ -1040,6 +1054,7 @@ export default function Dashboard() {
 
                 <AssistantPanel
                     petId={PET_SCOPE}
+                    initialQuestion={initialAssistantQuestion}
                     reminders={reminders}
                     pendingActionCount={pendingActionCount}
                     pendingActions={pendingActions}
@@ -1087,6 +1102,7 @@ export default function Dashboard() {
                 <LibrelaAppointmentMessageDialog
                     key={appointmentMessageFlow.action?.id || "librela-draft"}
                     {...appointmentMessageFlow}
+                    runtimeMode={runtime.mode}
                     onApproveMessage={prepareAndApproveAppointmentRequest}
                     onApprove={() => approveAppointmentRequest()}
                     onOpenInMessages={() =>

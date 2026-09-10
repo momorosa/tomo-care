@@ -174,6 +174,20 @@ test("guarantees the four bounded attention windows", () => {
     }
 })
 
+test("keeps a named month on the governed attention plan", () => {
+    const plan = buildQueryPlan("What needs my attention in October?", {
+        currentCareDate: "2026-09-10",
+    })
+
+    assert.equal(plan.intent, "attention_summary")
+    assert.deepEqual(plan.date_range, {
+        type: "calendar_month",
+        label: "October 2026",
+        start: "2026-10-01",
+        end: "2026-10-31",
+    })
+})
+
 test("asks a focused clarification for broad care-overview prompts", () => {
     for (const question of [
         "What's new?",

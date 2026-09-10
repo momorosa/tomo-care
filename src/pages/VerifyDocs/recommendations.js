@@ -28,6 +28,7 @@ export function getPostVerifyRecommendations(doc) {
         doc?.action_recommendations?.weightMaterialization || null
     const hasUnclassifiedLibrelaMention = !serverLibrela && looksLikeLibrela(doc)
     const isReceipt = looksLikeReceipt(doc)
+    const appointmentReady = serverLibrela?.state === "reconciled"
 
     return {
         weightMaterialization: serverWeight
@@ -86,10 +87,10 @@ export function getPostVerifyRecommendations(doc) {
         },
 
         appointmentDraft: {
-            show: true,
-            disabled: true,
-            recommended: false,
-            badge: "Coming next",
+            show: Boolean(serverLibrela?.show || hasUnclassifiedLibrelaMention),
+            disabled: !appointmentReady,
+            recommended: appointmentReady,
+            badge: appointmentReady ? "Review only" : "Create reminder first",
         },
     }
 }

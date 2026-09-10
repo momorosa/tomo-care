@@ -28,6 +28,8 @@ const FORWARD_ATTENTION_WINDOW_TYPES = new Set([
     "next_care_day",
     "current_week",
     "current_month",
+    "calendar_month",
+    "calendar_year",
 ])
 
 export async function buildAttentionSummary({

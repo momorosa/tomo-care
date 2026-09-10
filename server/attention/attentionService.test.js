@@ -255,6 +255,48 @@ test("returns only scheduled reminders for a tomorrow-only attention window", as
     )
 })
 
+test("returns the October insurance and Librela reminders for a named month", async () => {
+    const repository = buildRepository({
+        reminders: [
+            buildInsuranceReminder({
+                id: "october-insurance",
+                targetDate: "2026-10-07",
+                deadlineDate: "2027-03-06",
+            }),
+            {
+                id: "october-librela",
+                event_type: "reminder",
+                event_date: "2026-10-19",
+                status: "planned",
+                details_json: {
+                    subtype: "Librela",
+                    due_date: "2026-10-26",
+                },
+            },
+        ],
+    })
+
+    const result = await buildAttentionSummary({
+        repository,
+        petId: PET_ID,
+        currentCareDate: "2026-09-10",
+        dateRange: {
+            type: "calendar_month",
+            label: "October 2026",
+            start: "2026-10-01",
+            end: "2026-10-31",
+        },
+    })
+
+    assert.equal(result.current_work_included, false)
+    assert.deepEqual(
+        result.items.map((item) => item.id),
+        ["reminder:october-insurance", "reminder:october-librela"]
+    )
+    assert.match(result.items[1].reason, /October 19, 2026/)
+    assert.match(result.items[1].reason, /October 26, 2026/)
+})
+
 test("combines current work with reminders becoming active this week", async () => {
     const repository = buildRepository({
         reminders: [
