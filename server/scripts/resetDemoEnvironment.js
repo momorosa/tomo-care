@@ -1,7 +1,5 @@
-import "dotenv/config"
 import process from "node:process"
 import { pathToFileURL } from "node:url"
-import { createClient } from "@supabase/supabase-js"
 import {
     getServerRuntimeContext,
     RUNTIME_MODES,
@@ -13,20 +11,17 @@ import {
     DEMO_OWNED_TABLES,
     DEMO_PET_ID,
     DEMO_PROJECT_REF,
-    DEMO_RECORD_IDS,
+    DEMO_RESET_TARGETS,
     DEMO_STORAGE_BUCKET,
     DEMO_STORAGE_PREFIX,
     getDemoScenarioCounts,
 } from "../demo/scenarioManifest.js"
 
-const PET_OWNED_DELETE_ORDER = Object.freeze([
-    "care_actions",
-    "orchestration_runs",
+const DOCUMENT_DERIVED_DELETE_ORDER = Object.freeze([
     "cost_items",
     "labs",
     "facts",
     "events",
-    "documents",
 ])
 
 const SEED_ORDER = Object.freeze([
@@ -94,13 +89,10 @@ export async function resetDemoEnvironment({
     validateResetPlan(scenario)
     assertRepository(repository)
 
-    await repository.removeStoragePrefix({
-        bucket: DEMO_STORAGE_BUCKET,
-        prefix: DEMO_STORAGE_PREFIX,
-    })
+    await repository.removeStorageObjects(DEMO_RESET_TARGETS.storage)
     await repository.deleteDemoOwnedRecords({
         petId: DEMO_PET_ID,
-        recordIds: DEMO_RECORD_IDS,
+        resetTargets: DEMO_RESET_TARGETS,
     })
     const insertedCounts = await repository.insertScenario(scenario)
 
@@ -180,61 +172,111 @@ export function validateResetPlan(scenario) {
 
 export function createSupabaseDemoResetRepository(client) {
     return {
-        async removeStoragePrefix({ bucket, prefix }) {
-            assertExactStorageTarget(bucket, prefix)
-            const paths = await listStorageObjectPaths(client, bucket, prefix)
-            if (paths.length === 0) return 0
+        async removeStorageObjects({ bucket, objectPaths }) {
+            assertExactStorageObjects(bucket, objectPaths)
+            if (objectPaths.length === 0) return 0
 
-            const { error } = await client.storage.from(bucket).remove(paths)
+            const { error } = await client.storage
+                .from(bucket)
+                .remove([...objectPaths])
             throwOnSupabaseError(error, "remove demo storage objects")
-            return paths.length
+            return objectPaths.length
         },
 
-        async deleteDemoOwnedRecords({ petId, recordIds }) {
-            if (petId !== DEMO_PET_ID || recordIds !== DEMO_RECORD_IDS) {
+        async deleteDemoOwnedRecords({ petId, resetTargets }) {
+            if (
+                petId !== DEMO_PET_ID ||
+                resetTargets !== DEMO_RESET_TARGETS
+            ) {
                 throw resetError(
                     "invalid_demo_ownership",
                     "Reset refused: delete ownership does not match the manifest."
                 )
             }
 
-            const { data: actions, error: actionLookupError } = await client
-                .from("care_actions")
-                .select("id")
-                .eq("pet_id", petId)
-            throwOnSupabaseError(actionLookupError, "load demo care actions")
+            const eventIds = await loadIdsByExactTargets(
+                client,
+                "events",
+                resetTargets.rows.events
+            )
+            const { data: actions, error: actionLookupError } = eventIds.length
+                ? await client
+                      .from("care_actions")
+                      .select("id, orchestration_run_id")
+                      .in("source_event_id", eventIds)
+                : { data: [], error: null }
+            throwOnSupabaseError(
+                actionLookupError,
+                "load manifest-derived demo care actions"
+            )
 
             const actionIds = (actions || []).map((action) => action.id)
-            if (actionIds.length > 0) {
-                const { error } = await client
-                    .from("apple_messages_handoffs")
-                    .delete()
-                    .in("care_action_id", actionIds)
-                throwOnSupabaseError(error, "delete demo Messages handoffs")
-            }
+            const orchestrationRunIds = (actions || [])
+                .map((action) => action.orchestration_run_id)
+                .filter(Boolean)
 
-            for (const table of PET_OWNED_DELETE_ORDER) {
+            await deleteRowsByIds(
+                client,
+                "apple_messages_handoffs",
+                "care_action_id",
+                actionIds,
+                "delete manifest-derived demo Messages handoffs"
+            )
+            await deleteRowsByIds(
+                client,
+                "care_actions",
+                "id",
+                actionIds,
+                "delete manifest-derived demo care actions"
+            )
+            await deleteRowsByIds(
+                client,
+                "orchestration_runs",
+                "id",
+                orchestrationRunIds,
+                "delete manifest-derived demo orchestration runs"
+            )
+
+            for (const table of DOCUMENT_DERIVED_DELETE_ORDER) {
                 assertAllowlistedTable(table)
-                const { error } = await client
-                    .from(table)
-                    .delete()
-                    .eq("pet_id", petId)
-                throwOnSupabaseError(error, `delete demo ${table}`)
+                const target = resetTargets.rows[table]
+                await deleteRowsByIds(
+                    client,
+                    table,
+                    "id",
+                    target.ids,
+                    `delete manifest-owned demo ${table}`
+                )
+                await deleteRowsByIds(
+                    client,
+                    table,
+                    "doc_id",
+                    target.documentIds,
+                    `delete source-linked demo ${table}`
+                )
             }
 
-            if (recordIds.providerContacts.length > 0) {
-                const { error } = await client
-                    .from("provider_contacts")
-                    .delete()
-                    .in("id", recordIds.providerContacts)
-                throwOnSupabaseError(error, "delete demo provider contacts")
-            }
-
-            const { error: petDeleteError } = await client
-                .from("pets")
-                .delete()
-                .eq("id", petId)
-            throwOnSupabaseError(petDeleteError, "delete demo pet")
+            await deleteRowsByIds(
+                client,
+                "documents",
+                "id",
+                resetTargets.rows.documents.ids,
+                "delete manifest-owned demo documents"
+            )
+            await deleteRowsByIds(
+                client,
+                "provider_contacts",
+                "id",
+                resetTargets.rows.provider_contacts.ids,
+                "delete manifest-owned demo provider contacts"
+            )
+            await deleteRowsByIds(
+                client,
+                "pets",
+                "id",
+                resetTargets.rows.pets.ids,
+                "delete the manifest-owned demo pet"
+            )
         },
 
         async insertScenario(scenario) {
@@ -270,37 +312,13 @@ export async function runDemoReset({
 } = {}) {
     const prepared = prepareDemoReset({ env, argv, now })
     const { url, secretKey } = getSupabaseServerConfig(env)
+    const { createClient } = await import("@supabase/supabase-js")
     const client = createClient(url, secretKey, {
         auth: { autoRefreshToken: false, persistSession: false },
     })
     const repository = repositoryFactory(client)
 
     return resetDemoEnvironment({ ...prepared, repository })
-}
-
-async function listStorageObjectPaths(client, bucket, prefix) {
-    assertExactStorageTarget(bucket, prefix)
-    const paths = []
-
-    async function visit(currentPrefix) {
-        const { data, error } = await client.storage.from(bucket).list(
-            currentPrefix,
-            { limit: 1000, sortBy: { column: "name", order: "asc" } }
-        )
-        throwOnSupabaseError(error, "list demo storage objects")
-
-        for (const item of data || []) {
-            const itemPath = `${currentPrefix}/${item.name}`
-            if (item.id) {
-                paths.push(itemPath)
-            } else {
-                await visit(itemPath)
-            }
-        }
-    }
-
-    await visit(prefix)
-    return paths
 }
 
 function getConfirmedProjectRef(argv) {
@@ -311,13 +329,49 @@ function getConfirmedProjectRef(argv) {
     return index >= 0 ? argv[index + 1] : null
 }
 
-function assertExactStorageTarget(bucket, prefix) {
-    if (bucket !== DEMO_STORAGE_BUCKET || prefix !== DEMO_STORAGE_PREFIX) {
+function assertExactStorageObjects(bucket, objectPaths) {
+    const expected = DEMO_RESET_TARGETS.storage.objectPaths
+    if (
+        bucket !== DEMO_STORAGE_BUCKET ||
+        !Array.isArray(objectPaths) ||
+        objectPaths.length !== expected.length ||
+        objectPaths.some((path, index) => path !== expected[index])
+    ) {
         throw resetError(
             "invalid_storage_allowlist",
-            "Reset refused: storage cleanup is outside the demo prefix allowlist."
+            "Reset refused: Storage cleanup does not match the exact manifest-owned object allowlist."
         )
     }
+}
+
+async function loadIdsByExactTargets(client, table, target) {
+    const ids = new Set(target.ids || [])
+
+    if (target.documentIds?.length) {
+        const { data, error } = await client
+            .from(table)
+            .select("id")
+            .in("doc_id", target.documentIds)
+        throwOnSupabaseError(error, `load source-linked demo ${table}`)
+        for (const row of data || []) ids.add(row.id)
+    }
+
+    return [...ids]
+}
+
+async function deleteRowsByIds(
+    client,
+    table,
+    column,
+    ids = [],
+    operation
+) {
+    if (!ids.length) return 0
+    assertAllowlistedTable(table)
+
+    const { error } = await client.from(table).delete().in(column, [...ids])
+    throwOnSupabaseError(error, operation)
+    return ids.length
 }
 
 function assertAllowlistedTable(table) {
@@ -331,7 +385,7 @@ function assertAllowlistedTable(table) {
 
 function assertRepository(repository) {
     for (const method of [
-        "removeStoragePrefix",
+        "removeStorageObjects",
         "deleteDemoOwnedRecords",
         "insertScenario",
     ]) {

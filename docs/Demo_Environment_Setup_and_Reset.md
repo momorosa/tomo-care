@@ -133,18 +133,20 @@ The text after `[TomoCare Demo]` may vary. The marker must begin at the first
 character of the subject. Do not rename or modify the PDF; changed bytes fail
 the manifest-owned content check.
 
-Gate 2 carries that exact source through the existing raw-text, extraction, and
-Verification Intelligence path. The synthetic candidate deliberately leaves
-the printed invoice number empty so the review has one meaningful,
-insurance-relevant correction. In Verify, compare the candidate with the PDF,
-enter `HVC-DEMO-090726`, and select **Save draft**. Do not verify it during the
-Gate 2 check: the document should remain `needs_review`, and no trusted event,
-weight, cost, or preventive-status row should be created yet.
+The exact source travels through the existing raw-text, extraction,
+Verification Intelligence, correction, and explicit verification path. The
+synthetic candidate deliberately leaves the printed invoice number empty so
+the review has one meaningful, insurance-relevant correction. In Verify,
+compare the candidate with the PDF, enter `HVC-DEMO-090726`, and select
+**Save correction & recheck**. Confirm that this save alone creates no trusted
+event, weight, cost, or preventive-status row. Then select
+**Verify and add to care record** and confirm the verification summary before
+continuing to optional actions.
 
-Run the focused Gate 2 contract before the manual check:
+Run the focused Gate 3 contract before the manual check:
 
 ```bash
-npm run test:demo-gmail-review
+npm run test:demo-gmail-trusted
 ```
 
 Expected review state after a successful non-dry inbox check:
@@ -156,6 +158,11 @@ Expected review state after a successful non-dry inbox check:
 - Verification Intelligence shows exactly one blocking item for `invoice_id`;
 - saving the corrected draft reruns the review and clears that block without
   materializing trusted records.
+- explicit verification creates one source-linked Librela event, one verified
+  13.1 kg weight, four cost items totaling $177.00, and the exact
+  clinic-reported Rabies status without creating Rabies administration;
+- Dashboard, Chat, and Voice use the newly verified source-linked evidence;
+- checking the inbox again skips the existing document and trusted rows.
 
 Do not add Google Calendar, SMS, clinic-recipient, or Messages destination
 configuration. Those capabilities remain blocked in demo mode.
@@ -177,7 +184,8 @@ delete, upload removal, or insert:
 2. `SUPABASE_URL` resolves to the exact allowlisted project reference.
 3. The command repeats that exact project reference.
 4. `TOMO_PET_ID` matches the fixed fictional scenario manifest.
-5. Every table and Storage prefix matches the hard-coded allowlist.
+5. Every row selector and the one removable Storage object match the frozen
+   manifest allowlist.
 
 The successful result reports the current Pacific care date and these row
 counts:
@@ -195,14 +203,15 @@ care_actions:               0
 apple_messages_handoffs:    0
 ```
 
-The only removable Storage scope is:
+The only removable Storage object is:
 
 ```text
-tomo-docs/demo/tomocare-demo-v1
+tomo-docs/demo/tomocare-demo-v1/intake/tomocare-demo-v1-harborlight-invoice.pdf
 ```
 
 Run the same reset command a second time. It should succeed with the same
-logical records and counts, without duplicates.
+logical records and counts, without duplicates. Reset does not list or sweep
+the prefix and does not delete the retained source email from Gmail.
 
 ## Step 6 — Start TomoCare in demo mode
 

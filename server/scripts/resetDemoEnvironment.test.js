@@ -1,15 +1,18 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import {
+    createSupabaseDemoResetRepository,
     prepareDemoReset,
     resetDemoEnvironment,
     runDemoReset,
     validateResetPlan,
 } from "./resetDemoEnvironment.js"
 import {
+    DEMO_INTAKE_FIXTURE,
     DEMO_PET_ID,
     DEMO_PROJECT_REF,
     DEMO_PROJECT_URL,
+    DEMO_RESET_TARGETS,
 } from "../demo/scenarioManifest.js"
 
 const DEMO_ENV = Object.freeze({
@@ -87,11 +90,12 @@ test("two resets leave the same logical row set without duplicates", async () =>
     const store = new Map()
     const calls = []
     const repository = {
-        async removeStoragePrefix(target) {
+        async removeStorageObjects(target) {
             calls.push(["storage", target])
         },
-        async deleteDemoOwnedRecords({ petId }) {
+        async deleteDemoOwnedRecords({ petId, resetTargets }) {
             calls.push(["delete", petId])
+            assert.equal(resetTargets, DEMO_RESET_TARGETS)
             store.clear()
         },
         async insertScenario(scenario) {
@@ -119,6 +123,133 @@ test("two resets leave the same logical row set without duplicates", async () =>
         "delete",
         "insert",
     ])
+    assert.deepEqual(calls[0][1], {
+        bucket: "tomo-docs",
+        objectPaths: [DEMO_INTAKE_FIXTURE.storageKey],
+    })
+})
+
+test("reset targets only exact manifest rows, source document links, and one Storage object", () => {
+    assert.deepEqual(DEMO_RESET_TARGETS.storage.objectPaths, [
+        DEMO_INTAKE_FIXTURE.storageKey,
+    ])
+    assert.deepEqual(DEMO_RESET_TARGETS.rows.events.documentIds, [
+        DEMO_INTAKE_FIXTURE.documentId,
+    ])
+    assert.deepEqual(DEMO_RESET_TARGETS.rows.facts.documentIds, [
+        DEMO_INTAKE_FIXTURE.documentId,
+    ])
+    assert.deepEqual(DEMO_RESET_TARGETS.rows.cost_items.documentIds, [
+        DEMO_INTAKE_FIXTURE.documentId,
+    ])
+    assert.deepEqual(DEMO_RESET_TARGETS.rows.labs.documentIds, [
+        DEMO_INTAKE_FIXTURE.documentId,
+    ])
+    assert.ok(
+        DEMO_RESET_TARGETS.rows.documents.ids.includes(
+            DEMO_INTAKE_FIXTURE.documentId
+        )
+    )
+})
+
+test("the Supabase reset repository never scopes destructive work by pet alone or lists a prefix", async () => {
+    const calls = []
+    const client = {
+        storage: {
+            from(bucket) {
+                return {
+                    async remove(paths) {
+                        calls.push(["storage.remove", bucket, paths])
+                        return { error: null }
+                    },
+                }
+            },
+        },
+        from(table) {
+            return {
+                select(columns) {
+                    return {
+                        async in(column, ids) {
+                            calls.push(["select.in", table, column, ids])
+                            if (table === "events") {
+                                return {
+                                    data: [{ id: "derived-event-id" }],
+                                    error: null,
+                                }
+                            }
+                            if (table === "care_actions") {
+                                return {
+                                    data: [
+                                        {
+                                            id: "derived-action-id",
+                                            orchestration_run_id:
+                                                "derived-run-id",
+                                        },
+                                    ],
+                                    error: null,
+                                }
+                            }
+                            throw new Error(
+                                `Unexpected select: ${table} ${columns}`
+                            )
+                        },
+                    }
+                },
+                delete() {
+                    return {
+                        async in(column, ids) {
+                            calls.push(["delete.in", table, column, ids])
+                            return { error: null }
+                        },
+                    }
+                },
+            }
+        },
+    }
+    const repository = createSupabaseDemoResetRepository(client)
+
+    await repository.removeStorageObjects(DEMO_RESET_TARGETS.storage)
+    await repository.deleteDemoOwnedRecords({
+        petId: DEMO_PET_ID,
+        resetTargets: DEMO_RESET_TARGETS,
+    })
+
+    assert.deepEqual(calls[0], [
+        "storage.remove",
+        DEMO_RESET_TARGETS.storage.bucket,
+        [DEMO_INTAKE_FIXTURE.storageKey],
+    ])
+    assert.ok(
+        calls.some(
+            ([operation, table, column, ids]) =>
+                operation === "delete.in" &&
+                table === "events" &&
+                column === "doc_id" &&
+                ids.includes(DEMO_INTAKE_FIXTURE.documentId)
+        )
+    )
+    assert.ok(
+        calls.some(
+            ([operation, table, column, ids]) =>
+                operation === "delete.in" &&
+                table === "documents" &&
+                column === "id" &&
+                ids.includes(DEMO_INTAKE_FIXTURE.documentId)
+        )
+    )
+    assert.equal(calls.some(([, , column]) => column === "pet_id"), false)
+    assert.equal(calls.some(([operation]) => operation === "storage.list"), false)
+
+    await assert.rejects(
+        () =>
+            repository.removeStorageObjects({
+                bucket: DEMO_RESET_TARGETS.storage.bucket,
+                objectPaths: [
+                    "demo/tomocare-demo-v1/intake/not-the-manifest-object.pdf",
+                ],
+            }),
+        /exact manifest-owned object allowlist/
+    )
 })
 
 test("rejects any table or storage target outside the manifest allowlist", () => {

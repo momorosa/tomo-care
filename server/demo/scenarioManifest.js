@@ -62,6 +62,41 @@ export const DEMO_RECORD_IDS = Object.freeze({
     intakeDocument: DEMO_INTAKE_DOCUMENT_ID,
 })
 
+export const DEMO_RESET_TARGETS = Object.freeze({
+    storage: Object.freeze({
+        bucket: DEMO_STORAGE_BUCKET,
+        objectPaths: Object.freeze([DEMO_INTAKE_FIXTURE.storageKey]),
+    }),
+    rows: Object.freeze({
+        documents: Object.freeze({
+            ids: Object.freeze([
+                ...DEMO_RECORD_IDS.documents,
+                DEMO_RECORD_IDS.intakeDocument,
+            ]),
+        }),
+        events: Object.freeze({
+            ids: DEMO_RECORD_IDS.events,
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        facts: Object.freeze({
+            ids: DEMO_RECORD_IDS.facts,
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        cost_items: Object.freeze({
+            ids: DEMO_RECORD_IDS.costItems,
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        labs: Object.freeze({
+            ids: Object.freeze([]),
+            documentIds: Object.freeze([DEMO_RECORD_IDS.intakeDocument]),
+        }),
+        provider_contacts: Object.freeze({
+            ids: DEMO_RECORD_IDS.providerContacts,
+        }),
+        pets: Object.freeze({ ids: Object.freeze([DEMO_PET_ID]) }),
+    }),
+})
+
 const WEIGHT_READINGS = Object.freeze([
     Object.freeze({ offsetDays: -330, valueKg: 13.8 }),
     Object.freeze({ offsetDays: -220, valueKg: 13.6 }),
