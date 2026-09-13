@@ -6,6 +6,7 @@ import {
   EXTERNAL_CAPABILITIES,
 } from "../config/externalSideEffects.js";
 import { getRuntimeMode, RUNTIME_MODES } from "../config/runtimeContext.js";
+import { isKnownDemoSource, DEMO_SOURCE_EXCLUDED } from "./realCareDemoGuard.js";
 import {
   DemoGmailIntakeConfigurationError,
   evaluateDemoGmailAccount,
@@ -349,6 +350,14 @@ export async function fetchCanonicalReceiptEmails({
     }
 
     for (const part of candidateParts) {
+      if (!demoContract && isKnownDemoSource({ subject, filename: part.filename })) {
+        skippedAttachments.push({
+          filename: part.filename,
+          mimeType: part.mimeType,
+          reason: DEMO_SOURCE_EXCLUDED,
+        });
+        continue;
+      }
       const classification = classifyAttachment(part);
 
       if (classification.action === "skip") {
@@ -386,6 +395,16 @@ export async function fetchCanonicalReceiptEmails({
           : classification.reason,
         data: buffer,
       };
+
+      // A renamed or forwarded copy still has the fixture's exact fingerprint.
+      if (!demoContract && isKnownDemoSource(attachment)) {
+        skippedAttachments.push({
+          filename: part.filename,
+          mimeType: part.mimeType,
+          reason: DEMO_SOURCE_EXCLUDED,
+        });
+        continue;
+      }
 
       if (demoContract) {
         const contentDecision = evaluateDemoGmailAttachment({

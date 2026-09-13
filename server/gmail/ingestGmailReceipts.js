@@ -3,6 +3,7 @@ import { fetchCanonicalReceiptEmails } from "./gmailInbox.js"
 import { buildGmailStorageKey } from "./storageKey.js"
 import { buildGmailDocumentProvenance } from "./documentProvenance.js"
 import { getRuntimeMode, RUNTIME_MODES } from "../config/runtimeContext.js"
+import { isKnownDemoSource, DEMO_SOURCE_EXCLUDED } from "./realCareDemoGuard.js"
 import {
     evaluateDemoGmailAttachment,
     getDemoGmailIntakeContract,
@@ -247,8 +248,27 @@ export async function ingestGmailReceipts({
     }
 
     for (const email of emails) {
+        for (const skipped of email.skippedAttachments || []) {
+            if (skipped.reason !== DEMO_SOURCE_EXCLUDED) continue
+            summary.rejectedAttachments += 1
+            summary.items.push({
+                action: "reject_demo_attachment",
+                filename: skipped.filename,
+                reason: DEMO_SOURCE_EXCLUDED,
+            })
+        }
         for (const attachment of email.attachments) {
             summary.attachmentsFound += 1
+
+            if (!demoContract && isKnownDemoSource({ ...attachment, subject: email.subject })) {
+                summary.rejectedAttachments += 1
+                summary.items.push({
+                    action: "reject_demo_attachment",
+                    filename: attachment.filename,
+                    reason: DEMO_SOURCE_EXCLUDED,
+                })
+                continue
+            }
 
             if (demoContract) {
                 const contentDecision = evaluateDemoGmailAttachment({

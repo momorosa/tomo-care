@@ -44,7 +44,7 @@ export default function Header() {
                     </h1>
                 </Link>
 
-                {runtime.mode === "demo" && (
+                {runtime.mode === "demo" ? (
                     <div
                         className="tomo-demo-indicator"
                         role="status"
@@ -54,6 +54,14 @@ export default function Header() {
                             science
                         </span>
                         <span>Demo data</span>
+                    </div>
+                ) : (
+                    <div
+                        className="tomo-private-indicator"
+                        role="status"
+                        aria-label="Private care environment. Real care records."
+                    >
+                        <span>Private care</span>
                     </div>
                 )}
             </div>

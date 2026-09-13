@@ -12,6 +12,8 @@ import {
     getProcessingFailurePresentation,
 } from "./documentProcessingFallback.js"
 import { buildDemoInvoiceCandidate } from "../demo/demoInvoiceReviewContract.js"
+import { resolvePythonBin } from "../config/pythonRuntime.js"
+import { getRuntimeMode } from "../config/runtimeContext.js"
 
 export { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
 
@@ -27,7 +29,7 @@ export { getDocumentProcessingDecision } from "./documentProcessingDecision.js"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(__dirname, "../..")
 
-const PYTHON_BIN = process.env.PYTHON_BIN || "python3"
+const PYTHON_BIN = resolvePythonBin()
 const API_BASE_URL = process.env.TOMO_API_BASE_URL || "http://localhost:3001"
 
 const POPULATE_RAW_TEXT_SCRIPT = path.join(
@@ -252,7 +254,9 @@ export async function processDocumentToReview(docId, { force = false } = {}) {
         return result
     }
 
-    const processingDecision = getDocumentProcessingDecision(document)
+    const processingDecision = getDocumentProcessingDecision(document, {
+        runtimeMode: getRuntimeMode(),
+    })
 
     if (!processingDecision.allowed) {
         return {

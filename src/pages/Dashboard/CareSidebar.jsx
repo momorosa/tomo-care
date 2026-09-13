@@ -664,6 +664,11 @@ function InboxContext({ documents, result, error, checking, onCheck }) {
                         {result.documentsRetried || 0} retried ·{" "}
                         {result.skippedDuplicates || 0} duplicates skipped
                     </p>
+                    {result.excludedDemoSources > 0 && (
+                        <p className="mt-2 text-sm text-tomo-text" role="status">
+                            Demo documents were excluded from Private care. Use Demo data to rehearse the synthetic scenario.
+                        </p>
+                    )}
                     {(result.needsManualReview || 0) > 0 && (
                         <div className="mt-3 space-y-2">
                             {(result.manualReviewDocuments || []).map((item) => (
