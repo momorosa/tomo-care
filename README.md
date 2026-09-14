@@ -12,6 +12,8 @@ Project direction and current-state details live in the [TomoCare Operating Brie
 
 For laptop setup, read-only connection checks, and choosing Private care or Demo data, see [Local Setup and Inbox Isolation](./docs/Local_Setup_and_Inbox_Isolation.md).
 
+The [Consolidated Polish Register](./docs/TomoCare_Final_Polish_Register.md) is the draft review list for remaining polish, previously accepted feedback, proposed priorities, relative sizing, and manual acceptance checks.
+
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
 ## Core idea: three tiers of truth
