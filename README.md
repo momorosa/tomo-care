@@ -10,6 +10,8 @@ It ingests vet receipts, lab reports, and visit notes; extracts the facts that m
 
 Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Governed follow-through closeout and final polish handover](./docs/Governed_Follow_Through_Closeout_and_Final_Polish_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
 
+For laptop setup, read-only connection checks, and choosing Private care or Demo data, see [Local Setup and Inbox Isolation](./docs/Local_Setup_and_Inbox_Isolation.md).
+
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 
 ## Core idea: three tiers of truth

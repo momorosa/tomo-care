@@ -58,6 +58,8 @@ test("renders one persistent accessible Demo data indicator in the global header
     assert.match(index, /icon_names=[^"&]*\bscience\b/)
     assert.match(index, /icon_names=[^"&]*\bvisibility\b/)
     assert.doesNotMatch(header, /dismiss|close|onClick|localStorage/)
+    assert.match(header, /Private care environment\. Real care records\./)
+    assert.match(header, />Private care</)
 })
 
 test("keeps real-care clinic and insurance labels out of demo Profile", async () => {

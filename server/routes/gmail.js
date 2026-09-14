@@ -1,6 +1,7 @@
 import express from "express"
 import { sbAdmin } from "../supabase.js"
 import { processGmailInbox } from "../gmail/processGmailDocuments.js"
+import { DEMO_SOURCE_EXCLUDED } from "../gmail/realCareDemoGuard.js"
 import {
     toGmailErrorResponse,
     toSafeGmailErrorLog,
@@ -83,6 +84,9 @@ router.post("/gmail/check-inbox", async (req, res) => {
             documentsRetried: result.documentsRetried ?? 0,
             processedToReview: reviewDocuments.length,
             skippedDuplicates,
+            excludedDemoSources: (result.ingestSummary?.items || []).filter(
+                (item) => item.reason === DEMO_SOURCE_EXCLUDED
+            ).length,
 
             failed: failedDocuments.length,
             failedDocuments,

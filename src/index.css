@@ -66,6 +66,10 @@
     font-size: 16px;
   }
 
+  .tomo-private-indicator {
+    @apply inline-flex shrink-0 items-center rounded-full border border-tomo-border px-3 py-1.5 text-xs font-semibold text-tomo-text;
+  }
+
   .tomo-conversational-home {
     min-height: calc(100svh - 73px);
   }

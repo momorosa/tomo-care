@@ -1,6 +1,6 @@
 import os
 import sys
-import fitz  # PyMuPDF
+import pymupdf
 import httpx
 
 # make "tomo" importable
@@ -11,8 +11,8 @@ from tomo.tools.supabase_client import get_supabase
 BUCKET = "tomo-docs"
 
 def extract_pdf_text_bytes(pdf_bytes: bytes) -> str:
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    return "\n".join(page.get_text("text") for page in doc).strip()
+    with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
+        return "\n".join(page.get_text("text") for page in doc).strip()
 
 def populate_raw_text(doc_id: str, expires_in: int = 600):
     sb = get_supabase()
