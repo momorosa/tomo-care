@@ -4,7 +4,7 @@
 **Updated:** September 14, 2026
 **Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout is first. Specific designs, voice choices, reaction triggers, estimates, and provider acceptance remain proposed.
 **Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
-**Current activity:** Planning only. The app, API, and animation worker have been stopped. No polish implementation has begun.
+**Current activity:** Layout discovery completed September 14; no application implementation has begun. The isolated demo was used for inspection and stopped at handoff. See the [Layout audit and proposal](./TomoCare_Layout_Checkpoint_A.md) and [visual proposal](./TomoCare_Layout_Proposal.html).
 
 ## Purpose and evidence
 
@@ -60,6 +60,18 @@ For audit rows, the size is the review effort; any newly discovered repair must 
 | P14 | **Design Tomo's expressive vocabulary and select reactions.** Review existing happy, laughing, oops, acknowledgment, and attentive assets against actual conversational contexts. Expression is part of the core experience; each additional reaction needs a justified role. | Product direction clarified by Rosa on September 14. Individual reactions and triggers remain proposals. [S1, S3] | P1 expression design; implementation priority set per selected reaction | S design review; M–L implementation if selected, split by reaction | Rosa reviews an explicit situation → voice tone → expression → visual aid map. Selected cues fit the meaning, never suggest unsupported reassurance or action success, preserve speech, and respect Reduced Motion. Use existing assets first; record gaps before commissioning new ones. |
 | P15 | **Review voice identity and delivery as a product choice.** Evaluate warmth, maturity/playfulness, pace, pauses, pronunciation of names/numbers, and how uncertainty sounds. Existing code already distinguishes warm and restrained delivery; its perceived quality needs listening acceptance. | Explicit September 14 product direction; acceptance review, not a claim that tone support is missing. [S10] | P1 | M provisional, including a bounded listening comparison | Compare the same grounded lines across a small set of voice/delivery options. Rosa accepts a consistent Tomo voice for a greeting, verified summary, missing evidence, correction, and prepared-for-review response. Words and figures remain unchanged; delivery and expression do not imply greater certainty than the evidence. |
 | P16 | **Make speech, expression, and visual evidence agree.** Treat one turn as one experience across all four tracks. Check when evidence appears, where attention goes, and whether tone/motion match the answer and actual action state. | Explicit September 14 product direction; cross-track acceptance requirement. | P1 | S scenario specification; M integrated review, repairs sized after observation | Rehearse the agreed situations in Voice and Chat: charts/cards are available when referenced; numbers/units match; animation does not distract from review or signal success early; stop/end/fallback preserve one intelligible answer. Missing information is expressed clearly in words, voice, and motion. |
+
+## Layout discovery update — September 14
+
+Rosa authorized proceeding with the Layout audit and concrete proposal. The [checkpoint report](./TomoCare_Layout_Checkpoint_A.md) records eight findings, passing observations, coverage limits, proposed responsive arrangements, and bounded implementation slices. No application code was changed during discovery.
+
+- **P01/P13:** L01 confirms severe panel competition and covered controls; L03 confirms transcript coverage of the microphone on phones.
+- **P02:** L02 confirms displaced/translucent mobile care details; L05 confirms short-window overflow; L07 records the compressed narrow verification workspace. L08 confirms next-step modal clipping in a shipped-component fixture.
+- **P04:** The same turn/evidence survived mode changes, but kg reset to lb (L06). Multi-point selection still needs a fixture; do not mark the whole continuity audit passed.
+- **P06:** L04 confirms missing accessible names after responsive label hiding; L08 confirms missing modal focus containment and Escape in the fixture. Full assistive-technology, zoom, contrast, and Reduced Motion checks remain pending.
+- The blank embedded PDF observed in the in-app browser is an unresolved viewer observation. It is not evidence of a new intake failure or a reason to reopen the accepted isolation checkpoint.
+
+The eight L-identifiers are sub-findings mapped to existing P-items, not eight new top-level work streams. The proposed arrangement is ready for Rosa's product review before A1 implementation.
 
 ## Previously reported feedback — preserve as accepted behavior
 
