@@ -59,6 +59,18 @@ npm run setup:check:demo -- --offline
 
 Stop any existing development servers first.
 
+Only one TomoCare stack should run at a time. A server started by Codex is
+independent of the terminal in Ghostty: stopping one terminal does not stop a
+server owned by another session. When Codex is hosting the app, ask it to stop
+or switch the running instance before starting a new one in Ghostty.
+
+The API uses port 3001 and the browser development server uses port 5173.
+An occupied port now fails startup with an error; the browser server does not
+silently choose a different port. If one component fails, `dev` and `dev:demo`
+stop the other component. The full `dev:all` launcher already stops the stack
+when any component exits. Refresh the original port-5173 page after a successful
+environment switch, and close any older port-5174 tab from a previous launch.
+
 | Purpose | Command | Header |
 | --- | --- | --- |
 | Portfolio demo, local Voice and static/local motion | `npm run dev:demo` | Demo data |
@@ -109,3 +121,14 @@ tests passed with `TOMOCARE_RUNTIME_MODE=real` for the legacy lifecycle test;
 changed JavaScript passed ESLint; the production build passed. The existing
 large-chunk advisory remains. Both configurations passed the live read-only
 setup check. Demo mode was started and its global label verified in the browser.
+
+Rosa subsequently completed the four manual acceptance checks and a fresh
+demo reset and end-to-end run successfully. Her environment-switch test exposed
+an orphaned demo API and a second browser server: Express passed a port-binding
+error to the startup callback, but the callback logged success and exited with
+code zero. That callback now handles the error, the browser port is strict, and
+the lightweight launchers stop their companion process on failure. Live checks
+confirmed that a second launch exits with an error, opens no alternate browser
+port, and leaves the original runtime unchanged. The full private-care stack,
+including the animation worker, then started successfully. The worker's legacy
+development-command deprecation notice is advisory, not a startup failure.

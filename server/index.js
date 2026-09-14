@@ -1,5 +1,6 @@
 import express from "express"
 import cors from "cors"
+import process from "node:process"
 import "dotenv/config"
 import { getServerRuntimeContext } from "./config/runtimeContext.js"
 import { createRuntimeBoundaryMiddleware } from "./middleware/runtimeBoundary.js"
@@ -44,8 +45,17 @@ app.use("/api", voiceRoutes)
 app.use("/api", dashboardRoutes)
 app.use("/api", avatarRoutes)
 
-app.listen(3001, () =>
+app.listen(3001, (error) => {
+    if (error) {
+        console.error(
+            error.code === "EADDRINUSE"
+                ? "TomoCare could not start: API port 3001 is already in use. Stop the existing TomoCare server before switching environments."
+                : `TomoCare API could not start (${error.code || "listen_failed"}).`
+        )
+        process.exitCode = 1
+        return
+    }
     console.log(
         `API running on http://localhost:3001 (${runtimeContext.mode} mode)`
     )
-)
+})

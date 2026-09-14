@@ -4,8 +4,8 @@
     "version": "0.0.0",
     "type": "module",
     "scripts": {
-        "dev": "concurrently \"vite\" \"node server/index.js\"",
-        "dev:demo": "concurrently \"vite\" \"node --env-file=.env.demo server/index.js\"",
+        "dev": "concurrently --kill-others-on-fail \"vite\" \"node server/index.js\"",
+        "dev:demo": "concurrently --kill-others-on-fail \"vite\" \"node --env-file=.env.demo server/index.js\"",
         "dev:all": "concurrently --kill-others --names ui,api,avatar --prefix-colors cyan,green,magenta \"npm:dev:ui\" \"npm:dev:api\" \"npm:dev:avatar\"",
         "dev:ui": "vite",
         "dev:api": "node server/index.js",
