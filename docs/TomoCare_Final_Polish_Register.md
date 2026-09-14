@@ -1,7 +1,8 @@
 # TomoCare — Consolidated polish register
 
 **Prepared:** September 13, 2026  
-**Status:** Draft for Rosa's review; priorities, sizes, and proposed designs are not yet accepted.  
+**Updated:** September 14, 2026
+**Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout is first. Specific designs, voice choices, reaction triggers, estimates, and provider acceptance remain proposed.
 **Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
 **Current activity:** Planning only. The app, API, and animation worker have been stopped. No polish implementation has begun.
 
@@ -9,7 +10,7 @@
 
 Keep the remaining polish work, previously accepted feedback, and new suggestions in one place. Preserve the original product concerns without treating every historical issue as an unresolved bug.
 
-This register consolidates the current handover, earlier closeout documents, and the recent conversations reviewed for this task. It is not a claim that every historical conversation or screenshot has been audited. Rosa's own notes are the next reconciliation input.
+This register consolidates the current handover, earlier closeout documents, and the recent conversations reviewed for this task. It is not a claim that every historical conversation or screenshot has been audited. Rosa reviewed the consolidated register and confirmed that it accurately captures her feedback; she may add nuance as individual items are resolved.
 
 Evidence types used below:
 
@@ -56,7 +57,9 @@ For audit rows, the size is the review effort; any newly discovered repair must 
 | P11 | **Make inbox recovery language more useful.** The missing PDF dependency produced a message mentioning OCR, and the UI exposed `populate_raw_text` as a processing stage. | Fresh recommendation grounded in this task's failure screenshot and current copy. The dependency defect itself is closed. [S7, S9] | P2 | S | Recovery explains what was saved, what has not happened, and the next useful action. It does not imply that an unreadable scan is the confirmed cause of a general processing failure. Keep technical detail secondary and preserve diagnostic access. |
 | P12 | **Unify presentation details along the accepted path.** Dates, spacing, button sizing, visual hierarchy, and icons should read consistently. | Audit from the handover; fresh suggestion to prefer unambiguous displayed dates such as “Sep 7, 2026,” subject to Rosa's choice. [S1] | P2 | M audit; individual fixes S–M | Apply the agreed display convention across the rehearsed surfaces; no ambiguous or contradictory dates, raw icon names, truncated field titles, or avoidable button-label wrapping. Preserve underlying dates, units, source values, and calculations. |
 | P13 | **Reduce repeated status messaging.** The inspected Voice view showed readiness in several places while the stage was crowded. | Fresh recommendation; visual hierarchy concern, not a proven contradiction between states. [S8] | P2 | S | One primary Voice state and any separate animation state are easy to distinguish. Remove redundant visible copy only where it improves clarity; retain accessible announcements and necessary recovery text. Coordinate with P01/P03 rather than adding a second state system. |
-| P14 | **Optional meaning-based reactions: happy, laughing, oops.** Use existing assets only for harmless presentation cues. | Recorded optional direction, not a committed requirement. [S1, S3] | P3 | M–L; split by reaction if selected | Rosa approves the specific harmless triggers; reactions never imply medical reassurance or action success, alter an answer, interrupt speech, loop unexpectedly, or override Reduced Motion. Default recommendation: defer until the essential path is accepted. |
+| P14 | **Design Tomo's expressive vocabulary and select reactions.** Review existing happy, laughing, oops, acknowledgment, and attentive assets against actual conversational contexts. Expression is part of the core experience; each additional reaction needs a justified role. | Product direction clarified by Rosa on September 14. Individual reactions and triggers remain proposals. [S1, S3] | P1 expression design; implementation priority set per selected reaction | S design review; M–L implementation if selected, split by reaction | Rosa reviews an explicit situation → voice tone → expression → visual aid map. Selected cues fit the meaning, never suggest unsupported reassurance or action success, preserve speech, and respect Reduced Motion. Use existing assets first; record gaps before commissioning new ones. |
+| P15 | **Review voice identity and delivery as a product choice.** Evaluate warmth, maturity/playfulness, pace, pauses, pronunciation of names/numbers, and how uncertainty sounds. Existing code already distinguishes warm and restrained delivery; its perceived quality needs listening acceptance. | Explicit September 14 product direction; acceptance review, not a claim that tone support is missing. [S10] | P1 | M provisional, including a bounded listening comparison | Compare the same grounded lines across a small set of voice/delivery options. Rosa accepts a consistent Tomo voice for a greeting, verified summary, missing evidence, correction, and prepared-for-review response. Words and figures remain unchanged; delivery and expression do not imply greater certainty than the evidence. |
+| P16 | **Make speech, expression, and visual evidence agree.** Treat one turn as one experience across all four tracks. Check when evidence appears, where attention goes, and whether tone/motion match the answer and actual action state. | Explicit September 14 product direction; cross-track acceptance requirement. | P1 | S scenario specification; M integrated review, repairs sized after observation | Rehearse the agreed situations in Voice and Chat: charts/cards are available when referenced; numbers/units match; animation does not distract from review or signal success early; stop/end/fallback preserve one intelligible answer. Missing information is expressed clearly in words, voice, and motion. |
 
 ## Previously reported feedback — preserve as accepted behavior
 
@@ -87,22 +90,41 @@ These items remain visible for traceability. They are not added to the new imple
 | Item | Treatment |
 | --- | --- |
 | Portfolio screenshots/video, case-study updates, recorded provider fallback, release tagging | The following evidence/freeze checkpoint, not deliverables in this planning pass. A later verification screenshot does not mean portfolio capture has started. |
-| Runway cost/credit measurement and broader latency benchmarking | Keep in the evidence/evaluation backlog. Prior timing was one sample, not a service-level claim. Do not invent a cost or performance target here. |
+| Broader Runway cost and latency benchmarking | Comprehensive benchmarking remains later work. A bounded timing, reliability, and usage observation belongs in the Animation provider acceptance check; prior timing was one sample, not a service-level claim. Set the test budget and acceptable experience before that exercise. |
 | Broader Inbox/Recently verified assistant coverage, appointment aggregation, Calendar navigation, preventive/lab intelligence, or new care actions | Separate product capability slices after the portfolio checkpoint unless Rosa reprioritizes them. |
 | Durable conversation history, production hosting, authentication, multi-user support | Separate product/platform work. |
 | Deleting the old unprocessed synthetic copy from private care | Separate optional cleanup decision. The isolation checkpoint is accepted and stays closed. No cleanup is part of this register. |
 
-## Fresh perspective and proposed sequence
+## Product direction and four-track plan
 
-**Recommendation: prioritize readable evidence and visible human control, then animation finish.** The strongest product story is how Rosa reviews and changes candidate information, sees the trusted result, and decides what happens next. A squeezed transcript or unclear confirmation harms that story more than the absence of an extra character reaction.
+**Accepted direction:** Accuracy, calibrated confidence, and a thoughtfully crafted multimodal character experience are core TomoCare value. Voice, tone, animation, charts, and cards must support the same meaning. Warmth should make trustworthy information easier to understand; it must not imply that missing information is known or that an unapproved action has happened.
 
-1. **Reconcile this register and choose the presentation constraints.** Add Rosa's missing notes, decide supported sizes and whether live animation is optional for the intended demonstration. Resolve P07 as a small investigation early so it cannot turn into an open-ended provider task.
-2. **Checkpoint A — Layout and evidence access.** P01/P02, plus P04/P06 checks and any directly related P12 fixes. Start with the known crowded laptop view. Provisional implementation size: M–L only if multiple surfaces need changes; split after the initial inspection.
-3. **Checkpoint B — Voice state and interaction continuity.** P03/P13, with P09/P10 regression checks. Provisional size: M if concrete issues reproduce; do not rewrite accepted lifecycle behavior just to produce a change.
-4. **Checkpoint C — Complete journey and recovery copy.** Rehearse P05 and finish selected P11/P12 issues. Provisional size: S–M for copy/local fixes; escalate any functional defect separately.
-5. **Checkpoint D — Optional live-animation finish.** P08 only if P07 and the presentation decision justify it. Provisional size: M with existing assets. Defer P14 unless explicitly selected after the essential path is accepted.
+The September 14 clarification supersedes the earlier blanket recommendation to defer expressive work. Individual extra reactions remain scope choices, but voice identity, appropriate expression, and coherent transitions are acceptance requirements.
 
-These checkpoints overlap in verification but should not duplicate implementation work. Accessibility and the existing governance boundaries apply to every checkpoint. No total delivery estimate is committed until Rosa has reviewed gaps and concrete failures have been separated from passing audits.
+| Track | Main scope | Register mapping | Product checkpoint |
+| --- | --- | --- | --- |
+| **Layout — first** | Panel balance, evidence access, responsive behavior, dialogs/scrolling, clear controls, keyboard/zoom, visual hierarchy. | P01/P02/P04/P06/P12; coordinate P13 | Review a concrete adaptive layout proposal, then accept a focused implementation at agreed sizes. Preserve transcript-open default and the user's panel choices. |
+| **Voice** | Voice identity and tone, pacing and pronunciation, state clarity, stop/replay/mute, continuity with visible evidence. | P03/P13/P15; shared P04/P16 | Listen to a small set of identical grounded scripts before choosing delivery changes; accept one complete spoken exchange after implementation. |
+| **Journey** | Discoverable next steps, correction versus approval, confirmation, reminders, Attention, drafts, and useful recovery language. | P05/P11/P12; shared P16 | Rehearse the complete isolated-demo journey; confirm both actual record state and the user's understanding at each step. |
+| **Animation** | Character expression, speech synchronization, local/live transitions, startup/end/fallback, and a bounded provider evaluation. | P07/P08/P09/P10/P14; shared P16 | Accept the character in actual conversational situations, including uncertainty and interruption, and explicitly decide whether Runway meets the intended experience. |
+
+### Proposed delivery sequence
+
+1. **Define the shared experience now.** Prepare a short situation → words/evidence → voice tone → expression map for greeting, verified summary, missing evidence, correction, and a draft ready for review. This informs all tracks before individual reaction code or new media work.
+2. **Layout discovery and design checkpoint.** Inventory the existing screens and inspect the known crowded laptop layout. Propose panel behavior at 1440 × 900, 1280 × 720, 1024 × 768, and a narrow 390 × 844 CSS viewport; distinguish core supported sizes from graceful narrow-screen behavior. Include short-window and 200% zoom checks. Show the recommended arrangement and concrete tradeoffs before implementing a product layout change.
+3. **Layout implementation checkpoint.** Deliver one bounded slice: first panel balance and evidence access, then any distinct dialog/accessibility repairs. Check click affordances, action visibility, keyboard focus/return, Escape where appropriate, scroll containment, labels, loading/empty/error/success feedback, and preservation of entered data. Record each audit as pass or a reproducible issue; do not label every audit a defect. Size concrete repairs after discovery.
+4. **Voice and Animation design review together.** Audition the voice and review expression timing with the same scenarios. Investigate P07 early in this checkpoint, before relying on live output. Then implement Voice changes and selected Animation improvements in separately reviewable slices. A model/provider change requires evidence of a specific experience gap.
+5. **Journey and integrated acceptance.** Rehearse correction through follow-through with the polished layout and chosen delivery; resolve journey/recovery gaps. Check P16 across the same scenarios rather than accepting each track only in isolation. Portfolio capture follows this acceptance.
+
+Accessibility and governed data/action boundaries apply throughout. These are four ownership tracks, not four isolated waterfall phases; journey checks accompany each implementation. No total delivery estimate is committed before discovery separates passing audits from concrete repairs.
+
+### Current Runway assessment — September 14
+
+The installed LiveKit Runway plugin requests **`gwm1_avatars`**. TomoCare's worker forwards already-prepared speech and is instructed not to converse, reason, or call tools. Voice synthesis is separate: the current source defaults are `gpt-4o-mini-tts-2025-12-15` and `marin`, with environment overrides available. These are source defaults, not a claim that every launch uses them. Existing speech instructions already distinguish warm/lightly playful from calm/restrained delivery. [S10]
+
+Runway's current documentation supports stylized characters and an external audio-in/video-out integration; the connected agent's speech supersedes Runway's own character voice/personality settings. This makes it a reasonable candidate for Tomo's speaking animation. Documentation does not establish that our particular dog avatar has acceptable identity stability, lip movement, exact expressive control, or response timing. [W1, W2, W3]
+
+**Recommendation:** Retain the existing integration for a bounded evaluation while keeping local motion available. Evaluate character likeness, mouth/voice synchronization, waiting time, appropriate expression, interruption/end behavior, transitions, and fallback with the chosen voice. Record observed time and usage without presenting one sample as a guarantee. Runway documents a maximum five-minute session, so session-end UX is part of fit. Use authored local motion where deliberate reactions are needed, subject to a coherent transition design; do not assume the current live API can precisely trigger every reaction. Compare another provider only if this evaluation identifies a meaningful unmet need. No provider session or paid evaluation was started for this planning update.
 
 ## Minimum manual checks proposed for later implementation checkpoints
 
@@ -111,20 +133,20 @@ These are future acceptance guides, not instructions to restart the app now. Eac
 | Checkpoint | Minimum checks Rosa would receive |
 | --- | --- |
 | A — Layout | 1. Open care details and the transcript at the agreed laptop width. 2. Inspect a chart and invoice dialog at the agreed narrow/short size. 3. Reach the main actions and close/reopen panels by keyboard. Expect readable evidence, usable controls, and sensible focus. |
-| B — Voice | 1. Ask one short question and observe listening → thinking → speaking → ready. 2. Stop/replay/mute as specified for the changed control. 3. Switch Voice/Chat and reopen the transcript. Expect one answer, no duplicate audio, and the same evidence. |
+| B — Voice | 1. Listen to the agreed verified-information and missing-evidence examples: tone, pacing, pronunciation, and certainty should fit. 2. Ask a short question, then exercise the changed stop/replay/mute control. 3. Switch Voice/Chat and reopen the transcript. Expect one answer, no duplicate audio, and the same evidence. |
 | C — Journey | After planned demo preparation: 1. Correct/recheck the invoice; verify that saving alone does not approve it. 2. Explicitly verify and see confirmation before next actions. 3. Create the existing reminders and inspect October Attention and the editable review-only draft. These steps intentionally write demo records. |
-| D — Animation | 1. Explicitly start animation and speak once. 2. End it and confirm local Voice still works. 3. Review one controlled failure/fallback supplied by Codex. Expect truthful status and one recovery choice without duplicate speech. Any paid provider exercise is bounded in advance. |
+| D — Animation | 1. Watch the agreed ordinary and uncertainty examples: likeness, expression, lip timing, and evidence should agree with speech. 2. Start/end live animation if included, and confirm local Voice continues once. 3. Review one controlled failure/fallback supplied by Codex. Expect truthful status, appropriate reactions, and one recovery choice without duplicate speech. Any paid provider exercise is bounded in advance. |
 
 Codex owns focused automated regression checks, lint/build where relevant, and an explicit report of unverified behavior. Rosa owns product acceptance and can explore beyond the minimum. At handoff, state who owns the running server and its active environment.
 
 ## Decisions and gaps for Rosa's review
 
-- **Missing feedback:** add the original observation or desired behavior; a screenshot or earlier conversation reference is useful when available. Match an existing ID where possible.
+- **Feedback coverage accepted:** add nuance to the existing ID as we work; add a new ID only for a distinct concern.
 - **Presentation sizes:** proposed starting checks are 1440 × 900, 1280 × 720, 1024 × 768, and 390 × 844 CSS pixels, plus a short-window and zoom check. These are proposed coverage points, not a promise of full support at every size.
 - **Narrow-layout preference:** retain transcript-open by default; decide whether care details overlay, reflow, or share space when both panels are open. No layout choice has been implemented.
-- **Live animation:** choose a complete local Voice/motion demo with optional live enhancement, or make live animation a required presentation criterion with its extra dependency. Recommendation: keep it optional.
+- **Live animation:** decide its presentation role after the bounded quality evaluation. The complete local experience remains necessary for recovery; the quality of expression and voice is required whichever presentation is selected.
 - **Display conventions:** decide whether date wording should become unambiguous month-name text; preserve the accepted lb/kg choice.
-- **Character reactions:** recommendation is to defer P14. Any selected reactions need an explicit trigger list.
+- **Voice and character:** choose the voice/delivery and an explicit expression trigger list from concrete examples. Expressive quality is required; no individual happy/laughing/oops asset is automatically committed.
 
 Future updates should retain stable IDs and record: status, agreed priority, observed reproduction, accepted behavior, implementation/PR link, and Rosa's acceptance result. Fresh suggestions remain marked as proposals until accepted. Closed feedback stays in the register to prevent repeated rediscovery.
 
@@ -146,3 +168,8 @@ Repository sources are the durable record; conversation links preserve the origi
 - **C3:** [Review Phase 3E9 Decisions](https://chatgpt.com/c/6a91f8c8-d34c-83e8-9093-41818c49d8ab): transcript-open default and Profile acceptance.
 - **C4:** [Review handover gaps](https://chatgpt.com/c/6aa31d89-c250-83e8-ae8d-cfe56ace3856): October reminder and visibility-icon reports, fixes, and acceptance.
 - **C5:** [Review Animate Tomo Recovery](https://chatgpt.com/c/6a99d1f7-4a6c-83e8-be6a-b4ed70274dd1): start/end clarity and continued local Voice acceptance.
+
+- **S10:** Current [speech provider](../server/voice/openAiVoiceProvider.js), [speech personality instructions](../server/voice/tomoPersonality.js), and [Runway worker](../server/avatar/runwayAvatarAgent.js); installed `@livekit/agents-plugin-runway/src/avatar.ts` requests `gwm1_avatars` (inspected September 14).
+- **W1:** [Runway character concepts](https://docs.dev.runwayml.com/characters/concepts/), inspected September 14: stylized characters and maximum session duration.
+- **W2:** [Runway LiveKit integration](https://docs.dev.runwayml.com/characters/livekit/), inspected September 14: external speech drives the avatar; configured Runway voice/personality is bypassed.
+- **W3:** [LiveKit Runway integration](https://docs.livekit.io/agents/models/avatar/plugins/runway/), inspected September 14: supported integration and voice-setting precedence.
