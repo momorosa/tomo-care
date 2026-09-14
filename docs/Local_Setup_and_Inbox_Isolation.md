@@ -132,3 +132,16 @@ confirmed that a second launch exits with an error, opens no alternate browser
 port, and leaves the original runtime unchanged. The full private-care stack,
 including the animation worker, then started successfully. The worker's legacy
 development-command deprecation notice is advisory, not a startup failure.
+
+## Accepted closeout
+
+On September 13, 2026, Rosa confirmed the Private care environment and manually
+ran Check inbox: the demo email was not imported. Together with the accepted
+four manual checks and fresh demo reset/end-to-end run, this completes the
+Local Setup and Inbox Isolation checkpoint. No additional setup acceptance
+checks are outstanding. The saved unprocessed synthetic copy remains a
+separate, optional cleanup decision; it does not reopen this accepted scope.
+
+The next product checkpoint is Final Voice, Animation, and End-to-End UI Polish.
+Each implementation checkpoint will include a bounded minimum manual checklist
+with exact actions and expected results, separate from optional exploration.
