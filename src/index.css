@@ -1698,3 +1698,157 @@ html, body {
   }
 
 }
+
+/* Layout checkpoint A: allocate content space before adapting the portrait. */
+.tomo-home-grid {
+  --tomo-nav-width: 176px;
+  --tomo-drawer-width: 320px;
+  height: calc(100dvh - 73px);
+  min-height: 0;
+}
+.tomo-home-grid--nav-collapsed { --tomo-nav-width: 72px; }
+.tomo-home-grid--drawer-closed { --tomo-drawer-width: 0px; }
+.tomo-context-drawer { display: flex; flex-direction: column; background: #1c1d25; }
+.tomo-context-drawer__header { flex-shrink: 0; }
+.tomo-context-drawer__body { height: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
+.tomo-conversation-header { min-height: 64px; }
+.tomo-conversation-header > div { min-width: 0; }
+.tomo-voice-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.tomo-voice-stage--transcript-open { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tomo-voice-stage__focus,
+.tomo-voice-stage--transcript-open .tomo-voice-stage__focus {
+  position: relative; inset: auto; grid-column: 1; grid-row: 1; transition: none;
+}
+.tomo-voice-stage__controls {
+  position: relative; inset: auto; transform: none; width: 100%;
+  grid-column: 1; grid-row: 2; padding: 8px 12px; background: #1c1b25;
+}
+.tomo-voice-dock { flex-wrap: wrap; border-radius: 20px; box-shadow: none; }
+.tomo-voice-dock__primary { flex: 1 1 150px; padding-inline: 8px; }
+.tomo-voice-playback-controls { flex-wrap: wrap; justify-content: center; }
+.tomo-voice-transcript-sheet {
+  position: relative; inset: auto; width: auto; height: auto;
+  min-height: 0; min-width: 0; grid-column: 2; grid-row: 1 / 3;
+  border-radius: 0; background: #181920; box-shadow: none; animation: none;
+}
+.tomo-voice-transcript-sheet__header { min-height: 64px; }
+.tomo-voice-stage__controls .tomo-verified-boundary { margin-bottom: 0; }
+.tomo-session-transcript article { max-width: 100%; }
+.tomo-voice-transcript-sheet article { max-width: 100%; }
+.tomo-mode-switch__button { min-height: 40px; }
+.tomo-icon-button { min-width: 40px; min-height: 40px; }
+.tomo-care-nav__item:focus-visible, .tomo-icon-button:focus-visible,
+.tomo-mode-switch__button:focus-visible { outline: 2px solid #c084fc; outline-offset: -3px; }
+
+/* Native dialogs supply background inertness, Escape handling, and focus scope. */
+.tomo-modal {
+  padding: 0; border: 1px solid #3c3e4b; border-radius: 24px;
+  margin: auto; width: min(672px, calc(100% - 32px));
+  max-width: none; max-height: calc(100dvh - 32px); overflow: auto;
+  overscroll-behavior: contain; background: #1b1c23; color: #f3f4f6;
+  box-shadow: 0 24px 80px #0008;
+}
+.tomo-modal::backdrop { background: #000b; }
+.tomo-modal:focus { outline: none; }
+.tomo-modal__panel { border: 0; border-radius: 0; max-height: none; max-width: none; overflow: visible; }
+.tomo-modal__actions { position: sticky; bottom: 0; background: #191a21; padding-block: 12px; }
+.tomo-care-modal { width: min(400px, calc(100% - 24px)); height: min(760px, calc(100dvh - 24px)); overflow: hidden; }
+.tomo-care-modal .tomo-context-drawer {
+  position: static; inset: auto; width: 100%; height: 100%; grid-column: auto;
+  border: 0; box-shadow: none;
+}
+.tomo-care-voice-controls { flex-shrink: 0; }
+.tomo-care-voice-controls:empty { display: none; }
+.tomo-care-voice-controls .tomo-voice-stage__controls { padding: 8px; }
+
+.tomo-verification { height: calc(100dvh - 73px); width: 100%; overflow: hidden; }
+.tomo-verification__inner { max-width: 1600px; margin: auto; height: 100%; padding: 20px 24px; display: flex; flex-direction: column; min-height: 0; }
+.tomo-verification-grid { display: grid; grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1.4fr) minmax(330px, 1fr); gap: 16px; flex: 1; min-height: 0; }
+.tomo-verification-grid > * { grid-column: auto; min-width: 0; }
+.tomo-review-queue { min-height: 0; overflow: auto; }
+.tomo-review-queue > summary { display: none; }
+.tomo-review-queue > div { height: 100%; }
+.tomo-verification-guidance { display: none; }
+.tomo-source-panel > div:first-child { flex-wrap: wrap; }
+.tomo-source-panel > div:first-child > p:last-child { max-width: 100%; }
+.tomo-verification-header { flex-shrink: 0; }
+
+.tomo-care-nav--collapsed .tomo-care-nav__item > span:nth-child(2),
+.tomo-care-nav--collapsed .tomo-nav-count { display: none; }
+
+@media (max-width: 1359px) {
+  .tomo-home-grid { --tomo-nav-width: 72px; }
+  .tomo-care-nav .tomo-section-label,
+  .tomo-care-nav__item > span:nth-child(2),
+  .tomo-care-nav .tomo-nav-count,
+  .tomo-care-nav > div:last-child span:last-child { display: none; }
+  .tomo-care-nav__item { justify-content: center; padding-inline: 0; }
+  .tomo-care-nav__header { padding-inline: 12px; }
+}
+@media (max-width: 1199px) {
+  .tomo-home-grid { --tomo-drawer-width: 0px; grid-template-columns: 72px 0 minmax(0, 1fr); }
+  .tomo-verification { height: auto; min-height: calc(100dvh - 73px); overflow: visible; }
+  .tomo-verification__inner { height: auto; }
+  .tomo-verification-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); flex: none; }
+  .tomo-review-queue { grid-column: 1 / -1; border: 1px solid #3c3e4b; border-radius: 12px; }
+  .tomo-review-queue > summary { display: list-item; cursor: pointer; padding: 12px 18px; color: #f3f4f6; }
+  .tomo-review-queue > div { max-height: 280px; }
+  .tomo-source-panel, .tomo-working-panel { height: max(600px, calc(100dvh - 230px)); }
+}
+@media (max-width: 859px) {
+  .tomo-voice-stage--transcript-open {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: clamp(100px, 24dvh, 190px) minmax(0, 1fr) auto;
+  }
+  .tomo-voice-stage--transcript-open .tomo-voice-stage__focus { grid-row: 1; }
+  .tomo-voice-transcript-sheet { grid-column: 1; grid-row: 2; border-left: 0; border-top: 1px solid #30323d; }
+  .tomo-voice-stage--transcript-open > .tomo-voice-stage__controls { grid-row: 3; }
+  .tomo-voice-stage--transcript-open .tomo-avatar-media__fallback,
+  .tomo-voice-stage--transcript-open .tomo-avatar-media__motion,
+  .tomo-voice-stage--transcript-open .tomo-avatar-media__video { object-fit: contain; }
+  .tomo-voice-transcript-sheet__header { min-height: 52px; }
+  .tomo-voice-transcript-sheet__body { padding: 14px; }
+  .tomo-verification-header { flex-direction: column; gap: 8px; }
+  .tomo-verification-header > div:last-child { align-items: stretch; width: 100%; }
+  .tomo-verification-header > div:last-child > div { flex-wrap: wrap; padding-inline: 0; }
+  .tomo-verification-guidance { display: block; font-size: 14px; line-height: 1.6; padding: 14px; margin-block: 0 16px; border: 1px solid #625071; border-radius: 12px; background: #2a2435; }
+  .tomo-verification-grid { grid-template-columns: minmax(0, 1fr); }
+  .tomo-source-panel { height: 460px; }
+  .tomo-working-panel { height: auto; min-height: 500px; }
+  .tomo-working-panel > div:last-child { max-height: none; overflow: visible; }
+  .tomo-verification__inner { padding: 16px; }
+  .tomo-verification-header button { white-space: normal; text-wrap: balance; }
+}
+@media (max-width: 560px) {
+  .tomo-home-grid { display: flex; flex-direction: column; min-height: 0; }
+  .tomo-care-nav { flex: 0 0 auto; border-right: 0; border-bottom: 1px solid #30323d; }
+  .tomo-care-nav__header, .tomo-care-nav__footer { display: none; }
+  .tomo-care-nav__items { display: flex; gap: 0; }
+  .tomo-care-nav__item, .tomo-care-nav--collapsed .tomo-care-nav__item {
+    flex: 1; min-width: 0; flex-direction: column; gap: 2px; min-height: 58px; padding: 6px 2px;
+  }
+  .tomo-care-nav__item > span:nth-child(2),
+  .tomo-care-nav--collapsed .tomo-care-nav__item > span:nth-child(2) { display: block; font-size: 10px; text-align: center; flex: 0 1 auto; max-width: 100%; }
+  .tomo-conversation-panel { flex: 1; min-height: 0; }
+  .tomo-conversation-header { min-height: 56px; padding-inline: 12px; gap: 6px; }
+  .tomo-voice-stage__controls { padding: 6px 8px; }
+  .tomo-voice-dock { min-height: 64px; gap: 2px; }
+  .tomo-voice-dock__primary { min-height: 48px; flex-basis: 145px; }
+  .tomo-voice-dock__icon { height: 36px; width: 36px; }
+  .tomo-voice-stage__controls > p { font-size: 10px; line-height: 1.3; margin-top: 4px; }
+  .tomo-voice-playback-control { min-width: 38px; }
+  .tomo-mode-switch__button { min-width: 40px; padding-inline: 8px; }
+  .tomo-modal { border-radius: 18px; width: calc(100% - 20px); max-height: calc(100dvh - 20px); }
+}
+@media (max-height: 600px) and (max-width: 859px) {
+  .tomo-voice-stage--transcript-open { grid-template-rows: 80px minmax(0, 1fr) auto; }
+}
+
+.tomo-correction-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tomo-correction-actions > button { flex: 1 1 210px; white-space: nowrap; }
+
+.tomo-modal__panel > .border-b { position: sticky; top: 0; z-index: 2; background: #1b1c23; }

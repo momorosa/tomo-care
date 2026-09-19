@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom"
+import { EvidencePresentationContext } from "./evidencePresentationContext.js"
 import { useEffect, useMemo, useRef, useState } from "react"
 import tomoVoiceAvatar from "../../../assets/tomo-voice-avatar-placeholder.webp"
 import tomoLogo from "../../../assets/tomocare-logo.png"
@@ -47,6 +49,7 @@ const SUGGESTED_QUESTIONS = [
 
 export default function AssistantPanel({
     petId,
+    voiceControlTarget,
     initialQuestion = "",
     pendingActionCount = 0,
     pendingActions = [],
@@ -61,6 +64,15 @@ export default function AssistantPanel({
     const [mode, setMode] = useState(CONVERSATION_MODES.VOICE)
     const [question, setQuestion] = useState("")
     const [sessionTurns, setSessionTurns] = useState([])
+    const [evidenceStates, setEvidenceStates] = useState(() => new Map())
+    const evidencePresentation = {
+        states: evidenceStates,
+        update: (key, patch) => setEvidenceStates((current) => {
+            const next = new Map(current)
+            next.set(key, { ...current.get(key), ...patch })
+            return next
+        }),
+    }
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [voiceState, setVoiceState] = useState(VOICE_STATES.IDLE)
@@ -515,6 +527,7 @@ export default function AssistantPanel({
         stopPlayback()
         avatarMediaRef.current?.end()
         setSessionTurns([])
+        setEvidenceStates(new Map())
         setVoiceResponse(null)
         setQuestion("")
         setError("")
@@ -530,6 +543,7 @@ export default function AssistantPanel({
     )
 
     return (
+        <EvidencePresentationContext.Provider value={evidencePresentation}>
         <section
             className={`tomo-conversation-panel tomo-conversation-panel--${mode}`}
             aria-label="Talk with Tomo"
@@ -649,6 +663,7 @@ export default function AssistantPanel({
 
             {mode === CONVERSATION_MODES.VOICE ? (
                 <VoiceStage
+                    controlTarget={voiceControlTarget}
                     voiceState={voiceState}
                     sessionTurns={sessionTurns}
                     loading={loading}
@@ -742,6 +757,7 @@ export default function AssistantPanel({
                 {getVoiceStateLabel(voiceState)}
             </p>
         </section>
+        </EvidencePresentationContext.Provider>
     )
 }
 
@@ -752,6 +768,8 @@ function ModeButton({ active, icon, label, onClick }) {
             className={`tomo-mode-switch__button ${active ? "tomo-mode-switch__button--active" : ""}`}
             onClick={onClick}
             aria-pressed={active}
+            aria-label={label}
+            title={label}
         >
             <span className="material-symbols-outlined text-base" aria-hidden="true">
                 {icon}
@@ -762,6 +780,7 @@ function ModeButton({ active, icon, label, onClick }) {
 }
 
 function VoiceStage({
+    controlTarget,
     voiceState,
     sessionTurns,
     loading,
@@ -780,6 +799,22 @@ function VoiceStage({
     onToggleMute,
     transcriptEndRef,
 }) {
+    const controls = (
+        <VoiceControlDock
+            voiceState={voiceState}
+            loading={loading}
+            transcriptOpen={transcriptOpen}
+            response={response}
+            muted={muted}
+            error={error}
+            onToggleTranscript={onToggleTranscript}
+            onVoiceButton={onVoiceButton}
+            onReplay={onReplay}
+            onStop={onStop}
+            onToggleMute={onToggleMute}
+        />
+    )
+
     return (
         <section
             className={`tomo-voice-stage tomo-voice-stage--${voiceState} ${
@@ -798,26 +833,9 @@ function VoiceStage({
                     />
                 </div>
                 <div className="tomo-voice-stage__veil" aria-hidden="true" />
-
-                <div className="tomo-voice-stage__status" aria-hidden="true">
-                    <VoiceStatusOrb voiceState={voiceState} />
-                    <span>{getVoiceStateLabel(voiceState)}</span>
-                </div>
-
-                <VoiceControlDock
-                    voiceState={voiceState}
-                    loading={loading}
-                    transcriptOpen={transcriptOpen}
-                    response={response}
-                    muted={muted}
-                    error={error}
-                    onToggleTranscript={onToggleTranscript}
-                    onVoiceButton={onVoiceButton}
-                    onReplay={onReplay}
-                    onStop={onStop}
-                    onToggleMute={onToggleMute}
-                />
             </div>
+
+            {controlTarget ? createPortal(controls, controlTarget) : controls}
 
             {transcriptOpen && (
                 <VoiceTranscriptSheet
@@ -1037,18 +1055,6 @@ function SessionTranscript({
 
             <div ref={transcriptEndRef} />
         </section>
-    )
-}
-
-function VoiceStatusOrb({ voiceState }) {
-    return (
-        <span className={`tomo-voice-status tomo-voice-status--${voiceState}`}>
-            <span className="tomo-voice-status__orb">
-                <span />
-                <span />
-                <span />
-            </span>
-        </span>
     )
 }
 

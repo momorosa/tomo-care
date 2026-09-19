@@ -73,6 +73,15 @@ Rosa authorized proceeding with the Layout audit and concrete proposal. The [che
 
 The eight L-identifiers are sub-findings mapped to existing P-items, not eight new top-level work streams. The proposed arrangement is ready for Rosa's product review before A1 implementation.
 
+## Layout implementation update — September 19
+
+Rosa approved the proposal and A1–A3 are implemented on `final-voice-animation-ui-polish`. See the [delivery evidence and minimum manual checks](./TomoCare_Layout_A_Manual_Checks.md). L01–L08 now have implementation coverage; product acceptance remains pending.
+
+- **A1 / P01, P02, P03, P06, P13:** balanced home panels, compact care overlays, reachable microphone/transcript controls, stable accessible names, and fewer overlapping status elements.
+- **A2 / P04:** session-scoped chart units and selection survive mode changes and transcript remounting. This does not add stored conversation history.
+- **A3 / P02, P06, P12:** responsive verification workspace, collapsible queue, larger-screen guidance, Open PDF fallback, correction-label sizing, and shared modal focus/Escape/scroll behavior.
+- The broad P-items are not closed wholesale: voice delivery, animation, full accessibility/browser acceptance, and later journey polish still have their own checkpoints. No voice/provider selection or care approval rules changed.
+
 ## Previously reported feedback — preserve as accepted behavior
 
 These items remain visible for traceability. They are not added to the new implementation estimate. Reopen only when a fresh reproduction or Rosa's notes identifies a remaining gap.

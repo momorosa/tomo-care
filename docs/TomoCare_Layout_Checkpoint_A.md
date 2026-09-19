@@ -2,7 +2,7 @@
 
 **Date:** September 14, 2026
 **Baseline:** `5316a2c`, `final-voice-animation-ui-polish`
-**Status:** Discovery complete for the inspected surfaces; proposed design and implementation slices await Rosa's product review. No application implementation in this checkpoint.
+**Status:** Proposal approved by Rosa; A1–A3 implemented September 19, 2026. Product acceptance is pending the [manual checks](./TomoCare_Layout_A_Manual_Checks.md). The findings below preserve the September 14 audit baseline.
 
 [Open the visual proposal](./TomoCare_Layout_Proposal.html) · [Consolidated polish register](./TomoCare_Final_Polish_Register.md)
 
@@ -66,7 +66,7 @@ For each slice Codex supplies the actual findings repaired, focused regression/b
 - **A2:** Select kg and a chart point where available; switch Voice/Chat and close/reopen the transcript. The same turn, units, selected evidence, and source remain available.
 - **A3:** In prepared demo/fixture state, reach every invoice correction and dialog action at the short/narrow size. Tab stays within an open modal, Escape behaves appropriately, and focus returns on close. Saving a correction still does not approve it.
 
-**Decision for Rosa:** review the responsive arrangement, especially temporary care details below compact-laptop width and the smaller character above evidence on phones. The accepted Layout-first direction authorizes this discovery; it does not establish acceptance of these specific new product arrangements.
+**Product decision:** Rosa approved this responsive arrangement and all implementation slices, including the smaller character above evidence on phones. She requested encouragement to perform careful PDF verification on a larger screen. Implementation is ready for her interaction acceptance; approval of the proposal is not recorded as acceptance of the finished build.
 
 ## Implementation pointers
 

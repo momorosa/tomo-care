@@ -10,11 +10,11 @@ export const CONVERSATION_MODES = Object.freeze({
     CHAT: "chat",
 })
 
-export function createConversationalHomeState() {
+export function createConversationalHomeState({ compact = false } = {}) {
     return {
         activeSection: HOME_SECTIONS.PROFILE,
         navigationCollapsed: false,
-        drawerOpen: true,
+        drawerOpen: !compact,
     }
 }
 

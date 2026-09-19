@@ -1,3 +1,4 @@
+import Modal from "../../components/Modal.jsx"
 import { useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import momoPortrait from "../../../assets/momoPic.png"
@@ -77,7 +78,8 @@ export function CareNavigation({
                             className={`tomo-care-nav__item ${selected ? "tomo-care-nav__item--active" : ""}`}
                             onClick={() => onSelect(item.section)}
                             aria-current={selected ? "page" : undefined}
-                            title={collapsed ? item.label : undefined}
+                            title={item.label}
+                            aria-label={count > 0 ? `${item.label} (${count})` : item.label}
                         >
                             <span
                                 className="material-symbols-outlined shrink-0"
@@ -85,15 +87,11 @@ export function CareNavigation({
                             >
                                 {item.icon}
                             </span>
-                            {!collapsed && (
-                                <>
-                                    <span className="min-w-0 flex-1 truncate text-left">
-                                        {item.label}
-                                    </span>
-                                    {count > 0 && (
-                                        <span className="tomo-nav-count">{count}</span>
-                                    )}
-                                </>
+                            <span className="min-w-0 flex-1 truncate text-left">
+                                {item.label}
+                            </span>
+                            {count > 0 && (
+                                <span className="tomo-nav-count">{count}</span>
                             )}
                         </button>
                     )
@@ -116,6 +114,8 @@ export function CareNavigation({
 }
 
 export function CareContextDrawer({
+    overlay = false,
+    voiceControlsRef,
     section,
     reminders,
     loadingReminders,
@@ -136,7 +136,7 @@ export function CareContextDrawer({
     onMarkFiled,
     onSyncCalendar,
 }) {
-    return (
+    const content = (
         <aside className="tomo-context-drawer" aria-label="Selected care section">
             <div className="tomo-context-drawer__header">
                 <ContextHeading section={section} />
@@ -153,6 +153,7 @@ export function CareContextDrawer({
                 </button>
             </div>
 
+            {voiceControlsRef && <div className="tomo-care-voice-controls" ref={voiceControlsRef} />}
             <div className="tomo-context-drawer__body">
                 {section === HOME_SECTIONS.PROFILE && (
                     <ProfileContext
@@ -193,6 +194,12 @@ export function CareContextDrawer({
             </div>
         </aside>
     )
+    return overlay ? (
+        <Modal label="Care details" onDismiss={onClose} className="tomo-care-modal">
+            {content}
+        </Modal>
+    ) : content
+
 }
 
 function ContextHeading({ section }) {

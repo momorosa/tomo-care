@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
+import { useMediaQuery } from "../../components/useMediaQuery.js"
 import AssistantPanel from "./AssistantPanel.jsx"
 import { CareContextDrawer, CareNavigation } from "./CareSidebar.jsx"
 import CareActionDialog from "./CareActionDialog.jsx"
@@ -77,6 +78,8 @@ export default function Dashboard() {
     const navigate = useNavigate()
     const location = useLocation()
     const runtime = useRuntimeContext()
+    const compactLayout = useMediaQuery("(max-width: 1199px)")
+    const [careVoiceTarget, setCareVoiceTarget] = useState(null)
     const [initialAssistantQuestion] = useState(() =>
         typeof location.state?.assistantPrompt === "string"
             ? location.state.assistantPrompt
@@ -85,7 +88,7 @@ export default function Dashboard() {
     const [homeLayout, dispatchHomeLayout] = useReducer(
         reduceConversationalHome,
         undefined,
-        createConversationalHomeState
+        () => createConversationalHomeState({ compact: window.matchMedia("(max-width: 1199px)").matches })
     )
 
     const [pendingReviewDocs, setPendingReviewDocs] = useState([])
@@ -1016,6 +1019,8 @@ export default function Dashboard() {
 
                 {homeLayout.drawerOpen && (
                     <CareContextDrawer
+                        overlay={compactLayout}
+                        voiceControlsRef={compactLayout ? setCareVoiceTarget : undefined}
                         section={homeLayout.activeSection}
                         reminders={reminders}
                         loadingReminders={loadingReminders}
@@ -1053,6 +1058,7 @@ export default function Dashboard() {
                 )}
 
                 <AssistantPanel
+                    voiceControlTarget={careVoiceTarget}
                     petId={PET_SCOPE}
                     initialQuestion={initialAssistantQuestion}
                     reminders={reminders}

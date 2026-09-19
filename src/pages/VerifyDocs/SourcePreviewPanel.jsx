@@ -2,9 +2,11 @@ export default function SourcePreviewPanel({ viewUrl, fileUrl }) {
   const fileName = fileUrl ? fileUrl.split("/").pop() : null
 
   return (
-    <div className="col-span-12 md:col-span-6 min-h-0 rounded-xl overflow-hidden tomo-surface flex flex-col">
+    <div className="tomo-source-panel col-span-12 md:col-span-6 min-h-0 rounded-xl overflow-hidden tomo-surface flex flex-col">
       <div className="shrink-0 px-4 py-3 border-b border-tomo-border flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-tomo-text-h">Source document</p>
+        {viewUrl && <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+          className="tomo-btn tomo-btn-secondary shrink-0 text-xs">Open PDF<span className="sr-only"> in a new tab</span></a>}
         {fileName && (
           <p className="text-xs font-mono text-tomo-text truncate max-w-[60%]">
             {fileName}
