@@ -106,7 +106,7 @@ export function CareNavigation({
                     >
                         verified_user
                     </span>
-                    {!collapsed && <span>Approval-gated</span>}
+                    <span className="tomo-care-nav__footer-label">Approval-gated</span>
                 </div>
             </div>
         </nav>

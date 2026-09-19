@@ -1,7 +1,7 @@
 # Layout A — Delivery and manual acceptance
 
 **Delivered:** September 19, 2026 · `final-voice-animation-ui-polish`  
-**Status:** Rosa completed manual checks and accepted the layout enhancements, with one compact-sidebar menu alignment refinement. That refinement is implemented and browser-checked; awaiting her visual confirmation.
+**Status:** Rosa completed manual checks and accepted the layout enhancements, with one compact-sidebar menu alignment refinement. Rosa confirmed the menu fix. A subsequent footer verification-icon alignment refinement is implemented and browser-checked; awaiting her visual confirmation.
 [Audit and approved proposal](./TomoCare_Layout_Checkpoint_A.md) · [Polish register](./TomoCare_Final_Polish_Register.md)
 
 ## Start here
@@ -60,3 +60,5 @@ Please report the check number, browser/window size, what happened, and what you
 Rosa reported liking all the enhancements after completing the manual check. Her only requested refinement was the compact menu button: its separate rounded hover/focus box and off-axis icon distracted from the otherwise aligned navigation rows.
 
 The compact menu now spans the full header row, uses square row edges and the same hover color as the navigation items, and centers on their icon axis. The header keeps its existing height and divider. Checked automatic compact mode at 1280px and manually collapsed mode at 1440px: menu and navigation targets are each 71px wide inside the 72px rail, and both icon centers are x=35.5px. Keyboard focus covers the full menu row. Build and focused lint pass. This records Rosa’s product review; it does not imply every broader accessibility/browser limit above was independently re-tested.
+
+Rosa confirmed the menu alignment fix and noticed the bottom approval/verification shield was still off-axis. The footer now centers its icon in automatic compact and manually collapsed sidebars. Label hiding targets the label explicitly, so it cannot accidentally hide the shield. Browser geometry confirms the shield and all five upper icons share x=35.5px in the 72px rail at 1280px automatic compact and 1440px manually collapsed widths. Build and focused lint pass.

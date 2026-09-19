@@ -75,7 +75,7 @@ The eight L-identifiers are sub-findings mapped to existing P-items, not eight n
 
 ## Layout implementation update — September 19
 
-Rosa approved the proposal and A1–A3 are implemented on `final-voice-animation-ui-polish`. See the [delivery evidence and minimum manual checks](./TomoCare_Layout_A_Manual_Checks.md). L01–L08 now have implementation coverage. Rosa completed manual checks and accepted the enhancements with one compact-menu alignment refinement, now implemented and browser-checked; visual confirmation of that refinement remains pending.
+Rosa approved the proposal and A1–A3 are implemented on `final-voice-animation-ui-polish`. See the [delivery evidence and minimum manual checks](./TomoCare_Layout_A_Manual_Checks.md). L01–L08 now have implementation coverage. Rosa completed manual checks and accepted the enhancements with a compact-menu alignment refinement, now confirmed fixed. The follow-up footer shield alignment is implemented and browser-checked; visual confirmation remains pending.
 
 - **A1 / P01, P02, P03, P06, P13:** balanced home panels, compact care overlays, reachable microphone/transcript controls, stable accessible names, and fewer overlapping status elements.
 - **A2 / P04:** session-scoped chart units and selection survive mode changes and transcript remounting. This does not add stored conversation history.
