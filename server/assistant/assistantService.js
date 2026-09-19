@@ -88,6 +88,7 @@ export async function answerAssistantQuestion({
     const isProfileSummary = queryPlan.intent === "profile_summary"
     const needsTrustedContext =
         queryPlan.intent !== "social_response" &&
+        queryPlan.intent !== "spend_clarification" &&
         !isAttentionSummary &&
         !isProfileSummary
     const buildContext = needsTrustedContext

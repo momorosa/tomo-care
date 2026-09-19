@@ -46,6 +46,7 @@ const SEMANTIC_SCHEMA = {
                 "documents",
                 "health",
                 "librela",
+                "medications",
                 "pain",
                 "profile",
                 "rabies_vaccine",
@@ -171,6 +172,11 @@ Use event_offset 1 only when the user asks for the Librela injection before the
 most recently discussed one. Otherwise use 0.
 Use whole_visit only when the user asks for the full appointment or visit cost.
 Use direct_medication for Librela medication spend.
+For all medication or prescription spending use spend_summary with subject medications.
+This totals verified medication-category line items, never all visit charges.
+Never interpret an unnamed medication as Librela. For unspecified spending, ask
+which scope rather than guessing Librela. A spending follow-up may retain the
+previous spending scope and date range unless a new timeframe is explicit.
 
 Never infer an approval, execution, medication administration, booking, send,
 text, email, calendar change, or other external action. For an action request

@@ -27,6 +27,9 @@ import {
     getVerifiedSourcesLabel,
 } from "./citationPresentation.js"
 import RunwayAvatarMedia from "./RunwayAvatarMedia.jsx"
+import TranscriptDivider from "./TranscriptDivider.jsx"
+import { useTranscriptWidth } from "./useTranscriptWidth.js"
+import { answerBadge } from "./answerBadge.js"
 import {
     AVATAR_VOICE_PLAYBACK,
     playVoiceWithAvatarFallback,
@@ -81,6 +84,7 @@ export default function AssistantPanel({
     const characterSequenceRef = useRef(0)
     const [voiceMuted, setVoiceMuted] = useState(false)
     const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(true)
+    const [transcriptRatio, setTranscriptRatio] = useState(0.5)
     const [pendingMenuOpen, setPendingMenuOpen] = useState(false)
     const [pendingActionLoading, setPendingActionLoading] = useState(null)
     const recorderRef = useRef(null)
@@ -677,6 +681,8 @@ export default function AssistantPanel({
                     sessionTurns={sessionTurns}
                     loading={loading}
                     transcriptOpen={voiceTranscriptOpen}
+                    transcriptRatio={transcriptRatio}
+                    onTranscriptResize={setTranscriptRatio}
                     reminderById={reminderById}
                     onNavigateAttention={navigateAttention}
                     error={error}
@@ -790,6 +796,8 @@ function ModeButton({ active, icon, label, onClick }) {
 }
 
 function VoiceStage({
+    transcriptRatio,
+    onTranscriptResize,
     controlTarget,
     voiceState,
     sessionTurns,
@@ -810,6 +818,7 @@ function VoiceStage({
     onToggleMute,
     transcriptEndRef,
 }) {
+    const { stageRef, width, ratio } = useTranscriptWidth(transcriptRatio)
     const controls = (
         <VoiceControlDock
             voiceState={voiceState}
@@ -832,6 +841,8 @@ function VoiceStage({
                 transcriptOpen ? "tomo-voice-stage--transcript-open" : ""
             }`}
             aria-label="Voice conversation with Tomo"
+            ref={stageRef}
+            style={{ "--tomo-transcript-share": `${ratio * 100}%` }}
         >
             <div className="tomo-voice-stage__focus">
                 <div className="tomo-voice-stage__media">
@@ -849,6 +860,7 @@ function VoiceStage({
 
             {controlTarget ? createPortal(controls, controlTarget) : controls}
 
+            {transcriptOpen && <TranscriptDivider stageRef={stageRef} width={width} ratio={ratio} onChange={onTranscriptResize} />}
             {transcriptOpen && (
                 <VoiceTranscriptSheet
                     sessionTurns={sessionTurns}
@@ -1123,28 +1135,9 @@ function UserTurn({ children }) {
 }
 
 function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
-    const isActionRequest = answer.answer_type === "action_request"
     const isPreparedAction = answer.answer_type === "action_prepared"
-    const isPreparedMessage = answer.answer_type === "message_draft_prepared"
-    const isAttentionSummary = answer.answer_type === "attention_summary"
     const isProfileSummary = answer.answer_type === "profile_summary"
-    const needsClarification = answer.answer_type === "clarification_needed"
-    const badgeLabel =
-        answer.answer_type === "social_response"
-            ? "Tomo"
-            : isProfileSummary
-              ? "Momo’s Profile"
-            : isAttentionSummary
-              ? "Needs attention"
-            : isPreparedMessage
-              ? "Draft ready"
-              : isPreparedAction
-                ? "Ready to review"
-                : needsClarification
-                  ? "Needs details"
-                  : isActionRequest
-                    ? "Approval required"
-                    : "Grounded answer"
+    const badge = answerBadge(answer.answer_type)
     const visibleCitations = getRecentVerifiedSources(answer.citations)
     const citationLabel = getVerifiedSourcesLabel({
         visibleCount: visibleCitations.length,
@@ -1160,12 +1153,10 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
                 <p className="text-xs font-semibold text-tomo-text-h">Tomo</p>
                 <span
                     className={`tomo-badge ml-auto ${
-                        isActionRequest || needsClarification
-                            ? "tomo-badge--warning"
-                            : "tomo-badge--success"
+                        badge.warning ? "tomo-badge--warning" : "tomo-badge--success"
                     }`}
                 >
-                    {badgeLabel}
+                    {badge.label}
                 </span>
             </div>
 

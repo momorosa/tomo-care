@@ -2,7 +2,7 @@
 
 **Date:** September 19, 2026  
 **Branch:** `final-voice-animation-ui-polish`  
-**Status:** Approved character direction implemented; Rosa’s in-app listening and expression acceptance pending.
+**Status:** Rosa completed the first manual check and reported better praise/playful reactions and successful local speech fallback. Spending and transcript follow-ups are covered in [the next delivery](./TomoCare_Spending_and_Transcript_Resize_Checks.md); perceived live/local voice continuity is recorded as future polish.
 
 ## What is now connected
 

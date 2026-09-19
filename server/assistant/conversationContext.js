@@ -1,3 +1,5 @@
+import { sanitizeSpendingContext } from "./spending.js"
+
 const CONTEXTUAL_INTENTS = new Set([
     "active_reminders",
     "attention_summary",
@@ -50,6 +52,8 @@ export function sanitizeConversationContext(value) {
             ? value.pending_detail.trim()
             : ""
 
+    if (intent === "spend_clarification" || (intent === "spend_summary" && value.scope)) return sanitizeSpendingContext(value)
+
     if (intent === ACTION_CLARIFICATION_INTENT) {
         if (subject && !CONTEXTUAL_SUBJECTS.has(subject)) return null
         if (!ACTION_PENDING_DETAILS.has(pendingDetail)) return null
@@ -88,6 +92,10 @@ export function getNextConversationContext({
                     ? "administration_date"
                     : "medication_and_date",
         })
+    }
+
+    if (["spend_summary", "spend_clarification"].includes(queryPlan?.intent)) {
+        return sanitizeSpendingContext(queryPlan)
     }
 
     const current = sanitizeConversationContext({

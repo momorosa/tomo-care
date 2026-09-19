@@ -1,3 +1,4 @@
+import { resolveSpendingPlan } from "./spending.js"
 import {
     resolveAttentionDateRange,
     resolveDateRange,
@@ -75,6 +76,9 @@ export function buildQueryPlan(question, options = {}) {
             dateRange,
         })
     }
+
+    const spendingPlan = resolveSpendingPlan(question, dateRange, options.conversationContext)
+    if (spendingPlan) return spendingPlan
 
     if (isAmbiguousHealthQuestion(q)) {
         return basePlan({

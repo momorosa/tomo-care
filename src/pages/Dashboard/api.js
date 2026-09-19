@@ -272,6 +272,10 @@ export async function askAssistantByVoice(
             conversationContext.pending_detail
     }
 
+    if (["spend_summary", "spend_clarification"].includes(conversationContext?.intent) && conversationContext?.date_range) {
+        headers["X-Tomo-Spending-Context"] = encodeURIComponent(JSON.stringify(conversationContext))
+    }
+
     const response = await fetch(`/api/pets/${petId}/assistant/voice`, {
         method: "POST",
         headers,

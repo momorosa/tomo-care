@@ -4,6 +4,8 @@ import { buildVerifiedWeightTrendPresentation } from "./weightTrendPresentation.
 import { getCareDate } from "../lib/careDates.js"
 import { TOMO_RELATIONSHIP_PROFILE_V2 } from "./relationshipProfile.js"
 
+import { answerMedicationSpend } from "./spending.js"
+
 const LIBRELA_INTERVAL_DAYS = 49
 const LIBRELA_REMIND_BEFORE_DAYS = 7
 
@@ -110,8 +112,18 @@ export function composeGroundedAnswer({
             response = answerActiveReminders(context, queryPlan)
             break
 
+        case "spend_clarification":
+            response = {
+                answer: "For spending, do you mean all medication costs, direct Librela costs, or the full cost of Librela visits? I can total those from verified cost records.",
+                answer_type: "clarification_needed", confidence: "high", citations: [],
+                limitations: ["No spending scope was assumed."], proposed_action: null,
+            }
+            break
+
         case "spend_summary":
-            response = answerLibrelaSpend(context, queryPlan)
+            response = queryPlan.scope === "verified_medication_line_items"
+                ? answerMedicationSpend(context, queryPlan)
+                : answerLibrelaSpend(context, queryPlan)
             break
 
         case "count_events":
@@ -696,7 +708,7 @@ function answerSocialResponse(subject, question) {
     const answers = {
         acknowledgement: "Got it, Rosa.",
         capabilities:
-            "I’m Tomo—your sidekick for Momo’s care. I can answer from verified TomoCare records, summarize medication and weight history, check care reminders and due dates, total Librela spending, and prepare care updates or messages for your review. I can be warm and playful with you, but I won’t invent records, make veterinary judgments, or send or change anything without your approval.",
+            "I’m Tomo—your sidekick for Momo’s care. I can answer from verified TomoCare records, summarize medication and weight history, check care reminders and due dates, total verified medication or Librela spending, and prepare care updates or messages for your review. I can be warm and playful with you, but I won’t invent records, make veterinary judgments, or send or change anything without your approval.",
         goodbye: "Talk soon, Rosa. Give Momo a little hello from me.",
         greeting: "Hi Rosa. What would you like to check for Momo?",
     }

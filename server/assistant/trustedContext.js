@@ -51,6 +51,7 @@ export function buildTrustedContextFromRows({
         homeMedicationReminders,
         homeMedicationAdministrationEvents,
         librelaInjectionEvents,
+        verifiedMedicationCostItems: costItems.filter(item => item.status === "verified" && item.category === "medication"),
         directLibrelaCostItems,
         librelaVisitCostItems,
     }

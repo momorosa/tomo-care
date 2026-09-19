@@ -56,6 +56,7 @@ export function enrichCitations(citations = [], context = {}) {
 
     const costItemById = new Map(
         [
+            ...(context.verifiedMedicationCostItems || []),
             ...(context.directLibrelaCostItems || []),
             ...(context.librelaVisitCostItems || []),
         ].map((item) => [item.id, item])

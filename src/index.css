@@ -1733,7 +1733,7 @@ html, body {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
 }
-.tomo-voice-stage--transcript-open { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tomo-voice-stage--transcript-open { grid-template-columns: minmax(0, 1fr) minmax(0, var(--tomo-transcript-share, 50%)); }
 .tomo-voice-stage__focus,
 .tomo-voice-stage--transcript-open .tomo-voice-stage__focus {
   position: relative; inset: auto; grid-column: 1; grid-row: 1; transition: none;
@@ -1883,3 +1883,20 @@ html, body {
 .tomo-correction-actions > button { flex: 1 1 210px; white-space: nowrap; }
 
 .tomo-modal__panel > .border-b { position: sticky; top: 0; z-index: 2; background: #1b1c23; }
+
+
+/* Resize handle overlays the shared edge without changing the panel grid. */
+.tomo-transcript-divider {
+  position: absolute; z-index: 25; top: 0; bottom: 0;
+  left: calc(100% - var(--tomo-transcript-share, 50%)); width: 12px;
+  transform: translateX(-50%); cursor: col-resize; touch-action: none; user-select: none;
+}
+.tomo-transcript-divider::after {
+  content: ""; position: absolute; inset: 0 5px; background: transparent;
+}
+.tomo-transcript-divider:hover::after,
+.tomo-transcript-divider:focus-visible::after,
+.tomo-transcript-divider--dragging::after { background: #c084fc; }
+.tomo-transcript-divider:focus-visible { outline: 2px solid #c084fc; outline-offset: -2px; }
+.tomo-voice-stage:has(.tomo-transcript-divider--dragging) { user-select: none; cursor: col-resize; }
+@media (max-width: 859px) { .tomo-transcript-divider { display: none; } }
