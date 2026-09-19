@@ -10,6 +10,7 @@ import {
 } from "../../../shared/avatarProtocol.js"
 
 const DEFAULT_SPEECH_TIMEOUT_MS = 90_000
+const DEFAULT_SPEECH_START_TIMEOUT_MS = 15_000
 const AVATAR_CANCELLED_REASON = "avatar_cancelled"
 const AVATAR_STATUS_FAILURE_REASONS = new Set([
     "unsupported_audio",
@@ -54,6 +55,7 @@ export async function connectRunwayAvatar({
     fetchImpl = globalThis.fetch,
     createId = () => globalThis.crypto.randomUUID(),
     speechTimeoutMs = DEFAULT_SPEECH_TIMEOUT_MS,
+    speechStartTimeoutMs = Math.min(speechTimeoutMs, DEFAULT_SPEECH_START_TIMEOUT_MS),
     now = () => globalThis.performance?.now?.() ?? Date.now(),
     signal,
 } = {}) {
@@ -78,6 +80,7 @@ export async function connectRunwayAvatar({
     }
     const pendingSpeech = new Map()
     const subscribedTracks = new Set()
+    const mediaParticipants = new Set()
     let currentRequestId = null
     let disconnected = false
     let connected = false
@@ -111,6 +114,7 @@ export async function connectRunwayAvatar({
         room.unregisterTextStreamHandler?.(AVATAR_STATUS_TOPIC)
         room.off?.(sdk.RoomEvent.TrackSubscribed, handleTrackSubscribed)
         room.off?.(sdk.RoomEvent.Disconnected, handleRoomDisconnected)
+        room.off?.(sdk.RoomEvent.ParticipantDisconnected, handleParticipantDisconnected)
         signal?.removeEventListener?.("abort", handleAbort)
 
         // Let the view retain its last decoded frame before detaching the tracks.
@@ -123,10 +127,18 @@ export async function connectRunwayAvatar({
         }
     }
 
-    function handleTrackSubscribed(track) {
+    function handleTrackSubscribed(track, _publication, participant) {
+        if (disconnected) return
+        if (participant?.identity) mediaParticipants.add(participant.identity)
         subscribedTracks.add(track)
         if (track.kind === sdk.Track.Kind.Video) onVideoTrack(track)
         if (track.kind === sdk.Track.Kind.Audio) onAudioTrack(track)
+    }
+
+    function handleParticipantDisconnected(participant) {
+        if (!mediaParticipants.has(participant?.identity)) return
+        finalizeDisconnect("avatar_disconnected")
+        room.disconnect()
     }
 
     function handleRoomDisconnected() {
@@ -151,7 +163,10 @@ export async function connectRunwayAvatar({
         }
 
         if (message.status === AVATAR_STATUS.PLAYING) {
+            if (pending.playingAt !== null) return
             pending.playingAt = now()
+            clearTimeout(pending.timer)
+            pending.timer = setTimeout(pending.timeout, speechTimeoutMs)
             pending.onPlaybackStarted?.()
             return
         }
@@ -205,6 +220,7 @@ export async function connectRunwayAvatar({
 
     room.on(sdk.RoomEvent.TrackSubscribed, handleTrackSubscribed)
     room.on(sdk.RoomEvent.Disconnected, handleRoomDisconnected)
+    room.on(sdk.RoomEvent.ParticipantDisconnected, handleParticipantDisconnected)
     signal?.addEventListener?.("abort", handleAbort, { once: true })
 
     if (signal?.aborted) {
@@ -239,101 +255,106 @@ export async function connectRunwayAvatar({
             }
 
             const startedAt = now()
-            let response
-
-            try {
-                response = await fetchImpl(audioUrl)
-            } catch {
-                throw new RunwayAvatarClientError(
-                    "Tomo’s spoken response could not be prepared for animation.",
-                    "avatar_audio_unavailable"
-                )
-            }
-            if (!response.ok) {
-                throw new RunwayAvatarClientError(
-                    "Tomo’s spoken response could not be prepared for animation.",
-                    "avatar_audio_unavailable"
-                )
-            }
-
-            let bytes
-            try {
-                bytes = new Uint8Array(await response.arrayBuffer())
-            } catch {
-                throw new RunwayAvatarClientError(
-                    "Tomo’s spoken response could not be prepared for animation.",
-                    "avatar_audio_unavailable"
-                )
-            }
-            const audioReadyAt = now()
-            if (bytes.length === 0 || bytes.length > MAX_AVATAR_SPEECH_BYTES) {
-                throw statusError(
-                    bytes.length === 0 ? "empty_audio" : "audio_too_large"
-                )
-            }
-
             const requestId = createId()
             currentRequestId = requestId
+            // Register before preparing or transferring audio. Either operation can stall;
+            // disconnect, expiry, Stop and timeout must settle the caller independently.
             const completion = new Promise((resolve, reject) => {
-                const timer = setTimeout(() => {
-                    pendingSpeech.delete(requestId)
-                    if (currentRequestId === requestId) currentRequestId = null
-                    reject(
-                        new RunwayAvatarClientError(
-                            "Tomo’s live animation took too long to respond.",
-                            "avatar_playback_timeout"
-                        )
-                    )
-                }, speechTimeoutMs)
+                const timeout = () => {
+                    finalizeDisconnect("avatar_playback_timeout")
+                    room.disconnect()
+                }
                 pendingSpeech.set(requestId, {
-                    resolve,
-                    reject,
-                    timer,
+                    resolve, reject, timeout,
+                    timer: setTimeout(timeout, speechStartTimeoutMs),
                     startedAt,
-                    audioReadyAt,
-                    sentAt: audioReadyAt,
+                    audioReadyAt: startedAt,
+                    sentAt: startedAt,
                     acceptedAt: null,
                     playingAt: null,
                     onPlaybackStarted,
                 })
             })
 
-            try {
-                await room.localParticipant.sendBytes(bytes, {
-                    topic: AVATAR_SPEECH_TOPIC,
-                    name: `tomo-speech-${requestId}.mp3`,
-                    mimeType: "audio/mpeg",
-                    compress: false,
-                    attributes: { requestId },
-                })
+            const fail = (error) => {
                 const pending = pendingSpeech.get(requestId)
-                if (pending) pending.sentAt = now()
-            } catch {
-                const pending = pendingSpeech.get(requestId)
-                clearTimeout(pending?.timer)
+                if (!pending) return
+                clearTimeout(pending.timer)
                 pendingSpeech.delete(requestId)
-                currentRequestId = null
-                throw new RunwayAvatarClientError(
-                    "Tomo’s live animation could not receive this response.",
-                    "avatar_playback_failed"
-                )
+                if (currentRequestId === requestId) currentRequestId = null
+                pending.reject(error)
             }
-
+            // Observe errors immediately without awaiting the transport before completion.
+            // A late transport resolution may not resurrect a cancelled request.
+            void (async () => {
+                let bytes
+                try {
+                    const response = await fetchImpl(audioUrl)
+                    if (!pendingSpeech.has(requestId)) return
+                    if (!response.ok) throw new Error("audio unavailable")
+                    bytes = new Uint8Array(await response.arrayBuffer())
+                } catch {
+                    fail(new RunwayAvatarClientError(
+                        "Tomo’s spoken response could not be prepared for animation.",
+                        "avatar_audio_unavailable"
+                    ))
+                    return
+                }
+                const pending = pendingSpeech.get(requestId)
+                if (!pending || disconnected) return
+                pending.audioReadyAt = now()
+                pending.sentAt = pending.audioReadyAt
+                if (bytes.length === 0 || bytes.length > MAX_AVATAR_SPEECH_BYTES) {
+                    fail(statusError(bytes.length === 0 ? "empty_audio" : "audio_too_large"))
+                    return
+                }
+                try {
+                    await room.localParticipant.sendBytes(bytes, {
+                        topic: AVATAR_SPEECH_TOPIC,
+                        name: `tomo-speech-${requestId}.mp3`,
+                        mimeType: "audio/mpeg",
+                        compress: false,
+                        attributes: { requestId },
+                    })
+                    const current = pendingSpeech.get(requestId)
+                    if (current) current.sentAt = now()
+                } catch {
+                    fail(statusError("avatar_playback_failed"))
+                }
+            })()
             return completion
         },
 
         async stopSpeech() {
             if (!currentRequestId || disconnected) return false
-
-            await room.localParticipant.sendText(
-                JSON.stringify(
-                    createAvatarControl({
-                        requestId: currentRequestId,
+            const requestId = currentRequestId
+            const playbackStarted = pendingSpeech.get(requestId)?.playingAt !== null
+            // The user's Stop takes effect even if the worker cannot acknowledge it.
+            settleSpeech({ request_id: requestId, status: AVATAR_STATUS.INTERRUPTED })
+            if (!playbackStarted) {
+                // A Stop message can arrive before the worker knows this upload exists.
+                // Closing that transport prevents a late upload from starting orphan audio.
+                finalizeDisconnect("user_ended")
+                room.disconnect()
+                return true
+            }
+            let stopTimer
+            try {
+                await Promise.race([room.localParticipant.sendText(
+                    JSON.stringify(createAvatarControl({
+                        requestId,
                         action: AVATAR_CONTROL.STOP,
-                    })
-                ),
-                { topic: AVATAR_CONTROL_TOPIC }
-            )
+                    })),
+                    { topic: AVATAR_CONTROL_TOPIC }
+                ), new Promise((_, reject) => {
+                    stopTimer = setTimeout(() => reject(new Error("stop timeout")), 1000)
+                })])
+            } catch {
+                finalizeDisconnect("avatar_disconnected")
+                room.disconnect()
+            } finally {
+                clearTimeout(stopTimer)
+            }
             return true
         },
 

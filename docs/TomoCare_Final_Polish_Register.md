@@ -4,7 +4,7 @@
 **Updated:** September 19, 2026
 **Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout checkpoint A is accepted as of September 19, including both compact-sidebar icon-alignment refinements. Rosa approved the first character direction; broader voice choices, additional reactions, later estimates, and provider acceptance remain separate checkpoints.
 **Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
-**Current activity:** Rosa confirmed improved praise/playful reactions and working live-to-local speech fallback. Her spending failure and transcript-resizing request are implemented; the perceived voice/posture continuity difference is deferred production polish. See [spending and transcript delivery/checks](./TomoCare_Spending_and_Transcript_Resize_Checks.md).
+**Current activity:** Rosa accepted transcript resizing and spending clarification/totals. An unexpected animation end without local Voice recovery reopened P10; recovery fixes and controlled checks are delivered for manual acceptance. See [animation recovery](./TomoCare_Animation_Recovery_Checks.md) and [model lifecycle review](./TomoCare_Model_Lifecycle.md).
 
 ## Purpose and evidence
 
@@ -67,11 +67,11 @@ Rosa’s screenshots and manual observations add three tracked items. These supp
 
 | ID | Feedback | Track / priority | Status and acceptance |
 | --- | --- | --- | --- |
-| P17 | General medication spending failed; “Spending, please” did not recover; unsupported answer claimed grounding. | Journey / P1 | Implemented verified medication-category totals, bounded spending follow-ups and honest badges. Exact exchange checked against demo records. Rosa’s acceptance pending. |
+| P17 | General medication spending failed; “Spending, please” did not recover; unsupported answer claimed grounding. | Journey / P1 | Implemented verified medication-category totals, bounded spending follow-ups and honest badges. Exact exchange checked against demo records. Accepted by Rosa on September 19, 2026. |
 | P18 | Perceived voice and posture change at live/local handoff breaks continuity slightly. | Voice + Animation / P2 future | Record as production enhancement; fallback function was successful and Rosa is not blocked. Investigate perceptual continuity before changing a voice or provider. |
-| P19 | Drag the transcript boundary to expand or contract Conversation. | Layout / P1 requested | Implemented pointer and keyboard resizing, panel limits, session preference across mode/collapse changes, and unchanged mobile stacking. Rosa’s acceptance pending. |
+| P19 | Drag the transcript boundary to expand or contract Conversation. | Layout / P1 requested | Implemented pointer and keyboard resizing, panel limits, session preference across mode/collapse changes, and unchanged mobile stacking. Accepted by Rosa on September 19, 2026. |
 
-P14–P16 update: Rosa observed more varied, better praise and playful reactions. P10 update: abrupt ending of animation successfully continued through local speech. These observations are acceptance evidence for those paths, not blanket closure of every expression or provider-quality item. See [the delivery and three minimum checks](./TomoCare_Spending_and_Transcript_Resize_Checks.md).
+P14–P16 update: Rosa observed more varied, better praise and playful reactions. P10 update: manual End previously continued through local speech, but the later automatic/unexpected end failed; this item is reopened pending the recovery checks. These observations are acceptance evidence for those paths, not blanket closure of every expression or provider-quality item. See [the delivery and three minimum checks](./TomoCare_Spending_and_Transcript_Resize_Checks.md).
 
 ## Layout discovery update — September 14
 

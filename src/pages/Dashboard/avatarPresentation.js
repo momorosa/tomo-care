@@ -98,7 +98,7 @@ export function getAvatarPresentation({
                 ? "Live animation session ended"
                 : "Live animation ended",
             description: expired
-                ? "Tomo is using local Voice. Start a new session when you want."
+                ? "The animation reached its time limit. Local Voice is still available; use Start speaking to continue."
                 : "Tomo is using local Voice.",
             tone: "neutral",
             retryable: expired,

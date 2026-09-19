@@ -13,6 +13,8 @@
         "dev:demo:avatar": "node --env-file=.env.demo server/avatar/runwayAvatarAgent.js dev",
         "build": "vite build",
         "preview": "vite preview",
+        "models:check": "node server/scripts/checkModels.js",
+        "models:check:demo": "node --env-file=.env.demo server/scripts/checkModels.js",
         "setup:check": "node server/scripts/checkLocalSetup.js",
         "setup:check:demo": "node --env-file=.env.demo server/scripts/checkLocalSetup.js",
         "test:setup-isolation": "node --test server/gmail/realCareDemoGuard.test.js server/config/pythonRuntime.test.js server/scripts/checkLocalSetup.test.js",

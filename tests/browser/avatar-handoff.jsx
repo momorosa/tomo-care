@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
 import RunwayAvatarMedia from "../../src/pages/Dashboard/RunwayAvatarMedia.jsx"
+import { playVoiceWithAvatarFallback } from "../../src/pages/Dashboard/avatarVoiceFallback.js"
 import portrait from "../../assets/tomo-voice-avatar-placeholder.webp"
 import "../../src/index.css"
 
@@ -20,6 +21,8 @@ export default function HandoffFixture() {
     const avatar = useRef(null)
     const stage = useRef(null)
     const speech = useRef(null)
+    const playbackAttempt = useRef(0)
+    const [localResponses, setLocalResponses] = useState(0)
     const track = useRef(null)
     const disconnected = useRef(null)
     const [voiceState, setVoiceState] = useState("idle")
@@ -71,14 +74,25 @@ export default function HandoffFixture() {
         }
     }
     async function play(expression) {
-        if (!avatar.current?.isReady()) return
+        const attempt = ++playbackAttempt.current
         setVoiceState("speaking")
         if (typeof expression === "string") setReaction({id:++reactionId.current, expression})
-        try { await avatar.current.speak("fixture-only") } catch { log("Speech rejected; caller may use local fallback") }
+        const result = await playVoiceWithAvatarFallback({
+            avatarReady: avatar.current?.isReady(),
+            playAvatar: () => avatar.current.speak("fixture-only"),
+            isCurrent: () => attempt === playbackAttempt.current,
+            playLocal: async () => {
+                setLocalResponses(count => count + 1)
+                log("Local Voice fallback received the answer")
+            },
+        })
+        log(`Answer settled: ${result.mode}`)
         setVoiceState("idle")
     }
+
     return <main className="tomo-theme" style={{padding:16,minHeight:"100vh"}}>
         <h1>Avatar handoff · local simulation</h1>
+        <p role="status">Voice state: {voiceState}. Local answers: {localResponses}.</p>
         <p>Happy footage stands in for a different live pose. No provider connection or audio.</p>
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBlock:12}}>
             <label><input type="checkbox" checked={reduce} onChange={e=>{
@@ -98,7 +112,7 @@ export default function HandoffFixture() {
             <button onClick={()=>play()}>Play simulated answer</button>
             <button onClick={()=>play("pleased")}>Play grateful answer</button>
             <button onClick={()=>speech.current?.resolve({status:"completed"})}>Complete answer</button>
-            <button onClick={()=>{avatar.current.stopSpeech();setVoiceState("idle")}}>Stop speech</button>
+            <button onClick={()=>{playbackAttempt.current += 1;avatar.current.stopSpeech();setVoiceState("idle")}}>Stop speech</button>
             <button onClick={()=>disconnected.current?.()}>Simulate disconnect</button>
             <button onClick={()=>speech.current?.onPlaybackStarted()}>Release playback-start signal</button>
         </div>

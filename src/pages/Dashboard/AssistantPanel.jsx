@@ -310,6 +310,7 @@ export default function AssistantPanel({
                 } catch {
                     if (!isCurrentPlayback()) return
                     playbackRef.current = null
+                    setError("Tomo’s voice couldn’t start. Press Replay to hear this answer, or Start speaking to continue.")
                     if (nextVoiceResponse.latency) {
                         reportVoiceLatency(nextVoiceResponse.latency)
                     }

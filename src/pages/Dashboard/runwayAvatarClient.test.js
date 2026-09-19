@@ -9,6 +9,7 @@ import {
     AVATAR_STATUS_TOPIC,
     createAvatarStatus,
 } from "../../../shared/avatarProtocol.js"
+import { playVoiceWithAvatarFallback } from "./avatarVoiceFallback.js"
 import { connectRunwayAvatar } from "./runwayAvatarClient.js"
 
 function createSdkHarness({ connectError = null } = {}) {
@@ -82,6 +83,7 @@ function createSdkHarness({ connectError = null } = {}) {
             RoomEvent: {
                 TrackSubscribed: "trackSubscribed",
                 Disconnected: "disconnected",
+                ParticipantDisconnected: "participantDisconnected",
             },
             Track: {
                 Kind: { Video: "video", Audio: "audio" },
@@ -201,6 +203,7 @@ test("sends a bounded stop control without replaying audio locally", async () =>
     const speech = client.sendSpeech("data:audio/mpeg;base64,c2FmZS1tcDM=")
     await new Promise((resolve) => setImmediate(resolve))
 
+    await room.emitStatus(createAvatarStatus({ requestId: "speech-stop", status: AVATAR_STATUS.PLAYING }))
     assert.equal(await client.stopSpeech(), true)
     assert.equal(room.sentText[0].options.topic, AVATAR_CONTROL_TOPIC)
     await room.emitStatus(
@@ -364,4 +367,87 @@ test("notifies the view before detaching tracks so the last frame can bridge dis
     harness.rooms[0].emitDisconnected()
     assert.deepEqual(order, ["capture-last-frame", "detach-video", "detach-audio"])
     assert.equal(harness.rooms[0].events.size, 0)
+})
+
+for (const phase of ["fetch", "body", "upload", "playback"]) {
+    test(`expiry during ${phase} settles immediately and plays local audio once`, async () => {
+        const harness = createSdkHarness()
+        let release
+        const held = new Promise(resolve => { release = resolve })
+        const audio = new Response(Buffer.from("safe-mp3"))
+        const client = await connectRunwayAvatar({
+            session: SESSION,
+            loadSdk: async () => harness.sdk,
+            fetchImpl: () => phase === "fetch" ? held : phase === "body"
+                ? { ok: true, arrayBuffer: () => held } : audio,
+        })
+        const room = harness.rooms[0]
+        if (phase === "upload") room.localParticipant.sendBytes = () => held
+        let localCalls = 0
+        const outcome = playVoiceWithAvatarFallback({
+            avatarReady: true,
+            playAvatar: () => client.sendSpeech("fixture"),
+            playLocal: async () => { localCalls += 1 },
+        })
+        await new Promise(resolve => setImmediate(resolve))
+        client.disconnect({ reason: "session_expired" })
+        assert.equal((await outcome).mode, "local")
+        assert.equal(localCalls, 1)
+        release(phase === "fetch" ? audio : new ArrayBuffer(4))
+        await new Promise(resolve => setImmediate(resolve))
+        assert.equal(localCalls, 1)
+        if (phase === "fetch" || phase === "body") assert.equal(room.sentBytes.length, 0)
+    })
+}
+
+test("an unresponsive upload is bounded even while sendBytes never resolves", async () => {
+    const harness = createSdkHarness()
+    const client = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        fetchImpl: async () => new Response(Buffer.from("safe-mp3")),
+        speechStartTimeoutMs: 5,
+    })
+    harness.rooms[0].localParticipant.sendBytes = () => new Promise(() => {})
+    await assert.rejects(client.sendSpeech("fixture"), e => e.reason === "avatar_playback_timeout")
+    assert.equal(harness.rooms[0].disconnectCalls, 1)
+})
+
+test("Stop releases the answer without waiting for a worker acknowledgement", async () => {
+    const harness = createSdkHarness()
+    const client = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        fetchImpl: () => new Promise(() => {}),
+    })
+    const speech = client.sendSpeech("fixture")
+    await client.stopSpeech()
+    assert.equal((await speech).status, "interrupted")
+    assert.equal(harness.rooms[0].sentBytes.length, 0)
+    assert.equal(harness.rooms[0].disconnectCalls, 1)
+    client.disconnect()
+})
+
+test("losing the media participant falls back even while the room stays connected", async () => {
+    const harness = createSdkHarness()
+    let localCalls = 0
+    const client = await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        fetchImpl: async () => new Response(Buffer.from("safe-mp3")),
+    })
+    const room = harness.rooms[0]
+    room.events.get("trackSubscribed")({ kind: "video" }, {}, { identity: "avatar" })
+    room.events.get("participantDisconnected")({ identity: "unrelated" })
+    assert.equal(room.disconnectCalls, undefined)
+    const speech = playVoiceWithAvatarFallback({
+        avatarReady: true,
+        playAvatar: () => client.sendSpeech("fixture"),
+        playLocal: async () => { localCalls += 1 },
+    })
+    await new Promise(resolve => setImmediate(resolve))
+    room.events.get("participantDisconnected")({ identity: "avatar" })
+    assert.equal((await speech).mode, "local")
+    assert.equal(localCalls, 1)
+    assert.equal(room.disconnectCalls, 1)
 })

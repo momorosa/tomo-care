@@ -149,8 +149,9 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             startupControllerRef.current = null
             clientRef.current = null
             clearAvatarTimers()
-            controller?.abort()
+            // Preserve the actual end reason before aborting the connection signal.
             client?.disconnect({ reason: disconnectReason })
+            controller?.abort()
             clearAttachedMedia()
             videoAttemptRef.current = null
             videoReadyRef.current = false
@@ -159,6 +160,13 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                 setVideoReady(false)
                 setLiveSpeech(false)
                 updatePresentation(nextState, nextReason)
+                if (nextReason && nextReason !== AVATAR_PRESENTATION_REASONS.REDUCED_MOTION) {
+                    console.info("[TomoCare animation]", {
+                        state: nextState,
+                        reason: normalizeAvatarPresentationReason(nextReason),
+                        voice: "local",
+                    })
+                }
             }
 
             return nextAttempt
@@ -358,15 +366,16 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                         track.attach(audioRef.current)
                     }
                 },
-                onDisconnected() {
+                onDisconnected({ reason = "avatar_disconnected" } = {}) {
                     if (attemptId !== attemptRef.current) return
-
+                    const safeReason = normalizeAvatarPresentationReason(reason,
+                        AVATAR_PRESENTATION_REASONS.AVATAR_DISCONNECTED)
                     cleanupAvatarResources({
-                        disconnectReason:
-                            AVATAR_PRESENTATION_REASONS.AVATAR_DISCONNECTED,
-                        nextState: AVATAR_PRESENTATION_STATES.FAILED,
-                        nextReason:
-                            AVATAR_PRESENTATION_REASONS.AVATAR_DISCONNECTED,
+                        disconnectReason: safeReason,
+                        nextState: safeReason === AVATAR_PRESENTATION_REASONS.USER_ENDED
+                            ? AVATAR_PRESENTATION_STATES.ENDED
+                            : AVATAR_PRESENTATION_STATES.FAILED,
+                        nextReason: safeReason,
                     })
                 },
             })

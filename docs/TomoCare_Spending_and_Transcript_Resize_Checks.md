@@ -2,7 +2,7 @@
 
 **Date:** September 19, 2026  
 **Branch:** `final-voice-animation-ui-polish`  
-**Status:** Implemented and checked; ready for Rosa’s manual acceptance.
+**Status:** Accepted by Rosa on September 19, 2026: wider-screen resizing works beautifully; vague spending uses Needs details and clarification produces the correct total. The subsequently reported animation failure is tracked separately in [animation recovery checks](./TomoCare_Animation_Recovery_Checks.md).
 
 ## Findings and changes
 

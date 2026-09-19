@@ -38,7 +38,7 @@ test("maps startup, disconnect, expiry, and playback outcomes to bounded recover
     )
     assert.equal(expired.retryable, true)
     assert.equal(expired.action.label, "Start animation again")
-    assert.match(expired.description, /local Voice/)
+    assert.match(expired.description, /local Voice/i)
 })
 
 test("maps every supported startup and playback reason deterministically", () => {
@@ -102,7 +102,7 @@ test("treats configuration and Reduce Motion as non-retryable local states", () 
 
         assert.equal(result.state, AVATAR_PRESENTATION_STATES.LOCAL_ONLY)
         assert.equal(result.retryable, false)
-        assert.match(result.description, /local Voice/)
+        assert.match(result.description, /local Voice/i)
         assert.notEqual(result.action?.kind, "retry")
     }
 })
