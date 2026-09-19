@@ -1,7 +1,7 @@
 # Layout A — Delivery and manual acceptance
 
 **Delivered:** September 19, 2026 · `final-voice-animation-ui-polish`  
-**Status:** A1–A3 implemented; awaiting Rosa’s manual acceptance.  
+**Status:** Rosa completed manual checks and accepted the layout enhancements, with one compact-sidebar menu alignment refinement. That refinement is implemented and browser-checked; awaiting her visual confirmation.
 [Audit and approved proposal](./TomoCare_Layout_Checkpoint_A.md) · [Polish register](./TomoCare_Final_Polish_Register.md)
 
 ## Start here
@@ -54,3 +54,9 @@ Please report the check number, browser/window size, what happened, and what you
 - No care records were changed, no demo reset/import was performed, and no microphone recording, outbound message, or Runway session was started for this implementation validation.
 - The embedded PDF still appears blank in the Codex in-app browser, as in the original audit. The URL-backed Open PDF fallback is present. Actual PDF rendering in Safari/Chrome remains a user-browser check, not a claimed pass.
 - Actual microphone/playback, native 200% browser zoom, phone software-keyboard behavior, assistive-technology speech, full contrast/Reduced Motion acceptance, and every error/recovery state have not been revalidated in this layout pass. These limits do not close the broader Voice, Animation, Journey, or accessibility register items.
+
+## Manual review follow-up — September 19
+
+Rosa reported liking all the enhancements after completing the manual check. Her only requested refinement was the compact menu button: its separate rounded hover/focus box and off-axis icon distracted from the otherwise aligned navigation rows.
+
+The compact menu now spans the full header row, uses square row edges and the same hover color as the navigation items, and centers on their icon axis. The header keeps its existing height and divider. Checked automatic compact mode at 1280px and manually collapsed mode at 1440px: menu and navigation targets are each 71px wide inside the 72px rail, and both icon centers are x=35.5px. Keyboard focus covers the full menu row. Build and focused lint pass. This records Rosa’s product review; it does not imply every broader accessibility/browser limit above was independently re-tested.

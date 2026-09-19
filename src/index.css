@@ -1777,6 +1777,13 @@ html, body {
 .tomo-source-panel > div:first-child > p:last-child { max-width: 100%; }
 .tomo-verification-header { flex-shrink: 0; }
 
+/* The compact sidebar toggle shares the full-row target and icon axis. */
+.tomo-care-nav--collapsed .tomo-care-nav__header { padding-inline: 0; }
+.tomo-care-nav--collapsed .tomo-care-nav__toggle {
+  width: 100%; height: auto; align-self: stretch; margin: 0; border-radius: 0;
+}
+.tomo-care-nav__toggle:hover { background: rgb(255 255 255 / 4%); }
+
 .tomo-care-nav--collapsed .tomo-care-nav__item > span:nth-child(2),
 .tomo-care-nav--collapsed .tomo-nav-count { display: none; }
 
@@ -1787,7 +1794,10 @@ html, body {
   .tomo-care-nav .tomo-nav-count,
   .tomo-care-nav > div:last-child span:last-child { display: none; }
   .tomo-care-nav__item { justify-content: center; padding-inline: 0; }
-  .tomo-care-nav__header { padding-inline: 12px; }
+  .tomo-care-nav__header { padding-inline: 0; }
+  .tomo-care-nav__toggle {
+    width: 100%; height: auto; align-self: stretch; margin: 0; border-radius: 0;
+  }
 }
 @media (max-width: 1199px) {
   .tomo-home-grid { --tomo-drawer-width: 0px; grid-template-columns: 72px 0 minmax(0, 1fr); }

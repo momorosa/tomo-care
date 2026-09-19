@@ -2,7 +2,7 @@
 
 **Date:** September 14, 2026
 **Baseline:** `5316a2c`, `final-voice-animation-ui-polish`
-**Status:** Proposal approved by Rosa; A1–A3 implemented September 19, 2026. Product acceptance is pending the [manual checks](./TomoCare_Layout_A_Manual_Checks.md). The findings below preserve the September 14 audit baseline.
+**Status:** Proposal approved by Rosa; A1–A3 implemented September 19, 2026. Rosa completed the [manual checks](./TomoCare_Layout_A_Manual_Checks.md) and accepted the enhancements with one compact-menu alignment refinement, now implemented and awaiting visual confirmation. The findings below preserve the September 14 audit baseline.
 
 [Open the visual proposal](./TomoCare_Layout_Proposal.html) · [Consolidated polish register](./TomoCare_Final_Polish_Register.md)
 

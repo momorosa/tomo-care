@@ -50,7 +50,7 @@ export function CareNavigation({
                 )}
                 <button
                     type="button"
-                    className="tomo-icon-button ml-auto"
+                    className="tomo-icon-button tomo-care-nav__toggle ml-auto"
                     onClick={collapsed ? onExpand : onCollapse}
                     aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                     title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
