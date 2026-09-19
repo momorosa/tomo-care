@@ -465,18 +465,37 @@
     z-index: 1;
   }
 
-  .tomo-avatar-media__transition {
+  /* A captured outgoing frame bridges detach/pose changes without a color flash
+     or a dissolve that superimposes two faces. Audio never waits for this effect. */
+  .tomo-avatar-media__bridge {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 47%;
     pointer-events: none;
-    opacity: 0;
-    background: #302e39;
-    transition: opacity 120ms ease-out;
+    display: none;
+    z-index: 4;
   }
 
-  .tomo-avatar-media__transition--covered {
-    opacity: 1;
-    transition-duration: 100ms;
+  .tomo-avatar-media[data-avatar-transition="departing"] .tomo-avatar-media__bridge {
+    display: block;
+    animation: tomo-handoff-depart 160ms ease-in both;
+  }
+
+  .tomo-avatar-media[data-avatar-transition="arriving"] > :is(img, video) {
+    animation: tomo-handoff-arrive 240ms ease-out both;
+  }
+
+  @keyframes tomo-handoff-depart {
+    from { filter: blur(0); }
+    to { filter: blur(10px); }
+  }
+
+  @keyframes tomo-handoff-arrive {
+    from { filter: blur(10px); }
+    to { filter: blur(0); }
   }
 
   .tomo-avatar-media__motion--visible {
@@ -494,10 +513,6 @@
   .tomo-avatar-media--speaking .tomo-avatar-media__motion,
   .tomo-avatar-media--speaking .tomo-avatar-media__fallback {
     opacity: 0;
-  }
-
-  .tomo-avatar-media__transition {
-    z-index: 4;
   }
 
   .tomo-avatar-media__controls {
@@ -1165,7 +1180,7 @@
     .tomo-avatar-media__fallback,
     .tomo-avatar-media__motion,
     .tomo-avatar-media__video,
-    .tomo-avatar-media__transition,
+    .tomo-avatar-media__bridge,
     .tomo-avatar-live-control,
     .tomo-avatar-media__notice,
     .tomo-voice-transcript-sheet,
@@ -1824,6 +1839,7 @@ html, body {
   .tomo-voice-stage--transcript-open > .tomo-voice-stage__controls { grid-row: 3; }
   .tomo-voice-stage--transcript-open .tomo-avatar-media__fallback,
   .tomo-voice-stage--transcript-open .tomo-avatar-media__motion,
+  .tomo-voice-stage--transcript-open .tomo-avatar-media__bridge,
   .tomo-voice-stage--transcript-open .tomo-avatar-media__video { object-fit: contain; }
   .tomo-voice-transcript-sheet__header { min-height: 52px; }
   .tomo-voice-transcript-sheet__body { padding: 14px; }

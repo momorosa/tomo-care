@@ -113,10 +113,14 @@ export async function connectRunwayAvatar({
         room.off?.(sdk.RoomEvent.Disconnected, handleRoomDisconnected)
         signal?.removeEventListener?.("abort", handleAbort)
 
-        for (const track of subscribedTracks) track.detach?.()
-        subscribedTracks.clear()
-
-        if (notify) onDisconnected({ reason })
+        // Let the view retain its last decoded frame before detaching the tracks.
+        // This synchronous notification must never postpone resource release.
+        try {
+            if (notify) onDisconnected({ reason })
+        } finally {
+            for (const track of subscribedTracks) track.detach?.()
+            subscribedTracks.clear()
+        }
     }
 
     function handleTrackSubscribed(track) {

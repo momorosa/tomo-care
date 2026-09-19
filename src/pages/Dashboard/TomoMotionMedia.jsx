@@ -6,7 +6,9 @@ import {
     TOMO_MOTION_PHASES,
 } from "./tomoMotionSequence.js"
 
-export default function TomoMotionMedia({ voiceState, hidden, disabled }) {
+export default function TomoMotionMedia({
+    voiceState, hidden, disabled, onDisplayReady, onReadyChange,
+}) {
     const [targetPhase, setTargetPhase] = useState(TOMO_MOTION_PHASES.IDLE)
     const [displayPhase, setDisplayPhase] = useState(TOMO_MOTION_PHASES.IDLE)
     const [readySources, setReadySources] = useState({})
@@ -46,6 +48,11 @@ export default function TomoMotionMedia({ voiceState, hidden, disabled }) {
         }
     }, [disabled])
 
+    const displayedSource = sourceFallbacks[displayPhase] || TOMO_MOTION_CLIPS[displayPhase].src
+    useEffect(() => {
+        onReadyChange?.(!disabled && targetPhase === displayPhase && !!readySources[displayedSource])
+    }, [disabled, displayPhase, displayedSource, onReadyChange, readySources, targetPhase])
+
     if (disabled) return null
 
     const renderedPhases =
@@ -84,13 +91,17 @@ export default function TomoMotionMedia({ voiceState, hidden, disabled }) {
                             }))
 
                             if (!displayed && phase === targetPhase) {
+                                onDisplayReady?.(video)
                                 video.currentTime = 0
                                 video.play().catch(() => null)
                                 setDisplayPhase(phase)
                                 return
                             }
 
-                            if (displayed) video.play().catch(() => null)
+                            if (displayed) {
+                                onDisplayReady?.(video)
+                                video.play().catch(() => null)
+                            }
                         }}
                         onError={() => {
                             if (

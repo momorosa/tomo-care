@@ -10,11 +10,6 @@ export const TOMO_MOTION_PHASES = Object.freeze({
     THINKING_B: "thinking-b",
 })
 
-export const TOMO_MOTION_TRANSITION_MS = Object.freeze({
-    COVER: 100,
-    REVEAL: 120,
-})
-
 export const TOMO_MOTION_CLIPS = Object.freeze({
     [TOMO_MOTION_PHASES.IDLE]: {
         src: "/media/tomo/motion/idle-a.mp4",

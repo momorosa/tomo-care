@@ -349,3 +349,19 @@ test("cleans a partial connection and hides raw SDK failures", async () => {
         false
     )
 })
+
+
+test("notifies the view before detaching tracks so the last frame can bridge disconnect", async () => {
+    const harness = createSdkHarness()
+    const order = []
+    await connectRunwayAvatar({
+        session: SESSION,
+        loadSdk: async () => harness.sdk,
+        onDisconnected: () => order.push("capture-last-frame"),
+    })
+    harness.rooms[0].emitTrack({ kind: "video", detach: () => order.push("detach-video") })
+    harness.rooms[0].emitTrack({ kind: "audio", detach: () => order.push("detach-audio") })
+    harness.rooms[0].emitDisconnected()
+    assert.deepEqual(order, ["capture-last-frame", "detach-video", "detach-audio"])
+    assert.equal(harness.rooms[0].events.size, 0)
+})

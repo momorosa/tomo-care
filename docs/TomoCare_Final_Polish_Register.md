@@ -4,7 +4,7 @@
 **Updated:** September 19, 2026
 **Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout checkpoint A is accepted as of September 19, including both compact-sidebar icon-alignment refinements. Voice choices, reaction triggers, later estimates, and provider acceptance remain proposed.
 **Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
-**Current activity:** Layout checkpoint A is implemented and accepted. Voice/Animation feedback is being scoped for the next product checkpoint; no new character-response behavior or provider change has been implemented. See the [Layout acceptance record](./TomoCare_Layout_A_Manual_Checks.md) and the September 19 character feedback below.
+**Current activity:** Layout checkpoint A is accepted. B1 transition handoffs are implemented and awaiting Rosa’s perceptual acceptance; B2 character/listening examples are ready for review. No contextual reaction selection or provider change has been implemented. See the [Voice/Animation checkpoint](./TomoCare_Voice_Animation_Checkpoint_B.md).
 
 ## Purpose and evidence
 
@@ -103,6 +103,15 @@ This refines **P08, P14, P15, and P16**, rather than opening duplicate work item
 | An uncertain care answer or an action awaiting approval | Preserve the known facts, expressed uncertainty, and actual action state. Warmth and familiarity remain compatible with those boundaries. |
 
 **Scope recommendation:** Carry transition quality into the upcoming technical investigation, and bring gratitude and clear playfulness as the first two character examples to the Voice/Animation design review. Broader expressive behavior stays visible in P14–P16 until reviewed; it is not silently deferred as optional decoration. No automatic inference of emotional state, new assets, new provider, or exact reaction trigger set is approved by this feedback record. Rosa should judge whether the complete exchange feels personal and responsive, not just whether the clip changes.
+
+## Voice/Animation implementation checkpoint — September 19
+
+Rosa approved the three-checkpoint plan: transitions, first character behaviors after reviewing examples, then integrated acceptance. The [B checkpoint handoff](./TomoCare_Voice_Animation_Checkpoint_B.md) records implementation, evidence, limits, and three minimum manual checks.
+
+- **P08 / B1:** frame-preserving soft-focus handoffs replace the solid-color cover; normal completion gets a short settling interval; ending, expiry, and disconnect preserve a visual frame while releasing provider resources immediately. The underlying pose mismatch remains. Perceptual acceptance is pending.
+- **P07:** one bounded real demo session reached ready, completed one sample, began another, and accepted Stop/End with the matching worker running. This establishes a currently working configuration, not the historical failure’s root cause.
+- **P09/P10:** cancellation, readiness, expiry, failure, and Reduced Motion checks pass with the existing local sequence and audio fallback retained. Provider-wide reliability and subjective lip-sync quality are not blanket claims.
+- **P14/P15/P16 / B2:** [three listening examples and candidate clips](./TomoCare_Character_Review.html) are ready for Rosa. App behavior is not yet connected to these social contexts; the examples precede that product decision.
 
 ## Previously reported feedback — preserve as accepted behavior
 
