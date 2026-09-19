@@ -4,7 +4,7 @@
 
 **Branch:** `final-voice-animation-ui-polish`
 
-**Status:** B1 transition implementation ready for Rosa’s perceptual acceptance. B2 character examples ready for product review; contextual reaction selection is not implemented.
+**Status:** Rosa reports the B1 transition is better and has approved the B2 character examples. B2 contextual wording, voice delivery, and local reactions are now implemented; in-app acceptance is pending. See [B2 delivery and minimum manual checks](./TomoCare_Character_B2_Manual_Checks.md).
 
 [Character listening review](./TomoCare_Character_Review.html) · [Polish register](./TomoCare_Final_Polish_Register.md)
 
@@ -49,7 +49,7 @@ For repeatable transition-only checks without a provider session, open http://lo
 
 An explicit provider review page is also available at http://localhost:5173/tests/browser/avatar-live-preview.html. This uses the actual provider after Animate Tomo is clicked, with the fictional audio samples; it requires the worker. It is separate from the local-only fixture.
 
-## B2 examples and the decision they support
+## B2 examples and the decision they supported
 
 The samples use the existing configured voice and speech instructions. They are fictional proposals, not evidence that the app now recognizes these situations or selects expressions automatically.
 
@@ -57,9 +57,9 @@ The samples use the existing configured voice and speech instructions. They are 
 - **Playfulness/praise:** “Momo’s tiny chief of staff” receives “Tiny paws, very serious filing system. I’ll take the compliment.” Candidate: amused or pleased. The full laughing clip may be too intense; Rosa decides.
 - **Thanks mixed with worry:** acknowledge the thanks gently, then ask what is worrying Rosa. No celebration merely because the utterance contains thanks.
 
-After this review, B2 will connect the accepted context handling, wording, voice delivery, and selected reactions. The existing personality code already supports local and semantic tone signals and generated social/framing language, so the next investigation should inspect the actual path before assuming every response is a fixed template. The current local animation sequence does not consume those tone signals. Longer-term preference storage, a new provider, or new animation assets remain separate choices.
+Rosa approved this direction and authorized implementation. B2 now connects semantic tone, generated wording, speech delivery, and one-shot happy/laughing reactions with concern-first restraint. See the [B2 delivery](./TomoCare_Character_B2_Manual_Checks.md) for current behavior, evidence, and limits. The listening review remains the original proposal artifact. Longer-term preference storage, a new provider, or new animation assets remain separate choices.
 
-## Validation and limits
+## B1 validation and limits
 
 - **180 tests passed** across dashboard, verification, and avatar regression suites. New behavioral coverage exercises settling, cancellation by a new answer, immediate Stop/End, disconnect during entry, media readiness/failure, Reduced Motion, disposal, repeated Stop/End, frame capture bounds, and notification before track detach.
 - Local browser fixture confirmed normal completion, explicit end, unexpected disconnect, timed expiry, stale playback-start after Stop, and Reduced Motion during visible simulated live video. Reduced Motion left no local motion elements or visible bridge. Narrow 390px framing used matching `contain` geometry for local video, live video, and canvas, with no horizontal page overflow.

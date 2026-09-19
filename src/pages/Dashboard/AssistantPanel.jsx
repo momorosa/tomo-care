@@ -77,6 +77,8 @@ export default function AssistantPanel({
     const [error, setError] = useState("")
     const [voiceState, setVoiceState] = useState(VOICE_STATES.IDLE)
     const [voiceResponse, setVoiceResponse] = useState(null)
+    const [characterReaction, setCharacterReaction] = useState(null)
+    const characterSequenceRef = useRef(0)
     const [voiceMuted, setVoiceMuted] = useState(false)
     const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(true)
     const [pendingMenuOpen, setPendingMenuOpen] = useState(false)
@@ -211,6 +213,7 @@ export default function AssistantPanel({
     }
 
     function stopPlayback({ requiresReview = false } = {}) {
+        setCharacterReaction(null)
         playbackAttemptRef.current += 1
         const avatarStop = avatarMediaRef.current?.stopSpeech()
         avatarStop?.catch?.(() => null)
@@ -228,7 +231,11 @@ export default function AssistantPanel({
         nextVoiceResponse = voiceResponse,
         { requiresReview = false } = {}
     ) {
+        const reaction = nextVoiceResponse?.personality?.mode === "relational"
+            ? { id: ++characterSequenceRef.current, expression: nextVoiceResponse.personality.expression }
+            : null
         if (!nextVoiceResponse?.audioUrl || voiceMutedRef.current) {
+            setCharacterReaction(reaction)
             if (nextVoiceResponse?.latency) {
                 reportVoiceLatency(nextVoiceResponse.latency)
             }
@@ -242,6 +249,7 @@ export default function AssistantPanel({
         }
 
         stopPlayback({ requiresReview })
+        setCharacterReaction(reaction)
         const playbackAttempt = playbackAttemptRef.current
         const isCurrentPlayback = () =>
             playbackAttemptRef.current === playbackAttempt
@@ -413,6 +421,7 @@ export default function AssistantPanel({
                     ? `data:${result.voice.content_type};base64,${result.voice.audio_base64}`
                     : null,
                 disclosure: result.voice.disclosure,
+                personality: result.personality,
                 requiresReview,
                 latency,
             }
@@ -649,13 +658,13 @@ export default function AssistantPanel({
                             active={mode === CONVERSATION_MODES.VOICE}
                             icon="graphic_eq"
                             label="Voice"
-                            onClick={() => setMode(CONVERSATION_MODES.VOICE)}
+                            onClick={() => { setCharacterReaction(null); setMode(CONVERSATION_MODES.VOICE) }}
                         />
                         <ModeButton
                             active={mode === CONVERSATION_MODES.CHAT}
                             icon="chat"
                             label="Chat"
-                            onClick={() => setMode(CONVERSATION_MODES.CHAT)}
+                            onClick={() => { setCharacterReaction(null); setMode(CONVERSATION_MODES.CHAT) }}
                         />
                     </div>
                 </div>
@@ -674,6 +683,7 @@ export default function AssistantPanel({
                     response={voiceResponse}
                     muted={voiceMuted}
                     avatarMediaRef={avatarMediaRef}
+                    characterReaction={characterReaction}
                     onClear={clearSession}
                     onToggleTranscript={() =>
                         setVoiceTranscriptOpen((open) => !open)
@@ -791,6 +801,7 @@ function VoiceStage({
     response,
     muted,
     avatarMediaRef,
+    characterReaction,
     onClear,
     onToggleTranscript,
     onVoiceButton,
@@ -830,6 +841,7 @@ function VoiceStage({
                         fallbackAlt="Tomo, Momo’s care companion"
                         voiceState={voiceState}
                         muted={muted}
+                        reaction={characterReaction}
                     />
                 </div>
                 <div className="tomo-voice-stage__veil" aria-hidden="true" />

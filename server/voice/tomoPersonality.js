@@ -19,22 +19,35 @@ export const TOMO_PERSONALITY_V1 = Object.freeze({
 export const TOMO_AI_VOICE_DISCLOSURE =
     "Tomo’s spoken voice is AI-generated."
 
-export function getTomoSpeechInstructions(answerType, personalityMode) {
+export function getTomoSpeechInstructions(answerType, personalityMode, personalityTone) {
     const restrainedTypes = new Set([
         "clarification_needed",
         "unsupported",
         "action_request",
+        "action_prepared",
+        "message_draft_prepared",
+        "safety_boundary",
+        "no_trusted_data",
+        "unsupported_question",
     ])
 
-    const tone =
-        restrainedTypes.has(answerType) ||
-        personalityMode === "restrained"
+    const restrained = restrainedTypes.has(answerType) || personalityMode === "restrained" ||
+        ["concerned", "frustrated"].includes(personalityTone)
+    const tone = restrained
         ? "calm, clear, and restrained"
-        : "warm, bright, caring, and lightly playful"
+        : personalityTone === "playful"
+          ? "warm and gently amused, with a subtle smile in the voice"
+          : personalityTone === "appreciative"
+            ? "warm and quietly pleased, receiving a compliment naturally"
+            : "warm, caring, and conversational"
+    const delivery = restrained
+        ? "Be attentive and unhurried, without teasing, cheerleading, or false reassurance."
+        : "Keep expression small and natural; do not perform exaggerated excitement or add laughter."
 
     return [
         `Speak in a ${tone} tone.`,
         "Sound like a capable sidekick, not a narrator.",
+        delivery,
         "Use natural pacing and clear pronunciation.",
         "Do not add, omit, or paraphrase any words.",
     ].join(" ")

@@ -23,6 +23,8 @@ export default function HandoffFixture() {
     const track = useRef(null)
     const disconnected = useRef(null)
     const [voiceState, setVoiceState] = useState("idle")
+    const [reaction, setReaction] = useState(null)
+    const reactionId = useRef(0)
     const [events, setEvents] = useState([])
     const [expire, setExpire] = useState(false)
     const [delay, setDelay] = useState(false)
@@ -68,9 +70,10 @@ export default function HandoffFixture() {
             },
         }
     }
-    async function play() {
+    async function play(expression) {
         if (!avatar.current?.isReady()) return
         setVoiceState("speaking")
+        if (typeof expression === "string") setReaction({id:++reactionId.current, expression})
         try { await avatar.current.speak("fixture-only") } catch { log("Speech rejected; caller may use local fallback") }
         setVoiceState("idle")
     }
@@ -87,16 +90,20 @@ export default function HandoffFixture() {
             <label><input type="checkbox" checked={delay} onChange={e=>{delayRef.current=e.target.checked;setDelay(e.target.checked)}} /> Hold playback-start signal</label>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBlock:12}}>
+            <button onClick={()=>{setReaction({id:++reactionId.current,expression:"pleased"});setVoiceState("idle")}}>Receive thanks</button>
+            <button onClick={()=>{setReaction({id:++reactionId.current,expression:"amused"});setVoiceState("idle")}}>Receive playful praise</button>
+            <button onClick={()=>{setReaction({id:++reactionId.current,expression:"attentive"});setVoiceState("idle")}}>Thanks with worry</button>
             <button onClick={()=>setVoiceState("listening")}>Listen locally</button>
             <button onClick={()=>setVoiceState("thinking")}>Think locally</button>
-            <button onClick={play}>Play simulated answer</button>
+            <button onClick={()=>play()}>Play simulated answer</button>
+            <button onClick={()=>play("pleased")}>Play grateful answer</button>
             <button onClick={()=>speech.current?.resolve({status:"completed"})}>Complete answer</button>
             <button onClick={()=>{avatar.current.stopSpeech();setVoiceState("idle")}}>Stop speech</button>
             <button onClick={()=>disconnected.current?.()}>Simulate disconnect</button>
             <button onClick={()=>speech.current?.onPlaybackStarted()}>Release playback-start signal</button>
         </div>
         <div ref={stage} className="tomo-voice-stage--transcript-open" style={{position:"relative",width:"min(100%, 480px)",height:540,overflow:"hidden",borderRadius:20}}>
-            <RunwayAvatarMedia ref={avatar} voiceState={voiceState} fallbackSrc={portrait} fallbackAlt="Tomo fixture"
+            <RunwayAvatarMedia ref={avatar} voiceState={voiceState} reaction={reaction} fallbackSrc={portrait} fallbackAlt="Tomo fixture"
                 createSession={async()=>({max_duration_seconds:expire?8:0})} connectAvatar={connect} />
         </div>
         <ol aria-label="Transition history">{events.map((event,i)=><li key={i}>{event}</li>)}</ol>

@@ -2,6 +2,8 @@ import { VOICE_STATES } from "./voiceInteractionState.js"
 
 export const TOMO_MOTION_PHASES = Object.freeze({
     IDLE: "idle-a",
+    PLEASED: "happy-a",
+    AMUSED: "laughing-a",
     LISTENING_A: "listening-a",
     LISTENING_B: "listening-b",
     LISTENING_C: "listening-c",
@@ -11,6 +13,14 @@ export const TOMO_MOTION_PHASES = Object.freeze({
 })
 
 export const TOMO_MOTION_CLIPS = Object.freeze({
+    [TOMO_MOTION_PHASES.PLEASED]: {
+        src: "/media/tomo/motion/happy-a.mp4",
+        loop: false,
+    },
+    [TOMO_MOTION_PHASES.AMUSED]: {
+        src: "/media/tomo/motion/laughing-a.mp4",
+        loop: false,
+    },
     [TOMO_MOTION_PHASES.IDLE]: {
         src: "/media/tomo/motion/idle-a.mp4",
         loop: false,
@@ -95,4 +105,21 @@ export function getNextMotionPhase({ currentPhase, voiceState }) {
     }
 
     return currentPhase
+}
+
+
+export function isReactionPhase(phase) {
+    return phase === TOMO_MOTION_PHASES.PLEASED || phase === TOMO_MOTION_PHASES.AMUSED
+}
+
+// Presentation metadata can select only an existing local clip, never a URL.
+export function getReactionPhase(reaction) {
+    if (!reaction?.id) return null
+    if (reaction.expression === "pleased") return TOMO_MOTION_PHASES.PLEASED
+    if (reaction.expression === "amused") return TOMO_MOTION_PHASES.AMUSED
+    return null
+}
+
+export function canShowReaction(voiceState) {
+    return voiceState === VOICE_STATES.IDLE || voiceState === VOICE_STATES.SPEAKING
 }

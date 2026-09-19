@@ -260,3 +260,81 @@ test("falls back to the composed social response when generation is rejected", (
     assert.deepEqual(result.citations, [])
     assert.equal(result.proposed_action, null)
 })
+
+
+for (const [question, tone, expression] of [
+    ["You made my day!", "appreciative", "pleased"],
+    ["You deserve a tiny corner office.", "playful", "amused"],
+    ["That took a load off my mind.", "appreciative", "pleased"],
+]) {
+    test(`semantic meaning selects a bounded expression: ${question}`, () => {
+        const result = applyPersonalityFraming({
+            response: groundedResponse({ answer: "I’m glad that helped.", answer_type: "social_response" }),
+            question,
+            queryPlan: { intent: "social_response", subject: "positive_feedback" },
+            semanticInterpretation: { tone, confidence: "high", seriousness: "ordinary" },
+        })
+        assert.equal(result.personality.expression, expression)
+    })
+}
+
+for (const [question, tone] of [
+    ["Thanks, but I’m worried about Momo.", "concerned"],
+    ["Haha, she is in pain though.", "concerned"],
+    ["Wonderful, I’m frustrated that this still doesn’t work.", "frustrated"],
+]) {
+    test(`concern overrides a conflicting positive interpretation: ${question}`, () => {
+        const result = applyPersonalityFraming({
+            response: groundedResponse({ answer: "You’re welcome!", answer_type: "social_response" }),
+            question,
+            queryPlan: { intent: "social_response", subject: "thanks" },
+            semanticInterpretation: { tone: "playful", social_response: "Tiny paws, big celebration!" },
+        })
+        assert.equal(result.personality.tone, tone)
+        assert.equal(result.personality.mode, "restrained")
+        assert.equal(result.personality.expression, "attentive")
+        assert.doesNotMatch(result.answer, /celebration/)
+    })
+}
+
+test("semantic concern wins even without a local worry keyword", () => {
+    const result = applyPersonalityFraming({
+        response: groundedResponse({ answer_type: "social_response" }),
+        question: "You’re sweet, but I have a knot in my stomach about her.",
+        queryPlan: { intent: "social_response", subject: "thanks" },
+        semanticInterpretation: {
+            tone: "concerned", seriousness: "sensitive",
+            social_response: "I’m listening. What’s on your mind about Momo?",
+        },
+    })
+    assert.equal(result.personality.expression, "attentive")
+    assert.equal(result.answer, "I’m listening. What’s on your mind about Momo?")
+})
+
+test("care boundaries and uncertain understanding never choose celebration", () => {
+    for (const answer_type of ["action_prepared", "safety_boundary", "no_trusted_data", "unsupported_question"]) {
+        const original = groundedResponse({ answer_type })
+        const result = applyPersonalityFraming({
+            response: original, question: "You are the best, haha!",
+            queryPlan: { intent: "last_weight" },
+            semanticInterpretation: { tone: "playful", personality_opening: "Let’s celebrate!" },
+        })
+        assert.equal(result.personality.expression, "attentive")
+        assert.equal(result.answer, original.answer)
+        assert.equal(result.citations, original.citations)
+    }
+    const result = applyPersonalityFraming({
+        response: groundedResponse({ answer_type: "social_response" }),
+        question: "Sure, wonderful.", queryPlan: { intent: "social_response", subject: "positive_feedback" },
+        semanticInterpretation: { tone: "playful", confidence: "low" },
+    })
+    assert.equal(result.personality.expression, "neutral")
+})
+
+test("ordinary words containing a cue do not become jokes", () => {
+    const result = applyPersonalityFraming({
+        response: groundedResponse(), question: "What is her overall weight?",
+        queryPlan: { intent: "last_weight" },
+    })
+    assert.equal(result.personality.tone, "neutral")
+})

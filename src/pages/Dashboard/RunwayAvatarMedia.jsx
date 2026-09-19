@@ -37,6 +37,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
         fallbackSrc,
         fallbackAlt,
         voiceState,
+        reaction,
         muted = false,
         createSession = createRunwayAvatarSession,
         connectAvatar = connectLiveAvatar,
@@ -55,6 +56,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     const [reducedMotion, setReducedMotion] = useState(initialReducedMotion)
     const [videoReady, setVideoReady] = useState(false)
     const [liveSpeech, setLiveSpeech] = useState(false)
+    const [cancelledReactionId, setCancelledReactionId] = useState(null)
     const [handoff, setHandoff] = useState({ displayLive: false, phase: "steady" })
     const { displayLive } = handoff
     const clientRef = useRef(null)
@@ -277,6 +279,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             }
         },
         stopSpeech() {
+            setCancelledReactionId(reaction?.id)
             speechAttemptRef.current += 1
             setLiveSpeech(false)
             handoffRef.current?.request(false, {
@@ -398,6 +401,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     }
 
     function endLiveAnimation() {
+        setCancelledReactionId(reaction?.id)
         cleanupAvatarResources({
             disconnectReason: AVATAR_PRESENTATION_REASONS.USER_ENDED,
             nextState: AVATAR_PRESENTATION_STATES.ENDED,
@@ -432,6 +436,8 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             />
             <TomoMotionMedia
                 voiceState={voiceState}
+                reaction={reaction?.id === cancelledReactionId ? null : reaction}
+                deferReaction={live && voiceState === "speaking"}
                 hidden={displayLive}
                 disabled={reducedMotion}
                 onDisplayReady={handleLocalFrame}
