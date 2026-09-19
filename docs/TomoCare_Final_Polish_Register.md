@@ -2,7 +2,7 @@
 
 **Prepared:** September 13, 2026  
 **Updated:** September 14, 2026
-**Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout is first. Specific designs, voice choices, reaction triggers, estimates, and provider acceptance remain proposed.
+**Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout checkpoint A is accepted as of September 19, including both compact-sidebar icon-alignment refinements. Voice choices, reaction triggers, later estimates, and provider acceptance remain proposed.
 **Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
 **Current activity:** Layout discovery completed September 14; no application implementation has begun. The isolated demo was used for inspection and stopped at handoff. See the [Layout audit and proposal](./TomoCare_Layout_Checkpoint_A.md) and [visual proposal](./TomoCare_Layout_Proposal.html).
 
@@ -75,7 +75,7 @@ The eight L-identifiers are sub-findings mapped to existing P-items, not eight n
 
 ## Layout implementation update — September 19
 
-Rosa approved the proposal and A1–A3 are implemented on `final-voice-animation-ui-polish`. See the [delivery evidence and minimum manual checks](./TomoCare_Layout_A_Manual_Checks.md). L01–L08 now have implementation coverage. Rosa completed manual checks and accepted the enhancements with a compact-menu alignment refinement, now confirmed fixed. The follow-up footer shield alignment is implemented and browser-checked; visual confirmation remains pending.
+Rosa approved the proposal and A1–A3 are implemented on `final-voice-animation-ui-polish`. See the [delivery evidence and minimum manual checks](./TomoCare_Layout_A_Manual_Checks.md). L01–L08 have implementation coverage. Rosa completed manual checks and accepted the enhancements, then confirmed both the compact-menu and footer shield alignment refinements. Layout checkpoint A is accepted on September 19; the documented validation limits remain.
 
 - **A1 / P01, P02, P03, P06, P13:** balanced home panels, compact care overlays, reachable microphone/transcript controls, stable accessible names, and fewer overlapping status elements.
 - **A2 / P04:** session-scoped chart units and selection survive mode changes and transcript remounting. This does not add stored conversation history.
@@ -164,7 +164,7 @@ Codex owns focused automated regression checks, lint/build where relevant, and a
 
 - **Feedback coverage accepted:** add nuance to the existing ID as we work; add a new ID only for a distinct concern.
 - **Presentation sizes:** proposed starting checks are 1440 × 900, 1280 × 720, 1024 × 768, and 390 × 844 CSS pixels, plus a short-window and zoom check. These are proposed coverage points, not a promise of full support at every size.
-- **Narrow-layout preference:** retain transcript-open by default; decide whether care details overlay, reflow, or share space when both panels are open. No layout choice has been implemented.
+- **Narrow-layout preference — accepted:** transcript remains open by default; compact care details use a fitted overlay, and phones stack Tomo above evidence with separate speech controls. Verification encourages a larger screen for careful PDF comparison.
 - **Live animation:** decide its presentation role after the bounded quality evaluation. The complete local experience remains necessary for recovery; the quality of expression and voice is required whichever presentation is selected.
 - **Display conventions:** decide whether date wording should become unambiguous month-name text; preserve the accepted lb/kg choice.
 - **Voice and character:** choose the voice/delivery and an explicit expression trigger list from concrete examples. Expressive quality is required; no individual happy/laughing/oops asset is automatically committed.

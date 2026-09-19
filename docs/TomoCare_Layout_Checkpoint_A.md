@@ -2,7 +2,7 @@
 
 **Date:** September 14, 2026
 **Baseline:** `5316a2c`, `final-voice-animation-ui-polish`
-**Status:** Proposal approved by Rosa; A1–A3 implemented September 19, 2026. Rosa completed the [manual checks](./TomoCare_Layout_A_Manual_Checks.md) and accepted the enhancements with a compact-menu alignment refinement, now confirmed fixed. The follow-up footer shield alignment is implemented and awaiting visual confirmation. The findings below preserve the September 14 audit baseline.
+**Status:** A1–A3 and both compact-sidebar alignment refinements accepted by Rosa on September 19, 2026, after the [manual checks](./TomoCare_Layout_A_Manual_Checks.md). The findings below preserve the September 14 audit baseline.
 
 [Open the visual proposal](./TomoCare_Layout_Proposal.html) · [Consolidated polish register](./TomoCare_Final_Polish_Register.md)
 
@@ -66,7 +66,7 @@ For each slice Codex supplies the actual findings repaired, focused regression/b
 - **A2:** Select kg and a chart point where available; switch Voice/Chat and close/reopen the transcript. The same turn, units, selected evidence, and source remain available.
 - **A3:** In prepared demo/fixture state, reach every invoice correction and dialog action at the short/narrow size. Tab stays within an open modal, Escape behaves appropriately, and focus returns on close. Saving a correction still does not approve it.
 
-**Product decision:** Rosa approved this responsive arrangement and all implementation slices, including the smaller character above evidence on phones. She requested encouragement to perform careful PDF verification on a larger screen. Implementation is ready for her interaction acceptance; approval of the proposal is not recorded as acceptance of the finished build.
+**Product decision:** Rosa approved this responsive arrangement and all implementation slices, including the smaller character above evidence on phones. She requested encouragement to perform careful PDF verification on a larger screen. Rosa subsequently completed manual review and accepted the finished layout, including the menu and footer shield alignment refinements, on September 19.
 
 ## Implementation pointers
 
