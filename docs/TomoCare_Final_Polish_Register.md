@@ -21,7 +21,7 @@ This status summary supersedes older discovery/proposal wording below; those sec
 
 The [Journey checkpoint and three minimum checks](./TomoCare_Journey_Checkpoint.md) record a fresh review of the current demo plus isolated correction/dialog fixtures. 721 regression tests, focused lint and production build passed. Repairs clarify October scope, improve P11 inbox recovery, and hide unavailable demo Calendar controls. A stale test was aligned with the existing explicit-verification boundary.
 
-P05/P16 remain pending Rosa’s combined manual acceptance and fresh-source replay. The current demo has only the Librela reminder; the insurance reminder is created during the documented fresh-source path. P03/P04/P06/P12/P13 have bounded review evidence, not blanket accessibility or audio certification. No care records were reset or changed. P20 history acceptance remains closed. Two intermittent document-list failures reported “JWT issued at future”; cause unresolved and startup reliability needs investigation before capture.
+P05/P16 remain pending Rosa’s combined manual acceptance and fresh-source replay. The current demo has only the Librela reminder; the insurance reminder is created during the documented fresh-source path. P03/P04/P06/P12/P13 have bounded review evidence, not blanket accessibility or audio certification. No care records were reset or changed. P20 history acceptance remains closed. September 20: [database-read recovery](./TomoCare_Database_Read_Recovery.md) now handles the exact transient rejection and distinguishes failed loads from empty lists. 741 affected tests and browser recovery checks pass; the underlying hosted cause remains unproven. A normal startup smoke check remains part of acceptance.
 
 ## Purpose and evidence
 

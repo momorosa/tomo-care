@@ -25,7 +25,7 @@ The review covered the three existing stories: source to trusted records, truste
 
 The live demo currently has the existing Librela reminder but **no insurance reminder**. A one-item October answer is therefore correct for this starting state. It is not evidence that the insurance story failed.
 
-The prior accepted three-point history and spending checks remain accepted. Full assistive-technology speech, measured contrast, native 200% zoom, Reduced Motion perception, fresh Gmail-to-verification replay and combined live audio are not newly certified by this pass. Two document-list requests intermittently returned “JWT issued at future” during this pass (verified archive, then pending review). Other care requests succeeded. The cause is not established; do not call it resolved or claim a clean startup reliability pass. Track this authentication-timing symptom for investigation before evidence capture; no credentials or system-clock settings were changed.
+The prior accepted three-point history and spending checks remain accepted. Full assistive-technology speech, measured contrast, native 200% zoom, Reduced Motion perception, fresh Gmail-to-verification replay and combined live audio are not newly certified by this pass. Two document-list requests intermittently returned “JWT issued at future” during this pass (verified archive, then pending review). Other care requests succeeded. September 20 follow-up: the [database-read recovery](./TomoCare_Database_Read_Recovery.md) adds a bounded retry for the exact read rejection and honest document-list loading/error states. The hosted rejection was not reproduced in 24 probes; its underlying cause remains unproven. No credentials or system-clock settings were changed.
 
 ## Rosa’s minimum integrated checks
 

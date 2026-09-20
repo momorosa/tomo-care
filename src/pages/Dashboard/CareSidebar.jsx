@@ -123,6 +123,10 @@ export function CareContextDrawer({
     refreshingReminders,
     reviewDocuments,
     verifiedDocuments,
+    reviewLoadState = "ready",
+    verifiedLoadState = "ready",
+    onReloadReviewDocuments,
+    onReloadVerifiedDocuments,
     careSummary,
     inboxResult,
     inboxError,
@@ -181,6 +185,8 @@ export function CareContextDrawer({
                 {section === HOME_SECTIONS.INBOX && (
                     <InboxContext
                         documents={reviewDocuments}
+                        loadState={reviewLoadState}
+                        onReload={onReloadReviewDocuments}
                         result={inboxResult}
                         error={inboxError}
                         checking={checkingInbox}
@@ -189,7 +195,7 @@ export function CareContextDrawer({
                 )}
 
                 {section === HOME_SECTIONS.VERIFIED && (
-                    <VerifiedContext documents={verifiedDocuments} />
+                    <VerifiedContext documents={verifiedDocuments} loadState={verifiedLoadState} onReload={onReloadVerifiedDocuments} />
                 )}
             </div>
         </aside>
@@ -611,23 +617,24 @@ function CalendarReconnectGuidance() {
     )
 }
 
-function InboxContext({ documents, result, error, checking, onCheck }) {
+function InboxContext({ documents, result, error, checking, onCheck, loadState = "ready", onReload }) {
     const readyCount = documents.length
 
     return (
         <div>
             <div className="tomo-compact-record">
-                <p className="text-3xl font-semibold text-tomo-text-h">{readyCount}</p>
+                <p className="text-3xl font-semibold text-tomo-text-h">{loadState === "ready" ? readyCount : "—"}</p>
                 <p className="mt-1 text-sm text-tomo-text">
-                    {readyCount === 1
-                        ? "document ready for review"
-                        : "documents ready for review"}
+                    {loadState === "ready"
+                        ? readyCount === 1 ? "document ready for review" : "documents ready for review"
+                        : "Review count unavailable"}
                 </p>
                 <p className="mt-3 text-xs leading-5 text-tomo-text">
                     Nothing enters Momo’s trusted record until you verify it.
                 </p>
             </div>
 
+            <DocumentLoadNotice state={loadState} hasRecords={documents.length > 0} onReload={onReload} />
             <button
                 type="button"
                 className={`tomo-btn tomo-btn-primary tomo-inbox-check mt-4 w-full text-sm${
@@ -771,13 +778,14 @@ function InboxContext({ documents, result, error, checking, onCheck }) {
     )
 }
 
-function VerifiedContext({ documents }) {
-    if (documents.length === 0) {
+function VerifiedContext({ documents, loadState = "ready", onReload }) {
+    if (documents.length === 0 && loadState === "ready") {
         return <p className="text-sm text-tomo-text">No verified records yet.</p>
     }
 
     return (
         <div className="space-y-2">
+            <DocumentLoadNotice state={loadState} hasRecords={documents.length > 0} onReload={onReload} />
             {documents.map((doc) => (
                 <Link key={doc.id} to={`/review/${doc.id}`} className="tomo-compact-link">
                     <span className="min-w-0">
@@ -797,6 +805,18 @@ function VerifiedContext({ documents }) {
                     </span>
                 </Link>
             ))}
+        </div>
+    )
+}
+
+function DocumentLoadNotice({ state, hasRecords, onReload }) {
+    if (state === "loading") return <p role="status" className="mt-3 text-sm text-tomo-text">Loading documents…</p>
+    if (state !== "error") return null
+    return (
+        <div role="alert" className="mt-3 rounded-xl border border-tomo-warning/30 p-3 text-sm text-tomo-text">
+            <p className="font-medium text-tomo-text-h">Couldn’t load documents</p>
+            <p className="mt-1">{hasRecords ? "Previously loaded records are shown; this list may be out of date." : "The document list is unavailable. This does not mean there are no records."}</p>
+            <button type="button" className="tomo-btn tomo-btn-secondary mt-3 text-sm" onClick={onReload}>Retry loading documents</button>
         </div>
     )
 }

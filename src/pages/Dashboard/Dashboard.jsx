@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
+import { useCallback, useEffect, useReducer, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useMediaQuery } from "../../components/useMediaQuery.js"
 import AssistantPanel from "./AssistantPanel.jsx"
@@ -92,6 +92,8 @@ export default function Dashboard() {
     )
 
     const [pendingReviewDocs, setPendingReviewDocs] = useState([])
+    const [reviewLoadState, setReviewLoadState] = useState("loading")
+    const [verifiedLoadState, setVerifiedLoadState] = useState("loading")
     const [reminders, setReminders] = useState([])
     const [verifiedDocuments, setVerifiedDocuments] = useState([])
     const [careSummary, setCareSummary] = useState({})
@@ -120,19 +122,25 @@ export default function Dashboard() {
     }, [location.pathname, location.state?.assistantPrompt, navigate])
 
     const loadPendingReviewDocs = useCallback(async () => {
+        setReviewLoadState("loading")
         try {
             const documents = await fetchPendingReviewDocuments(PET_SCOPE)
             setPendingReviewDocs(documents)
+            setReviewLoadState("ready")
         } catch (err) {
+            setReviewLoadState("error")
             console.error("[dashboard] pending review load failed:", err)
         }
     }, [])
 
     const loadVerifiedDocuments = useCallback(async () => {
+        setVerifiedLoadState("loading")
         try {
             const documents = await fetchVerifiedDocuments(PET_SCOPE)
             setVerifiedDocuments(documents)
+            setVerifiedLoadState("ready")
         } catch (err) {
+            setVerifiedLoadState("error")
             console.error("[dashboard] verified documents load failed:", err)
         }
     }, [])
@@ -274,15 +282,8 @@ export default function Dashboard() {
         }
     }, [])
 
-    const latestReviewDocuments = useMemo(
-        () => normalizeReviewDocuments(result),
-        [result]
-    )
-
-    const reviewDocuments =
-        latestReviewDocuments.length > 0
-            ? latestReviewDocuments
-            : pendingReviewDocs
+    // A successful reload must replace the list, including an empty result.
+    const reviewDocuments = pendingReviewDocs
 
     async function checkInbox() {
         setCheckingInbox(true)
@@ -294,8 +295,10 @@ export default function Dashboard() {
 
             setResult(data)
 
-            if (data.reviewDocuments?.length > 0) {
-                setPendingReviewDocs(data.reviewDocuments)
+            const incomingDocuments = normalizeReviewDocuments(data)
+            if (incomingDocuments.length > 0) {
+                setPendingReviewDocs(incomingDocuments)
+                setReviewLoadState("ready")
             } else {
                 await loadPendingReviewDocs()
             }
@@ -1028,6 +1031,10 @@ export default function Dashboard() {
                         refreshingReminders={refreshingReminders}
                         reviewDocuments={reviewDocuments}
                         verifiedDocuments={verifiedDocuments}
+                        reviewLoadState={reviewLoadState}
+                        verifiedLoadState={verifiedLoadState}
+                        onReloadReviewDocuments={loadPendingReviewDocs}
+                        onReloadVerifiedDocuments={loadVerifiedDocuments}
                         careSummary={careSummary}
                         inboxResult={result}
                         inboxError={error}

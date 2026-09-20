@@ -25,6 +25,7 @@
         "demo:reset": "node --env-file=.env.demo server/scripts/resetDemoEnvironment.js",
         "eval:assistant": "node server/scripts/runAssistantEvals.js",
         "test:character": "node --test server/assistant/characterIntegration.test.js server/assistant/personalityLayer.test.js server/assistant/boundedLanguage.test.js server/assistant/openAiSemanticProvider.test.js server/assistant/semanticUnderstanding.test.js server/voice/*.test.js src/pages/Dashboard/tomoMotion*.test.js",
+        "test:database-recovery": "node --test server/database/*.test.js src/pages/Dashboard/inboxRecoveryPresentation.test.js",
         "test:care-dates": "node --test server/lib/careDates.test.js",
         "test:demo-environment": "node --test server/config/runtimeContext.test.js server/config/externalSideEffects.test.js server/middleware/runtimeBoundary.test.js server/demo/scenarioManifest.test.js server/demo/baseSchemaMigration.test.js server/scripts/resetDemoEnvironment.test.js src/runtime/runtimeContext.test.js src/runtime/runtimeGateUI.test.js",
         "test:demo-gmail-intake": "node --test server/demo/demoGmailIntakeContract.test.js server/gmail/demoGmailInbox.test.js server/gmail/demoGmailIngest.test.js server/gmail/gmailInbox.test.js server/config/externalSideEffects.test.js server/demo/scenarioManifest.test.js server/gmail/gmailError.test.js src/pages/Dashboard/inboxErrorPresentation.test.js",
