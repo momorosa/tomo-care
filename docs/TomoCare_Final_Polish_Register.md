@@ -6,6 +6,16 @@
 **Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
 **Current activity:** Rosa accepted transcript resizing and spending clarification/totals. Rosa also accepted P10 animation recovery: at the real five-minute limit, local Voice took over seamlessly and the care conversation continued. This recovery slice is complete. See [animation recovery](./TomoCare_Animation_Recovery_Checks.md) and [model lifecycle review](./TomoCare_Model_Lifecycle.md).
 
+## Current finish-line view — September 19
+
+This status summary supersedes older discovery/proposal wording below; those sections preserve how feedback was found and resolved.
+
+- **Accepted:** layout A1–A3 and sidebar alignment; transcript resizing; spending clarification and totals; first praise/playfulness character improvements; improved live/local transitions; real five-minute expiry with seamless local Voice continuation. Broader expressive range and exact voice/posture matching are later product refinement.
+- **Next: integrated Journey acceptance (P05/P16), with remaining scoped P03/P04/P06/P11/P12/P13 audits.** Rehearse the three existing stories on the final implementation: source → correction/recheck → explicit verification → trusted evidence → reminders/October Attention → editable review-only draft. Include a verified answer, a missing-evidence answer, and an action waiting for review. Check supported-window usability, keyboard/zoom/Reduced Motion, PDF access, and recovery copy. Passing audits close without new code; newly observed blockers get bounded fixes.
+- **Then: evidence and portfolio freeze.** Capture the accepted live path, screenshots and a recorded provider fallback; update case-study claims; finish regression/lint/build and release review; merge/tag the accepted checkpoint. These are later actions, not completed or initiated by this planning update.
+- **Deferred by Rosa:** extraction-model comparison/migration. Other later work includes extra expressions, durable relationship memory, exact live/local voice/posture matching, new care capabilities and production/platform expansion.
+- **Planning allowance:** 1–2 focused work sessions for integrated rehearsal and minor repairs; 2–3 more for capture, case-study updates and release closeout. This is an estimate assuming the existing scope and no major new defect, not a calendar commitment. A new portfolio site or full case-study rewrite would need separate sizing.
+
 ## Purpose and evidence
 
 Keep the remaining polish work, previously accepted feedback, and new suggestions in one place. Preserve the original product concerns without treating every historical issue as an unresolved bug.
@@ -120,10 +130,10 @@ This refines **P08, P14, P15, and P16**, rather than opening duplicate work item
 
 Rosa approved the three-checkpoint plan: transitions, first character behaviors after reviewing examples, then integrated acceptance. The [B checkpoint handoff](./TomoCare_Voice_Animation_Checkpoint_B.md) records implementation, evidence, limits, and three minimum manual checks.
 
-- **P08 / B1:** frame-preserving soft-focus handoffs replace the solid-color cover; normal completion gets a short settling interval; ending, expiry, and disconnect preserve a visual frame while releasing provider resources immediately. The underlying pose mismatch remains. Perceptual acceptance is pending.
+- **P08 / B1:** frame-preserving soft-focus handoffs replace the solid-color cover; normal completion gets a short settling interval; ending, expiry, and disconnect preserve a visual frame while releasing provider resources immediately. Rosa subsequently reported improved transitions and accepted seamless expiry recovery. The underlying pose mismatch remains deferred production polish.
 - **P07:** one bounded real demo session reached ready, completed one sample, began another, and accepted Stop/End with the matching worker running. This establishes a currently working configuration, not the historical failure’s root cause.
 - **P09/P10:** cancellation, readiness, expiry, failure, and Reduced Motion checks pass with the existing local sequence and audio fallback retained. Provider-wide reliability and subjective lip-sync quality are not blanket claims.
-- **P14/P15/P16 / B2:** [three listening examples and candidate clips](./TomoCare_Character_Review.html) are ready for Rosa. App behavior is not yet connected to these social contexts; the examples precede that product decision.
+- **P14/P15/P16 / B2:** [three listening examples and candidate clips](./TomoCare_Character_Review.html) were approved by Rosa and subsequently connected in B2. Rosa reported improved praise/playfulness; complete care-journey integration is the remaining checkpoint.
 
 ## Previously reported feedback — preserve as accepted behavior
 
@@ -210,7 +220,7 @@ Codex owns focused automated regression checks, lint/build where relevant, and a
 - **Narrow-layout preference — accepted:** transcript remains open by default; compact care details use a fitted overlay, and phones stack Tomo above evidence with separate speech controls. Verification encourages a larger screen for careful PDF comparison.
 - **Live animation:** decide its presentation role after the bounded quality evaluation. The complete local experience remains necessary for recovery; the quality of expression and voice is required whichever presentation is selected.
 - **Display conventions:** decide whether date wording should become unambiguous month-name text; preserve the accepted lb/kg choice.
-- **Voice and character:** the B2 gratitude, playful-praise, and concerned-response direction is approved. Happy/laughing clips now have bounded one-shot roles; their in-app intensity and timing await acceptance. Oops and additional expressions remain proposals.
+- **Voice and character:** the B2 gratitude, playful-praise, and concerned-response direction is approved. Happy/laughing clips now have bounded one-shot roles; Rosa reported better in-app praise/playfulness. Broader nuance remains available for later refinement. Oops and additional expressions remain proposals.
 
 Future updates should retain stable IDs and record: status, agreed priority, observed reproduction, accepted behavior, implementation/PR link, and Rosa's acceptance result. Fresh suggestions remain marked as proposals until accepted. Closed feedback stays in the register to prevent repeated rediscovery.
 
