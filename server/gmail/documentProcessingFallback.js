@@ -38,7 +38,7 @@ export function getProcessingFailurePresentation(step) {
         populate_raw_text: {
             title: "Tomo saved the PDF but could not read its text",
             message:
-                "Open the saved PDF to confirm it is readable, then retry this document. If it is a scan, it may need OCR before automatic extraction can continue.",
+                "The PDF is saved, but text processing did not finish. Nothing from this document has entered Momo’s trusted record. Open the saved PDF to check it, then retry. If it still fails, share the technical details with support.",
             nextAction: "open_source_or_retry",
         },
         triage: {

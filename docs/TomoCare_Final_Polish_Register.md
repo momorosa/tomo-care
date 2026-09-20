@@ -17,6 +17,12 @@ This status summary supersedes older discovery/proposal wording below; those sec
 - **Deferred by Rosa:** extraction-model comparison/migration. Other later work includes extra expressions, durable relationship memory, exact live/local voice/posture matching, new care capabilities and production/platform expansion.
 - **Planning allowance:** 1–2 focused work sessions for integrated rehearsal and minor repairs; 2–3 more for capture, case-study updates and release closeout. This is an estimate assuming the existing scope and no major new defect, not a calendar commitment. A new portfolio site or full case-study rewrite would need separate sizing.
 
+## Integrated Journey review — September 19
+
+The [Journey checkpoint and three minimum checks](./TomoCare_Journey_Checkpoint.md) record a fresh review of the current demo plus isolated correction/dialog fixtures. 721 regression tests, focused lint and production build passed. Repairs clarify October scope, improve P11 inbox recovery, and hide unavailable demo Calendar controls. A stale test was aligned with the existing explicit-verification boundary.
+
+P05/P16 remain pending Rosa’s combined manual acceptance and fresh-source replay. The current demo has only the Librela reminder; the insurance reminder is created during the documented fresh-source path. P03/P04/P06/P12/P13 have bounded review evidence, not blanket accessibility or audio certification. No care records were reset or changed. P20 history acceptance remains closed.
+
 ## Purpose and evidence
 
 Keep the remaining polish work, previously accepted feedback, and new suggestions in one place. Preserve the original product concerns without treating every historical issue as an unresolved bug.

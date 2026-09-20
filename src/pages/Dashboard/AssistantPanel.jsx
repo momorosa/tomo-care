@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom"
+import { useRuntimeContext } from "../../runtime/RuntimeContext.jsx"
 import { EvidencePresentationContext } from "./evidencePresentationContext.js"
 import { useEffect, useMemo, useRef, useState } from "react"
 import tomoVoiceAvatar from "../../../assets/tomo-voice-avatar-placeholder.webp"
@@ -1285,6 +1286,7 @@ function ProfileSummarySource({ answer, onNavigate }) {
 }
 
 function AttentionSummary({ items, onNavigate }) {
+    const runtime = useRuntimeContext()
     return (
         <section className="mt-4 space-y-3" aria-label="Items needing attention">
             {items.map((item) => (
@@ -1309,7 +1311,7 @@ function AttentionSummary({ items, onNavigate }) {
                         </span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                        {(item.navigation_targets || []).map((target) => (
+                        {(item.navigation_targets || []).filter((target) => runtime.mode !== "demo" || !["open_calendar_home", "open_calendar_event"].includes(target.kind)).map((target) => (
                             <button
                                 key={`${item.id}-${target.kind}`}
                                 type="button"

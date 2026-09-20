@@ -206,7 +206,9 @@ function answerAttentionSummary(summary, queryPlan) {
 
     if (summary.current_work_included === false) {
         limitations.push(
-            "A tomorrow-only check covers scheduled reminders; pending actions and review documents are current work rather than tomorrow-dated items."
+            dateRange?.type === "next_care_day"
+                ? "A tomorrow-only check covers scheduled reminders; pending actions and review documents are current work rather than tomorrow-dated items."
+                : "This date-range check covers scheduled reminders. Pending actions and documents awaiting review are current work and are not included in this future window."
         )
     }
 

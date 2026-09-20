@@ -537,6 +537,8 @@ function CalendarControl({
     onSync,
     onClick,
 }) {
+    const runtime = useRuntimeContext()
+    if (runtime.mode === "demo") return null
     const control = getReminderCalendarControl(reminder, transientState)
     const content = (
         <>
@@ -732,9 +734,10 @@ function InboxContext({ documents, result, error, checking, onCheck }) {
                                         </Link>
                                     </div>
                                     {doc.failedStep && (
-                                        <p className="mt-2 text-[11px] text-tomo-text">
-                                            Processing stage: {doc.failedStep}
-                                        </p>
+                                        <details className="mt-2 text-[11px] text-tomo-text">
+                                            <summary className="cursor-pointer">Technical details</summary>
+                                            <p className="mt-1">Processing stage: {doc.failedStep}</p>
+                                        </details>
                                     )}
                                 </div>
                             ))}
