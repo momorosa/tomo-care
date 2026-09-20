@@ -1,6 +1,8 @@
 # Demo history enrichment — September 19, 2026
 
-Status: implemented and applied to the isolated demo; Rosa’s manual acceptance pending.
+Status: accepted by Rosa on September 19, 2026. This demo history slice is complete.
+
+Rosa completed the manual test and confirmed that the three plotted synthetic weights make the trend useful and that varied spending questions work well for the demo. This records acceptance of the history enrichment; the broader integrated Journey rehearsal remains the next checkpoint.
 
 Two fictional, preprocessed Librela visits add useful history without creating or extracting more PDFs. They are verified-status **fixtures**, not evidence of a human verification session. Source titles, notes and the read-only source view explicitly identify preloaded demo history. These sampled dates do not recommend a treatment schedule.
 
