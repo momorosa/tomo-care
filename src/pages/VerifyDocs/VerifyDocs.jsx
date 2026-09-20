@@ -150,13 +150,18 @@ export default function VerifyDocs() {
         setCounts(EMPTY_COUNTS)
         setViewUrl(null)
 
-        Promise.all([api.fetchDocument(selectedId), api.fetchViewUrl(selectedId)])
-            .then(([{ doc, counts: nextCounts }, url]) => {
+        api.fetchDocument(selectedId)
+            .then(async ({ doc, counts: nextCounts }) => {
                 if (ignore) return
 
                 setDetail(doc)
                 setCounts(nextCounts)
-                setViewUrl(url)
+                // Preloaded history has no PDF by design. Keep its audit record readable.
+                if (doc.file_url) {
+                    const url = await api.fetchViewUrl(selectedId)
+                    if (ignore) return
+                    setViewUrl(url)
+                }
 
                 if (
                     doc.status === "verified" ||
@@ -433,6 +438,8 @@ export default function VerifyDocs() {
                     </details>
 
                     <SourcePreviewPanel
+                        document={detail}
+                        demoMode={runtime.mode === "demo"}
                         viewUrl={viewUrl}
                         fileUrl={selectedDoc?.file_url || detail?.file_url}
                     />

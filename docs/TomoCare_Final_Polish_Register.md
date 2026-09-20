@@ -11,6 +11,7 @@
 This status summary supersedes older discovery/proposal wording below; those sections preserve how feedback was found and resolved.
 
 - **Accepted:** layout A1–A3 and sidebar alignment; transcript resizing; spending clarification and totals; first praise/playfulness character improvements; improved live/local transitions; real five-minute expiry with seamless local Voice continuation. Broader expressive range and exact voice/posture matching are later product refinement.
+- **Added at Rosa’s request:** two preloaded May/July 2026 Librela visits with medication costs and weights, without additional PDFs. Implemented and seeded; user acceptance pending. This is bounded Journey data enrichment (P20), not a new care capability. See [history and checks](./TomoCare_Demo_History_Seed.md).
 - **Next: integrated Journey acceptance (P05/P16), with remaining scoped P03/P04/P06/P11/P12/P13 audits.** Rehearse the three existing stories on the final implementation: source → correction/recheck → explicit verification → trusted evidence → reminders/October Attention → editable review-only draft. Include a verified answer, a missing-evidence answer, and an action waiting for review. Check supported-window usability, keyboard/zoom/Reduced Motion, PDF access, and recovery copy. Passing audits close without new code; newly observed blockers get bounded fixes.
 - **Then: evidence and portfolio freeze.** Capture the accepted live path, screenshots and a recorded provider fallback; update case-study claims; finish regression/lint/build and release review; merge/tag the accepted checkpoint. These are later actions, not completed or initiated by this planning update.
 - **Deferred by Rosa:** extraction-model comparison/migration. Other later work includes extra expressions, durable relationship memory, exact live/local voice/posture matching, new care capabilities and production/platform expansion.
@@ -73,13 +74,14 @@ For audit rows, the size is the review effort; any newly discovered repair must 
 
 ## Manual feedback follow-up — September 19
 
-Rosa’s screenshots and manual observations add three tracked items. These supplement the existing four tracks.
+Rosa’s screenshots, manual observations, and follow-up request add the tracked items below. These supplement the existing four tracks.
 
 | ID | Feedback | Track / priority | Status and acceptance |
 | --- | --- | --- | --- |
 | P17 | General medication spending failed; “Spending, please” did not recover; unsupported answer claimed grounding. | Journey / P1 | Implemented verified medication-category totals, bounded spending follow-ups and honest badges. Exact exchange checked against demo records. Accepted by Rosa on September 19, 2026. |
 | P18 | Perceived voice and posture change at live/local handoff breaks continuity slightly. | Voice + Animation / P2 future | Record as production enhancement; fallback function was successful and Rosa is not blocked. Investigate perceptual continuity before changing a voice or provider. |
 | P19 | Drag the transcript boundary to expand or contract Conversation. | Layout / P1 requested | Implemented pointer and keyboard resizing, panel limits, session preference across mode/collapse changes, and unchanged mobile stacking. Accepted by Rosa on September 19, 2026. |
+| P20 | Enrich spending and weight answers with two preprocessed May/July Librela visits; no new PDFs. | Journey / P1 requested; S | Implemented and seeded in the isolated demo; existing September invoice and reminders preserved. Browser checks confirm three weights, medication totals and readable source records. Rosa’s manual acceptance is pending; see [minimum checks](./TomoCare_Demo_History_Seed.md). |
 
 P14–P16 update: Rosa observed more varied, better praise and playful reactions. P10 update: following the recovery fixes, Rosa confirmed seamless local Voice continuation at the actual five-minute limit and accepted this slice on September 19, 2026. These observations are acceptance evidence for those paths, not blanket closure of every expression or provider-quality item. See [the delivery and three minimum checks](./TomoCare_Spending_and_Transcript_Resize_Checks.md).
 

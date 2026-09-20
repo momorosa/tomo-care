@@ -1,4 +1,5 @@
-export default function SourcePreviewPanel({ viewUrl, fileUrl }) {
+export default function SourcePreviewPanel({ viewUrl, fileUrl, document, demoMode = false }) {
+  const preloaded = demoMode && document?.text_extracted?.weight_measurement?.extraction_method === "synthetic_fixture"
   const fileName = fileUrl ? fileUrl.split("/").pop() : null
 
   return (
@@ -19,7 +20,11 @@ export default function SourcePreviewPanel({ viewUrl, fileUrl }) {
           <iframe title="pdf-viewer" src={viewUrl} className="w-full h-full" />
         ) : (
           <div className="h-full flex items-center justify-center text-tomo-text">
-            Select a document…
+            {preloaded ? <div className="p-6 space-y-3 max-w-md" role="note">
+              <h2 className="text-lg font-semibold text-tomo-text-h">Preloaded demo history</h2>
+              <p>This fictional visit was seeded to demonstrate spending and weight history. It was not extracted from a PDF or verified during this session.</p>
+              <p>The recorded visit details are shown in the read-only panel. No PDF is attached by design.</p>
+            </div> : document ? "No PDF is attached to this record." : "Select a document…"}
           </div>
         )}
       </div>

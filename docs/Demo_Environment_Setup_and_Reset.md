@@ -192,11 +192,11 @@ counts:
 
 ```text
 pets:                       1
-documents:                  5
-events:                     4
-cost_items:                 1
+documents:                  7
+events:                     6
+cost_items:                 3
 labs:                       0
-facts:                      5
+facts:                      7
 provider_contacts:          0
 orchestration_runs:         0
 care_actions:               0
@@ -227,8 +227,8 @@ drawers.
 Expected baseline:
 
 - one clearly fictional Momo profile;
-- four source-linked verified weight facts;
-- one fictional verified Librela injection and current follow-up reminder;
+- six source-linked verified weight facts;
+- three fictional verified Librela injections (including the fixed May/July 2026 history) and one current follow-up reminder;
 - one fictional Simparica administration and current reminder;
 - one clinic-reported Rabies next-due fact that does not claim administration;
 - no pending invoice, provider contact, Calendar destination, or Messages
@@ -271,3 +271,19 @@ to start if either the allowlisted demo project or the fixed synthetic pet ID
 is present.
 
 Never run the demo reset command with the real-care `.env`.
+
+## Add May/July history without resetting a checked demo
+
+The reset manifest now includes two preloaded fictional Librela visits. To add
+only these visits to an existing demo while preserving the reviewed September
+invoice and reminders, use:
+
+```bash
+npm run demo:seed-history -- --project-ref gohzjjqsbtwavjuhjdwj
+```
+
+This demo-only command inserts missing exact fixture IDs, skips matching rows,
+and refuses conflicting rows before writing. It does not reset, import PDFs,
+or create reminders. It was applied to Rosa’s demo on September 19, 2026.
+See [history data and minimum checks](./TomoCare_Demo_History_Seed.md), including
+the distinction between the current three-visit dataset and the full reset baseline.
