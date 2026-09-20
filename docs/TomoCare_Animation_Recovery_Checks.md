@@ -2,6 +2,8 @@
 
 **Date:** September 19, 2026. **Branch:** `final-voice-animation-ui-polish`.
 
+**Status:** Accepted by Rosa on September 19, 2026. At the actual five-minute limit, local Voice took over seamlessly and the care conversation continued. Rosa confirmed this slice is complete.
+
 Rosa accepted transcript resizing and clarified spending answers. She then reported an unexpected animation end that did not continue through local Voice. This reopens the P10 reliability check; prior successful manual End behavior did not cover every interruption phase.
 
 ## What the log establishes
