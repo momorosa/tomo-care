@@ -4,6 +4,16 @@ import process from "node:process"
 import { getAppTimeZone } from "./lib/careDates.js"
 import { assertExternalSideEffectAllowed } from "./config/externalSideEffects.js"
 
+import { getDemoCalendarContract } from "./demo/demoCalendar.js"
+
+export function getDemoGoogleCalendarService(env = process.env) {
+    getDemoCalendarContract(env)
+    const auth = new google.auth.OAuth2(env.GCAL_CLIENT_ID, env.GCAL_CLIENT_SECRET)
+    if (!env.GCAL_CLIENT_ID || !env.GCAL_CLIENT_SECRET || !env.GCAL_REFRESH_TOKEN) throw new Error("Google Calendar connection is not configured.")
+    auth.setCredentials({ refresh_token: env.GCAL_REFRESH_TOKEN })
+    return google.calendar({ version: "v3", auth })
+}
+
 export const GOOGLE_CALENDAR_SCOPE =
     "https://www.googleapis.com/auth/calendar.events"
 

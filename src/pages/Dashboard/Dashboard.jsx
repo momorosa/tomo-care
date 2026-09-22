@@ -322,7 +322,7 @@ export default function Dashboard() {
         }))
 
         try {
-            const result = await syncReminderToGoogleCalendar(reminder.id)
+            const result = await syncReminderToGoogleCalendar(reminder.id, runtime.mode)
             await loadReminders({ silent: true })
 
             setCalendarSyncByReminder((current) => ({

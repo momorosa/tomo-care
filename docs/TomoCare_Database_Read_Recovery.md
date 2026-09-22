@@ -2,6 +2,8 @@
 
 Status: application mitigation implemented and tested; the original hosted rejection was not reproduced today. This is not a claim that Supabase’s underlying timing issue has been eliminated.
 
+Rosa completed the manual validation and accepted this recovery slice on September 22, 2026. The provider’s original intermittent cause remains unproven.
+
 ## Diagnosis and evidence
 
 On September 19, two dashboard document-list requests reported `JWT issued at future`: the verified archive and the pending-review list. They use TomoCare’s Supabase database client, not Google Calendar authentication.

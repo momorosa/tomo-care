@@ -287,3 +287,7 @@ and refuses conflicting rows before writing. It does not reset, import PDFs,
 or create reminders. It was applied to Rosa’s demo on September 19, 2026.
 See [history data and minimum checks](./TomoCare_Demo_History_Seed.md), including
 the distinction between the current three-visit dataset and the full reset baseline.
+
+## September 22: approved demo Calendar exception
+
+The [isolated Calendar checkpoint](./TomoCare_Demo_Calendar.md) adds one explicit Librela reminder action after dedicated-calendar setup. Other external actions remain blocked. Configure only `DEMO_GCAL_CALENDAR_ID` in `.env.demo`; never point it at `primary` or change the care destination. When configured, `demo:reset` cleans up only this scenario’s owned demo entries before touching the database or PDF. If Calendar cleanup fails, reset stops; restore the connection/configuration and retry. Keep the destination setting until cleanup is complete.

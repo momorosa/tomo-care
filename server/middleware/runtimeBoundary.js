@@ -4,6 +4,11 @@ import { EXTERNAL_CAPABILITIES } from "../config/externalSideEffects.js"
 const ALLOWED_DEMO_REQUESTS = Object.freeze([
     Object.freeze({
         method: "POST",
+        pattern: /^\/api\/events\/[^/]+\/actions\/sync-demo-calendar\/?$/,
+        capability: "demo_calendar",
+    }),
+    Object.freeze({
+        method: "POST",
         pattern: /^\/api\/gmail\/check-inbox\/?$/,
         capability: EXTERNAL_CAPABILITIES.DEMO_GMAIL_INTAKE,
     }),

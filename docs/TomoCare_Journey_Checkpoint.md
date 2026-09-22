@@ -1,6 +1,6 @@
 # Integrated Journey checkpoint — September 19, 2026
 
-Status: implementation review and bounded repairs complete; Rosa’s integrated manual acceptance and fresh-source rehearsal remain pending.
+Status: implementation review and bounded repairs complete. Rosa accepted the database-read recovery validation on September 22. The next approved slice is [isolated demo Calendar](./TomoCare_Demo_Calendar.md); its implementation is checked locally, with destination setup and live acceptance pending. The broader integrated fresh-source rehearsal is not newly marked complete.
 
 The review covered the three existing stories: source to trusted records, trusted records to useful answers, and governed follow-through. It preserved the current demo dataset. No reset, inbox import, verification, new reminder, Calendar operation, outbound message, microphone capture or live avatar session was performed.
 
@@ -8,7 +8,7 @@ The review covered the three existing stories: source to trusted records, truste
 
 - **October scope explanation:** the correct October reminder was accompanied by “tomorrow-only” limitation text. The explanation now describes the selected future window; tomorrow questions retain their specific explanation. A regression test covers October.
 - **Inbox recovery (P11):** text-processing failure no longer suggests OCR as an early diagnosis. The message explains that the PDF is saved, trusted records are unchanged, and the next steps are source inspection and retry. The processing-stage identifier remains available under collapsed **Technical details**.
-- **Unavailable demo Calendar controls:** reminder cards offered Calendar sync and Attention offered Calendar navigation even though demo execution is intentionally blocked. Those controls are now hidden in demo mode. Private-care controls and the server’s existing provider boundary are unchanged.
+- **Unavailable demo Calendar controls:** reminder cards offered Calendar sync and Attention offered Calendar navigation even though demo execution is intentionally blocked. Those controls were hidden in demo mode at this checkpoint. The subsequently approved September 22 slice adds one separately guarded Librela action after dedicated-calendar setup. Private-care controls and the server’s existing provider boundary are unchanged.
 - **Outdated verification test:** one older test expected saving a correction to lead to approval. The app already correctly requires a separate explicit verification action. The test now protects that accepted boundary; no approval behavior changed.
 
 ## Verified in this pass
@@ -37,7 +37,7 @@ No reset needed. Ask about medication spending and weight history, then ask whet
 
 ### 2. Current state: Attention to an editable draft
 
-Ask “What needs my attention in October?” Expect the October 19 Librela reminder and October 26 due date, with no “tomorrow-only” wording. Open the reminder; demo Calendar controls should be absent. Ask Tomo to draft a message requesting Momo’s next Librela appointment. Edit and copy the draft; confirm the dates and **Review-only demo draft** boundary. Nothing is sent or booked. Try Tab, Shift+Tab and Escape in a short window, then native 200% browser zoom. Use the existing fixture for repeatable dialog checks if helpful.
+Ask “What needs my attention in October?” Expect the October 19 Librela reminder and October 26 due date, with no “tomorrow-only” wording. Open the reminder; demo Calendar controls stay hidden until the dedicated calendar is configured. Once configured, only the approved Librela reminder offers **Add to demo calendar**; see the Calendar checkpoint for its separate acceptance checks. Ask Tomo to draft a message requesting Momo’s next Librela appointment. Edit and copy the draft; confirm the dates and **Review-only demo draft** boundary. Nothing is sent or booked. Try Tab, Shift+Tab and Escape in a short window, then native 200% browser zoom. Use the existing fixture for repeatable dialog checks if helpful.
 
 ### 3. Final fresh-source rehearsal
 

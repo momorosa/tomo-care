@@ -31,7 +31,12 @@ import {
 import { resolveReminderTimingState } from "../reminders/reminderTiming.js"
 import { getInsuranceProviderForRuntime } from "../lib/insuranceProviderRuntime.js"
 
+import { demoCalendarAvailable } from "../demo/demoCalendar.js"
+import { createDemoCalendarHandler } from "../demo/demoCalendarRoute.js"
+import { getDemoGoogleCalendarService } from "../googleCalendar.js"
+
 const router = express.Router()
+router.post("/events/:eventId/actions/sync-demo-calendar", createDemoCalendarHandler({ client: sbAdmin, createCalendar: getDemoGoogleCalendarService }))
 
 // ---------------------------------------------------------------------------
 // Config / rules
@@ -1090,6 +1095,7 @@ function toDashboardReminderCard(event) {
     const externalRefs = details.external_refs || {}
 
     const baseCard = {
+        demo_calendar_available: demoCalendarAvailable(event),
         id: event.id,
         event_date: event.event_date,
         subtype,

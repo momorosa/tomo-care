@@ -22,6 +22,13 @@ export function canSyncReminderToGoogleCalendar(reminder) {
     )
 }
 
+export function getDemoReminderCalendarControl(reminder, transientState = null) {
+    if (!reminder?.demo_calendar_available) return null
+    const control = getReminderCalendarControl(reminder, transientState)
+    if (control.kind === "calendar_home") return null
+    return { ...control, label: control.kind === "event_link" ? "Open demo calendar event" : control.disabled ? "Adding…" : transientState?.phase === "error" || transientState?.phase === "reauthorization_required" ? "Try demo calendar again" : "Add to demo calendar" }
+}
+
 export function getReminderCalendarControl(reminder, transientState = null) {
     const phase = transientState?.phase || "idle"
 
@@ -78,7 +85,7 @@ export function getCalendarStatusMessage(transientState = null) {
     if (transientState?.phase === "synced") {
         return {
             tone: "success",
-            text: "Added to Google Calendar.",
+            text: transientState.message || "Added to Google Calendar.",
         }
     }
 

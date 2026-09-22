@@ -11,6 +11,7 @@ import { getCompactReminderPresentation } from "./reminderPresentation.js"
 import {
     getCalendarStatusMessage,
     getReminderCalendarControl,
+    getDemoReminderCalendarControl,
 } from "./calendarRecovery.js"
 
 const NAV_ITEMS = [
@@ -544,8 +545,10 @@ function CalendarControl({
     onClick,
 }) {
     const runtime = useRuntimeContext()
-    if (runtime.mode === "demo") return null
-    const control = getReminderCalendarControl(reminder, transientState)
+    const control = runtime.mode === "demo"
+        ? getDemoReminderCalendarControl(reminder, transientState)
+        : getReminderCalendarControl(reminder, transientState)
+    if (!control) return null
     const content = (
         <>
             <span
@@ -554,7 +557,12 @@ function CalendarControl({
             >
                 calendar_month
             </span>
-            {control.label}
+            <span>
+                {control.label}
+                {runtime.mode === "demo" && control.kind === "sync" && (
+                    <span className="block text-xs font-normal opacity-80">Synthetic calendar · no alerts</span>
+                )}
+            </span>
         </>
     )
 
