@@ -1,6 +1,6 @@
 # Integrated Journey checkpoint — September 19, 2026
 
-Status: implementation review and bounded repairs complete. Rosa accepted the database-read recovery validation on September 22. The next approved slice is [isolated demo Calendar](./TomoCare_Demo_Calendar.md); its implementation is checked locally, with destination setup and live acceptance pending. The broader integrated fresh-source rehearsal is not newly marked complete.
+Status: implementation review and bounded repairs complete. Rosa accepted the database-read recovery validation on September 22. The next approved slice is [isolated demo Calendar](./TomoCare_Demo_Calendar.md); its isolated destination is configured and live creation, retry, cleanup, event-link and reload checks pass. Rosa’s visual acceptance remains. The broader integrated fresh-source rehearsal is not newly marked complete.
 
 The review covered the three existing stories: source to trusted records, trusted records to useful answers, and governed follow-through. It preserved the current demo dataset. No reset, inbox import, verification, new reminder, Calendar operation, outbound message, microphone capture or live avatar session was performed.
 

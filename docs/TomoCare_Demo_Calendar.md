@@ -1,6 +1,6 @@
 # Isolated demo Calendar — September 22, 2026
 
-Status: implementation and local checks complete; dedicated-calendar setup and live Google acceptance are pending. This is the next approved slice after Rosa accepted the database-read validation. No Calendar or care-data writes were performed during implementation.
+Status: implementation, dedicated-calendar setup and live integration checks complete on September 22, 2026. Rosa’s visual acceptance and the planned full reset/reverification rehearsal remain. The live check created one synthetic Calendar entry and saved its link on the existing demo reminder; no real-care records or calendars were changed.
 
 ## Product boundary
 
@@ -10,9 +10,11 @@ Events use fictional-data descriptions, private visibility, free availability, n
 
 ## Setup checkpoint
 
-The existing app OAuth connection was verified with a metadata-only read: its primary calendar is `tomomomo.care@gmail.com`. The signed-in Chrome accounts and the Calendar connector currently use different accounts. **Sign the TomoCare account into Google Calendar before continuing setup.** No credentials or permissions have been changed.
+The existing app OAuth connection belongs to `tomomomo.care@gmail.com` and retains only its existing `calendar.events` scope. Rosa confirmed this account was already signed into a separate **Tomo** Chrome profile. Setup used that profile’s Google Calendar UI; no new sign-in, credentials or broader permissions were needed. The secondary calendar is private, orange (distinct from the blue care calendar), and has no default event or email notifications. Its exact ID is saved only in ignored local `.env.demo`; the care calendar setting is unchanged.
 
-Then:
+Open TomoCare and its Google Calendar links in the **Tomo Chrome profile**. A link opened from Rosa’s other Chrome profile may use that profile’s different Google account. This is browser account context, not a Calendar authorization failure.
+
+For setup on another machine:
 
 1. Create the secondary calendar with the exact name above, a clearly distinct color, and a synthetic-only description. Keep it private. Use Google Calendar’s UI so the app does not need broader OAuth permissions to create calendars.
 2. Copy its Calendar ID from its settings. Add only `DEMO_GCAL_CALENDAR_ID=<exact-secondary-calendar-id>` to local `.env.demo`; never commit that file. Keep `GCAL_CALENDAR_ID` unchanged.
@@ -36,11 +38,13 @@ Then:
 - Focused ESLint and production build passed. The pre-existing LiveKit bundle-size warning remains.
 - The current live synthetic source/reminder passed payload validation in a read-only check.
 - The shipped reminder component was exercised in a local fixture at a narrow drawer width: explicit click, success link, expanded confirmation, failure and retry. The fixture makes no provider/database writes.
-- **Not yet verified:** actual creation/update/deletion in the new Google calendar, live app-to-Google link, and real reset/replay cleanup. No full dataset reset was performed.
+- **Live provider check:** created a temporary scenario-owned synthetic entry, retried it, and verified exactly one entry with no attendees or reminders, private visibility and free availability. The production reset’s Calendar-cleanup function then removed that one entry and verified the dedicated calendar was empty. No database reset was performed.
+- **Live UI check:** used **Add to demo calendar** on the existing Librela reminder. Confirmed one event on October 19, 2026, 9:00–9:30 AM Pacific; the demo database saved its exact calendar/event references. The link opened the event in the Tomo profile and Google displayed the synthetic notice, dedicated calendar, private visibility and free availability. Refreshing TomoCare preserved **Open demo calendar event**.
+- **Still pending:** Rosa’s visual acceptance and the next planned full reset → invoice verification → reminder recreation rehearsal. The external cleanup portion was tested live independently, preserving the current accepted dataset.
 
 ## Rosa’s minimum checks after setup
 
-1. In **Demo data → Reminders**, see **Add to demo calendar** on Librela, with “Synthetic calendar · no alerts.” Click once, then open the resulting event. Confirm the dedicated calendar, `[DEMO]` title, October 19 date, no notifications, no guests, and **Free** availability. The description must say no appointment was booked.
+1. The live check has already added the event. In the **Tomo Chrome profile → Demo data → Reminders**, select **Open demo calendar event** on Librela. Confirm the dedicated calendar, orange color, `[DEMO]` title, October 19 date, no notifications, no guests, and **Free** availability. The description must say no appointment was booked. No reset is needed for this review.
 2. Refresh TomoCare. The same reminder should show **Open demo calendar event**, and Google should contain only one entry for this reminder.
 3. During the next planned full fresh-source rehearsal, stop the servers and run the documented demo reset. Confirm the prior demo Calendar entry is removed while real-care entries remain. Verify the synthetic invoice and create the Librela reminder again; adding it should produce one fresh demo entry. A reset also changes the baseline totals/history as documented in the Journey checkpoint; do not reset solely for the first two checks.
 
