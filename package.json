@@ -22,6 +22,8 @@
         "gmail:inspect": "node server/scripts/inspect-gmail-message.js",
         "gmail:download": "node server/scripts/download-gmail-attachments.js",
         "demo:seed-history": "node --env-file=.env.demo server/scripts/seedDemoHistory.js",
+        "demo:reset-receipt": "node --env-file=.env.demo server/scripts/resetDemoReceipt.js",
+        "test:demo-receipt-reset": "node --test server/scripts/resetDemoReceipt.test.js server/demo/demoCalendar.test.js server/scripts/resetDemoEnvironment.test.js",
         "demo:reset": "node --env-file=.env.demo server/scripts/resetDemoEnvironment.js",
         "eval:assistant": "node server/scripts/runAssistantEvals.js",
         "test:character": "node --test server/assistant/characterIntegration.test.js server/assistant/personalityLayer.test.js server/assistant/boundedLanguage.test.js server/assistant/openAiSemanticProvider.test.js server/assistant/semanticUnderstanding.test.js server/voice/*.test.js src/pages/Dashboard/tomoMotion*.test.js",

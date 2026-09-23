@@ -41,16 +41,19 @@ Ask “What needs my attention in October?” Expect the October 19 Librela remi
 
 ### 3. Final fresh-source rehearsal
 
-This is the remaining end-to-end acceptance before capture. It intentionally replaces demo review/reminder state, so finish checks 1–2 first. Stop the servers, then use the existing bounded reset and restart:
+This is the remaining end-to-end acceptance before capture. Use the receipt-only replay to preserve the accepted May/July history and unrelated demo state. Stop both the app and avatar worker, preview the scope, then apply and restart:
 
 ```bash
-npm run demo:reset -- --project-ref gohzjjqsbtwavjuhjdwj
+npm run demo:reset-receipt -- --project-ref gohzjjqsbtwavjuhjdwj
+npm run demo:reset-receipt -- --project-ref gohzjjqsbtwavjuhjdwj --apply
 npm run dev:demo
 ```
 
 Check inbox; review the September synthetic PDF, correct the missing invoice number from the source (`HVC-DEMO-090726`), save/recheck, and verify separately. Confirm that only explicit verification adds trusted records. Continue to optional actions and create both the Librela and insurance reminders. October Attention should now include insurance on October 7 and Librela on October 19. Prepare the review-only draft and compare its dates with the source and reminder.
 
-**Reset changes the expected dataset:** it restores the older baseline plus May/July history. After September verification, recorded medication spending becomes $559.25, and all-time weight history has seven points (six dated in 2026 at this checkpoint). Do not expect the current three-point/$416.50 dataset after a full reset. The new historical visits remain part of the reset manifest.
+**Receipt-only replay:** removes September’s imported document, saved PDF, derived records, source-linked drafts/actions/reminders and owned demo Calendar entry. The Gmail email stays available for Check inbox. May/July remain; after September verification, the accepted dataset returns to three weights and $416.50 medication spending. See [receipt replay instructions](./TomoCare_Demo_Receipt_Replay.md), including the separate avatar worker command.
+
+**Full reset is a separate option, not required for this recording:** it restores the older baseline plus May/July history. After September verification, recorded medication spending becomes $559.25, and all-time weight history has seven points (six dated in 2026 at this checkpoint). Do not expect the current three-point/$416.50 dataset after a full reset. The new historical visits remain part of the reset manifest.
 
 Report pass/fail for these three checks and any moment where the next step, evidence or approval state felt unclear. There is no need to repeat the already accepted five-minute avatar-expiry test unless a new issue appears. Broader voice identity and pose matching remain deferred product refinements.
 

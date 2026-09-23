@@ -11,6 +11,7 @@ export async function prepareDemoCalendarReset({
     client,
     env = process.env,
     createCalendar = getDemoGoogleCalendarService,
+    preview = false,
 }) {
     const { data, error } = await client
         .from("events")
@@ -34,5 +35,9 @@ export async function prepareDemoCalendarReset({
         throw new DemoCalendarError(
             "Reset stopped: a saved calendar reference does not match the configured demo calendar."
         )
-    return cleanupDemoCalendar({ calendar: createCalendar(env), contract })
+    return cleanupDemoCalendar({
+        calendar: createCalendar(env),
+        contract,
+        preview,
+    })
 }

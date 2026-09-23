@@ -171,7 +171,9 @@ Keep `.env.demo` out of Git, ZIP files, chat, screenshots, and browser code.
 
 ## Step 5 — Run the guarded reset
 
-Run the only demo reset command:
+**This is the full scenario reset.** For a recording that preserves May/July and unrelated demo state, use [receipt-only replay](./TomoCare_Demo_Receipt_Replay.md) instead.
+
+To intentionally restore the full baseline, run:
 
 ```bash
 npm run demo:reset -- --project-ref gohzjjqsbtwavjuhjdwj

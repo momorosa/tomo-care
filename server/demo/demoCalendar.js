@@ -218,7 +218,11 @@ export async function syncDemoCalendarEvent({
     return { action: "updated", payload, calendarEvent: updated.data }
 }
 
-export async function cleanupDemoCalendar({ calendar, contract }) {
+export async function cleanupDemoCalendar({
+    calendar,
+    contract,
+    preview = false,
+}) {
     await verifyDemoCalendarDestination(calendar, contract)
     const owned = []
     let pageToken
@@ -242,6 +246,7 @@ export async function cleanupDemoCalendar({ calendar, contract }) {
             )
         pageToken = data.nextPageToken
     } while (pageToken)
+    if (preview) return owned.length
     // Validate the entire selection before any deletion. Never clear the calendar itself.
     for (const event of owned) {
         await calendar.events.delete(

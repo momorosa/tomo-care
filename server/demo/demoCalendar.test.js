@@ -509,3 +509,64 @@ test("a reset cycle gets a fresh ID while retries of the same reminder stay stab
     assert.equal(demoCalendarEventId("r1"), demoCalendarEventId("r1"))
     assert.notEqual(demoCalendarEventId("r1"), demoCalendarEventId("r2"))
 })
+
+test("receipt preview validates Calendar ownership without deleting the event", async () => {
+    const calendar = provider()
+    await syncDemoCalendarEvent({
+        calendar,
+        contract,
+        event: event(),
+        document: document(),
+    })
+    const before = structuredClone([...calendar.rows])
+    assert.equal(
+        await cleanupDemoCalendar({ calendar, contract, preview: true }),
+        1
+    )
+    assert.deepEqual([...calendar.rows], before)
+    assert.equal(
+        calendar.calls.filter((call) => call.method === "delete").length,
+        0
+    )
+})
+
+test("receipt reset helper forwards read-only preview to Calendar cleanup", async () => {
+    const calendar = provider()
+    await syncDemoCalendarEvent({
+        calendar,
+        contract,
+        event: event(),
+        document: document(),
+    })
+    const client = {
+        from() {
+            return {
+                select() {
+                    return this
+                },
+                eq() {
+                    return this
+                },
+                then(resolve) {
+                    return Promise.resolve({ data: [], error: null }).then(
+                        resolve
+                    )
+                },
+            }
+        },
+    }
+    assert.equal(
+        await prepareDemoCalendarReset({
+            client,
+            env,
+            createCalendar: () => calendar,
+            preview: true,
+        }),
+        1
+    )
+    assert.equal(calendar.rows.size, 1)
+    assert.equal(
+        calendar.calls.filter((call) => call.method === "delete").length,
+        0
+    )
+})

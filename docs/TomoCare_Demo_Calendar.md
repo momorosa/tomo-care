@@ -1,6 +1,6 @@
 # Isolated demo Calendar — September 22, 2026
 
-Status: implementation, dedicated-calendar setup and live integration checks complete on September 22, 2026. Rosa’s visual acceptance and the planned full reset/reverification rehearsal remain. The live check created one synthetic Calendar entry and saved its link on the existing demo reminder; no real-care records or calendars were changed.
+Status: implementation, dedicated-calendar setup and live integration checks complete on September 22, 2026. Rosa’s visual acceptance and the planned receipt-only replay/reverification rehearsal remain. The live check created one synthetic Calendar entry and saved its link on the existing demo reminder; no real-care records or calendars were changed.
 
 ## Product boundary
 
@@ -27,7 +27,7 @@ For setup on another machine:
 - The server reloads the reminder and verified source. Only the manifest-owned September invoice, its verified September 7 Librela evidence, and the corresponding planned October reminder qualify. Expired timing is rejected.
 - Event identity is deterministic for the scenario, source and internal reminder. A retry, lost response, or failed database link save reconnects the same event. Existing entries must carry the expected ownership metadata and ID. Unexpected ownership, guests, recurrence, changed title, or missing version information stops the action.
 - Google updates/deletes use the event version to reject concurrent changes. Saving the link also checks the reminder’s database version, avoiding overwriting a newer reminder state.
-- `demo:reset` first finds and removes only Calendar entries bearing this scenario’s exact ownership metadata. This includes an entry whose database link save failed. It validates the full selection before deletion and never clears or deletes the calendar. Provider cleanup failure stops reset before storage or database deletion; retry the reset after recovery. A partial external cleanup can occur before a provider failure, but source data is retained.
+- Both `demo:reset-receipt --apply` and the full `demo:reset` first find and removes only Calendar entries bearing this scenario’s exact ownership metadata. This includes an entry whose database link save failed. It validates the full selection before deletion and never clears or deletes the calendar. Provider cleanup failure stops reset before storage or database deletion; retry the reset after recovery. A partial external cleanup can occur before a provider failure, but source data is retained.
 - A new reset/reverification cycle creates a fresh internal reminder and therefore a fresh Calendar event ID. This avoids reusing Google’s deleted-event IDs. Same-cycle retries retain their original ID.
 - Keep the demo calendar setting in place until cleanup completes. A missing/mismatched setting with stored Calendar references blocks reset. If the local setting is removed after a lost database save, restore that same destination setting before reset so its orphan can be found.
 - Deleting or repurposing an entry manually is not silently undone. A deleted entry requires the normal demo reset/reverification path; manually repurposed entries require review before cleanup.
@@ -40,13 +40,13 @@ For setup on another machine:
 - The shipped reminder component was exercised in a local fixture at a narrow drawer width: explicit click, success link, expanded confirmation, failure and retry. The fixture makes no provider/database writes.
 - **Live provider check:** created a temporary scenario-owned synthetic entry, retried it, and verified exactly one entry with no attendees or reminders, private visibility and free availability. The production reset’s Calendar-cleanup function then removed that one entry and verified the dedicated calendar was empty. No database reset was performed.
 - **Live UI check:** used **Add to demo calendar** on the existing Librela reminder. Confirmed one event on October 19, 2026, 9:00–9:30 AM Pacific; the demo database saved its exact calendar/event references. The link opened the event in the Tomo profile and Google displayed the synthetic notice, dedicated calendar, private visibility and free availability. Refreshing TomoCare preserved **Open demo calendar event**.
-- **Still pending:** Rosa’s visual acceptance and the next planned full reset → invoice verification → reminder recreation rehearsal. The external cleanup portion was tested live independently, preserving the current accepted dataset.
+- **Still pending:** Rosa’s visual acceptance and the next planned receipt-only replay → invoice verification → reminder recreation rehearsal. The external cleanup portion was tested live independently, preserving the current accepted dataset.
 
 ## Rosa’s minimum checks after setup
 
 1. The live check has already added the event. In the **Tomo Chrome profile → Demo data → Reminders**, select **Open demo calendar event** on Librela. Confirm the dedicated calendar, orange color, `[DEMO]` title, October 19 date, no notifications, no guests, and **Free** availability. The description must say no appointment was booked. No reset is needed for this review.
 2. Refresh TomoCare. The same reminder should show **Open demo calendar event**, and Google should contain only one entry for this reminder.
-3. During the next planned full fresh-source rehearsal, stop the servers and run the documented demo reset. Confirm the prior demo Calendar entry is removed while real-care entries remain. Verify the synthetic invoice and create the Librela reminder again; adding it should produce one fresh demo entry. A reset also changes the baseline totals/history as documented in the Journey checkpoint; do not reset solely for the first two checks.
+3. During the next fresh-source rehearsal, stop the app and avatar worker and use [receipt-only replay](./TomoCare_Demo_Receipt_Replay.md). Confirm the prior demo Calendar entry is removed while real-care entries remain. Verify the synthetic invoice and create the Librela reminder again; adding it should produce one fresh demo entry. Receipt-only replay preserves May/July and unrelated records. The separate full reset changes baseline totals/history; it is not required here.
 
 Local fixture: `/tests/browser/demo-calendar-fixtures.html`. Focused checks: `npm run test:demo-calendar`.
 
