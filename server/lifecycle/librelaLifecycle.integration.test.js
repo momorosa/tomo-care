@@ -704,7 +704,8 @@ function snapshotTrustedOutputs(state) {
     })
 }
 
-test("runs the August 3 lifecycle through governed Messages handoff without duplicates", async () => {
+test("runs the August 3 lifecycle through governed Messages handoff without duplicates", async (t) => {
+    t.mock.timers.enable({ apis: ["Date"], now: new Date(FIXED_NOW) })
     const state = createState()
     const gmail = buildAugust3GmailFixture()
 
@@ -714,6 +715,7 @@ test("runs the August 3 lifecycle through governed Messages handoff without dupl
     })
 
     const firstIngest = await ingestGmailReceipts({
+        env: { TOMOCARE_RUNTIME_MODE: "real" },
         petId: IDS.pet,
         dependencies: buildIngestDependencies(state),
     })
@@ -949,6 +951,7 @@ test("runs the August 3 lifecycle through governed Messages handoff without dupl
     const firstSnapshot = snapshotTrustedOutputs(state)
 
     const secondIngest = await ingestGmailReceipts({
+        env: { TOMOCARE_RUNTIME_MODE: "real" },
         petId: IDS.pet,
         dependencies: buildIngestDependencies(state),
     })

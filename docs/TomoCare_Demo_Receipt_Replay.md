@@ -1,5 +1,7 @@
 # Replay the September demo receipt without resetting history
 
+**Accepted September 29, 2026:** Rosa completed recording and approved all manual tests. See [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md). Keep these instructions for an explicitly requested future replay.
+
 Use this for the end-to-end screen recording. **May and July stay; no reseeding is needed.** This command does not restore the older full demo baseline.
 
 ## What changes
@@ -45,6 +47,6 @@ Calendar cleanup must succeed before database or PDF deletion. Keep the demo cal
 
 Live read-only preview selected one September document, four cost rows, two facts, two events (the recorded injection and current reminder), two appointment drafts, no labs/actions/handoffs, one saved PDF key, and one owned Calendar event. No reset was applied.
 
-All 47 focused reset, Calendar, Gmail intake and trusted-flow tests passed, and affected JavaScript passed ESLint. Automated coverage verifies default preview, exact ownership boundaries, preservation of unrelated rows, repeat application, partial failure recovery, Calendar failure ordering and Calendar preview without deletion. Integrated receipt replay remains the next manual recording check.
+All 47 focused reset, Calendar, Gmail intake and trusted-flow tests passed, and affected JavaScript passed ESLint. Automated coverage verifies default preview, exact ownership boundaries, preservation of unrelated rows, repeat application, partial failure recovery, Calendar failure ordering and Calendar preview without deletion. Integrated recording/manual acceptance was completed by Rosa on September 29, 2026.
 
 For comparison only: `demo:reset` restores the **full scenario**, including the older baseline. If May/July are missing independently, `npm run demo:seed-history -- --project-ref gohzjjqsbtwavjuhjdwj` adds only those historical fixtures, refusing conflicting existing records. Neither command is needed for this receipt-only replay.

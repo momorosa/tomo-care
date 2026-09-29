@@ -1,12 +1,13 @@
 # TomoCare — Consolidated polish register
 
 **Prepared:** September 13, 2026  
-**Updated:** September 19, 2026
-**Status:** Rosa accepted feedback coverage and the four tracks: Layout, Voice, Journey, Animation. Layout checkpoint A is accepted as of September 19, including both compact-sidebar icon-alignment refinements. Rosa approved the first character direction; broader voice choices, additional reactions, later estimates, and provider acceptance remain separate checkpoints.
-**Baseline:** Accepted setup/inbox isolation merge `5c57733`, on `final-voice-animation-ui-polish`.  
-**Current activity:** Rosa accepted transcript resizing and spending clarification/totals. Rosa also accepted P10 animation recovery: at the real five-minute limit, local Voice took over seamlessly and the care conversation continued. This recovery slice is complete. See [animation recovery](./TomoCare_Animation_Recovery_Checks.md) and [model lifecycle review](./TomoCare_Model_Lifecycle.md).
+**Updated:** September 29, 2026
+**Status:** Demo track closed with Rosa’s explicit acceptance of all manual tests on September 29, 2026. End-to-end recording and screenshots are captured. Real-care development is paused until Rosa resumes it.
+**Closeout:** [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md); [artifact inventory](./TomoCare_Demo_Artifact_Inventory.md).
 
-## Current finish-line view — September 19
+This final status supersedes historical pending/next-step wording below. Layout, Voice, Journey and Animation are accepted for the bounded demo scope, including integrated P05/P16 acceptance. Broader expressions, exact voice/posture matching, model migration and production expansion remain deferred product choices, not demo blockers.
+
+## Historical finish-line view — September 19
 
 This status summary supersedes older discovery/proposal wording below; those sections preserve how feedback was found and resolved.
 

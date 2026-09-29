@@ -2,10 +2,12 @@
 
 **Working title:** Governed AI for proactive pet care
 **Owner:** Rosa Choi
-**Status:** Active personal and portfolio project
-**Last updated:** September 10, 2026
+**Status:** Demo checkpoint accepted; real-care development paused by owner
+**Last updated:** September 29, 2026
 
 ---
+
+Current handover: [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md). Resume real-care work only on Rosa’s explicit request.
 
 ## Purpose of this document
 

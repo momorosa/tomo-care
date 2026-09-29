@@ -11,7 +11,7 @@ const reviewed = new Set(["gpt-5.6-terra", "gpt-transcribe", "gpt-4o-mini-tts-20
 export function configuredModels(env = process.env) {
     // Read Python's actual default without importing its credential/database dependencies.
     const extraction = readFileSync(new URL("../../agent/tomo/tools/extract.py", import.meta.url), "utf8")
-    const geminiDefault = extraction.match(/MODEL = os.getenv\("TOMO_GEMINI_MODEL", "([^\"]+)"\)/)?.[1]
+    const geminiDefault = extraction.match(/MODEL = os.getenv\("TOMO_GEMINI_MODEL", "([^"]+)"\)/)?.[1]
     if (!geminiDefault) throw new Error("Could not inspect the extraction model default.")
     return [
         { role: "Language understanding", provider: "openai", model: env.TOMO_SEMANTIC_MODEL || DEFAULT_SEMANTIC_MODEL },

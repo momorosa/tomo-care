@@ -1,6 +1,6 @@
 # Integrated Journey checkpoint — September 19, 2026
 
-Status: implementation review and bounded repairs complete. Rosa accepted the database-read recovery validation on September 22. The next approved slice is [isolated demo Calendar](./TomoCare_Demo_Calendar.md); its isolated destination is configured and live creation, retry, cleanup, event-link and reload checks pass. Rosa’s visual acceptance remains. The broader integrated fresh-source rehearsal is not newly marked complete.
+Status: accepted and closed September 29, 2026. Rosa completed the end-to-end recording and explicitly approved all manual tests, including the integrated fresh-source journey. See [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md). The findings below describe the earlier September 19 review; its pending language does not reopen acceptance.
 
 The review covered the three existing stories: source to trusted records, trusted records to useful answers, and governed follow-through. It preserved the current demo dataset. No reset, inbox import, verification, new reminder, Calendar operation, outbound message, microphone capture or live avatar session was performed.
 
@@ -57,6 +57,6 @@ Check inbox; review the September synthetic PDF, correct the missing invoice num
 
 Report pass/fail for these three checks and any moment where the next step, evidence or approval state felt unclear. There is no need to repeat the already accepted five-minute avatar-expiry test unless a new issue appears. Broader voice identity and pose matching remain deferred product refinements.
 
-## Remaining closeout
+## Final closeout — September 29
 
-After integrated acceptance, capture the accepted story and provider fallback, update supported case-study claims, and complete release review/merge/tag. This pass does not mark evidence capture or the entire demo track complete.
+Rosa accepted all manual tests and retained the recording/screenshots. The [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md) records evidence, final engineering validation, the frozen release and the owner-requested real-care pause.

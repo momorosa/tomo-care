@@ -2,11 +2,11 @@
 
 **Decision date:** August 16, 2026
 
-**Last revised:** September 10, 2026
+**Last revised:** September 29, 2026
 
 **Owner:** Rosa Choi
 
-**Status:** Accepted product direction
+**Status:** Demo track accepted and closed; real-care development paused by owner. See [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md).
 
 ## Decision
 
@@ -157,20 +157,19 @@ The sequence was refined after Phase 3E.4 shipped. Product improvements that ben
    - Carries the verified manifest-owned invoice into idempotent, source-linked Librela and insurance reminders through the shared product routes.
    - Surfaces the resulting work through Dashboard and Attention, including deterministic named-month windows, with consistent grounded explanations in Chat and Voice.
    - Prepares one editable Librela appointment-request draft using the fictional clinic name and trusted injection and reminder dates without storing or exposing a live destination.
-   - Keeps demo Calendar and Messages execution blocked before provider access and preserves truthful state: reviewed is not approved, sent, delivered, received, or booked.
+   - At that checkpoint, kept demo Calendar and Messages execution blocked before provider access. The later accepted isolated Calendar slice permits only the explicit synthetic Librela reminder; Messages remains review-only. Preserves truthful state: reviewed is not approved, sent, delivered, received, or booked.
    - Extends reset to remove the scenario-derived reminders, actions, previews, and orchestration state so replay returns the same logical result.
 
-11. **Final Voice, Animation, and End-to-End UI Polish · Next**
+11. **Final Voice, Animation, and End-to-End UI Polish · Accepted September 29, 2026**
    - Refine listening, thinking, speaking, playback, and idle transitions.
    - Resolve visual inconsistencies, dead ends, responsive issues, and unclear state changes across the three existing demo stories.
    - Preserve the current trusted-data, assistant, approval, external-action, reset, and provider boundaries.
 
-12. **Demo evidence and portfolio freeze**
-   - Rehearse one deterministic end-to-end path.
-   - Capture screenshots and video evidence.
-   - Prepare a recorded fallback for provider-dependent moments.
-   - Update the case study so shipped behavior and future direction remain distinct.
-   - Tag the accepted checkpoint as the portfolio v1 release before returning to broader real-care work.
+12. **Demo evidence and checkpoint freeze · Accepted September 29, 2026**
+   - Rosa completed the end-to-end recording, saved 12 screenshots, and approved all manual tests.
+   - Freeze the accepted code/docs as `demo-v1.0.0`; the closeout inventories local artifacts and supported claims.
+   - Prior local-Voice fallback acceptance remains valid. Additional edited clips and case-study production are optional presentation work.
+   - Real-care work is paused and resumes only at Rosa’s explicit request.
 
 ## Demo data and environment policy
 

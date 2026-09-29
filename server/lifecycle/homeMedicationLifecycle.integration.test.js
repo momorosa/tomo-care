@@ -464,7 +464,8 @@ function trustedSnapshot(state) {
 }
 
 for (const rule of HOME_MEDICATION_RULES) {
-    test(`runs the shared ${rule.careItem} lifecycle twice without duplicate trusted writes`, async () => {
+    test(`runs the shared ${rule.careItem} lifecycle twice without duplicate trusted writes`, async (t) => {
+        t.mock.timers.enable({ apis: ["Date"], now: new Date(rule.initialNow) })
         const state = createState(rule)
         const repository = createRepository(state, rule)
         const reminder = state.events.find(
@@ -540,6 +541,7 @@ for (const rule of HOME_MEDICATION_RULES) {
         }
         reminder.updated_at = rule.overdueNow
 
+        t.mock.timers.setTime(new Date(rule.overdueNow).getTime())
         assert.equal(state.careDate, rule.overdueCareDate)
         assert.ok(rule.targetAdminDate < state.careDate)
 
