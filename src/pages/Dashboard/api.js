@@ -66,9 +66,10 @@ export async function fetchCareSummary(petId) {
     return data.summary || {}
 }
 
-export async function syncReminderToGoogleCalendar(reminderId) {
+export async function syncReminderToGoogleCalendar(reminderId, mode = "real") {
+    const action = mode === "demo" ? "sync-demo-calendar" : "sync-google-calendar"
     const response = await fetch(
-        `/api/events/${reminderId}/actions/sync-google-calendar`,
+        `/api/events/${reminderId}/actions/${action}`,
         {
             method: "POST",
             headers: JSON_HEADERS,
@@ -270,6 +271,10 @@ export async function askAssistantByVoice(
     if (conversationContext?.pending_detail) {
         headers["X-Tomo-Pending-Detail"] =
             conversationContext.pending_detail
+    }
+
+    if (["spend_summary", "spend_clarification"].includes(conversationContext?.intent) && conversationContext?.date_range) {
+        headers["X-Tomo-Spending-Context"] = encodeURIComponent(JSON.stringify(conversationContext))
     }
 
     const response = await fetch(`/api/pets/${petId}/assistant/voice`, {

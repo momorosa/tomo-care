@@ -107,3 +107,16 @@ test("rejects overlong or multi-sentence framing", () => {
 
     assert.deepEqual(result, { opening: null, closing: null })
 })
+
+
+test("character language cannot invent reassuring health claims or shared memories", () => {
+    for (const social_response of [
+        "Momo is perfectly healthy.", "She will be fine.", "Nothing to worry about!",
+        "Everything will be okay.", "I remember when we went to the beach.",
+    ]) {
+        assert.equal(getGeneratedSocialResponse({
+            queryPlan: { intent: "social_response", subject: "thanks" },
+            semanticInterpretation: { social_response },
+        }), null)
+    }
+})

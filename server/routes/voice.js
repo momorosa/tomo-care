@@ -12,6 +12,16 @@ import { sanitizeConversationContext } from "../assistant/conversationContext.js
 
 const router = express.Router()
 
+function spendingHeader(req) {
+    try {
+        const header = req.get("X-Tomo-Spending-Context")
+        if (!header || header.length > 1500) return null
+        const value = JSON.parse(decodeURIComponent(header))
+        if (!["spend_summary", "spend_clarification"].includes(value?.intent)) return null
+        return sanitizeConversationContext(value)
+    } catch { return null }
+}
+
 const parseVoiceAudio = express.raw({
     type: (req) => isSupportedVoiceAudioType(req.headers["content-type"]),
     limit: "10mb",
@@ -36,7 +46,7 @@ router.post(
                 petId: req.params.petId,
                 audioBuffer: req.body,
                 contentType,
-                conversationContext: sanitizeConversationContext({
+                conversationContext: spendingHeader(req) || sanitizeConversationContext({
                     intent: req.get("X-Tomo-Previous-Intent"),
                     subject: req.get("X-Tomo-Previous-Subject"),
                     pending_detail: req.get(

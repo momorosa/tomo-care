@@ -1128,3 +1128,19 @@ test("turns an unsupported question into a bounded next-choice prompt", () => {
     assert.match(response.answer, /what needs your attention/)
     assert.deepEqual(response.citations, [])
 })
+
+
+test("future month attention explains its scope without calling it tomorrow", () => {
+    const dateRange = { type: "named_month", label: "October 2026", start: "2026-10-01", end: "2026-10-31" }
+    const response = composeGroundedAnswer({
+        question: "What needs my attention in October?",
+        queryPlan: { intent: "attention_summary", date_range: dateRange },
+        context: {},
+        attentionSummary: {
+            status: "available", items: [], total_qualifying_count: 0, sources: [],
+            date_range: dateRange, current_work_included: false,
+        },
+    })
+    assert.match(response.limitations.join(" "), /date-range check covers scheduled reminders/)
+    assert.doesNotMatch(response.limitations.join(" "), /tomorrow/i)
+})

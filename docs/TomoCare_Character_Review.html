@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tomo · First character examples</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#17181e;color:#f3f0f7}body{margin:0;padding:clamp(20px,5vw,64px)}main{max-width:1000px;margin:auto}h1{font-size:clamp(28px,4vw,42px);line-height:1.12;margin:12px 0 18px}h2{font-size:21px;margin:8px 0 24px}p{line-height:1.65;color:#c7c1ce;max-width:72ch}.eyebrow{color:#ca9ce9;font-size:12px;font-weight:650;letter-spacing:.12em;text-transform:uppercase}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px;margin:32px 0}.card{border:1px solid #45404d;border-radius:20px;padding:24px;background:#22222c}.label{font-size:12px;font-weight:650;color:#d2acfa;text-transform:uppercase;letter-spacing:.06em;margin:22px 0 6px}.cue{color:#ddd8e3}.reply{font-size:19px;line-height:1.55;color:#fff;margin:8px 0 22px}audio,video{width:100%;margin:10px 0}video{border-radius:12px;max-height:260px}summary{cursor:pointer;color:#d2acfa;margin-top:16px;padding:8px 0}small{color:#b4abbc;line-height:1.6;display:block}.review{border-left:3px solid #ba82e8;padding-left:20px;margin-top:30px}a{color:#d2acfa}:focus-visible{outline:2px solid #cf9afa;outline-offset:4px}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">Voice + Animation · Product review</div>
+<h1>A little more like your Tomo.</h1>
+<p>Three proposed exchanges using Tomo’s current configured voice. These are fictional review examples, not new behaviors in the app. Listen for warmth, timing, and whether the words sound natural for you.</p>
+<small>Tomo’s spoken voice is AI-generated. The expression clips below are existing candidates, shown separately; they are not yet synchronized or selected automatically.</small>
+<section class="grid">
+<article class="card"><div class="eyebrow">01 · Gratitude</div><h2>Warm and understated</h2>
+<div class="label">Rosa · fictional context</div><p class="cue">After finding an existing reminder: “Thanks, Tomo. That’s one less thing to keep in my head.”</p>
+<div class="label">Tomo · proposal</div><p class="reply">“You’re welcome, Rosa. That’s one less thing for you to keep track of.”</p>
+<audio controls preload="metadata" aria-label="Gratitude voice example" src="./review/voice-animation/gratitude.mp3"></audio>
+<p>A small pleased acknowledgment, then attentive readiness. Judge whether the reply echoes Rosa too much or feels reassuringly familiar.</p>
+<details><summary>Candidate expression · happy</summary><video controls muted playsinline preload="none" data-clip="happy-a.mp4"></video><small>Review the expression’s intensity; this is the full existing clip, not a proposed timing edit.</small></details>
+</article>
+<article class="card"><div class="eyebrow">02 · Playfulness</div><h2>A quick little comeback</h2>
+<div class="label">Rosa · fictional context</div><p class="cue">“Look at you, Momo’s tiny chief of staff!”</p>
+<div class="label">Tomo · proposal</div><p class="reply">“Tiny paws, very serious filing system. I’ll take the compliment.”</p>
+<audio controls preload="metadata" aria-label="Playful voice example" src="./review/voice-animation/playfulness.mp3"></audio>
+<p>Lightly amused, with space for the joke to land. A full laugh may be too strong; that is a product choice for this review.</p>
+<details><summary>Candidate expression · laughing</summary><video controls muted playsinline preload="none" data-clip="laughing-a.mp4"></video><small>Candidate only. A smaller pleased expression may fit better than this full clip.</small></details>
+</article>
+<article class="card"><div class="eyebrow">03 · Mixed cues</div><h2>Thanks, with some worry</h2>
+<div class="label">Rosa · fictional context</div><p class="cue">“Thanks, Tomo. I’m still a little worried about Momo, though.”</p>
+<div class="label">Tomo · proposal</div><p class="reply">“You’re welcome, Rosa. What’s worrying you about Momo?”</p>
+<audio controls preload="metadata" aria-label="Concern-aware voice example" src="./review/voice-animation/thanks-with-worry.mp3"></audio>
+<p>Gentler delivery and attentive presence. The thanks should not trigger a celebration over the concern.</p>
+</article>
+</section>
+<section class="review"><h2>Three things to tell me</h2><p>Does this sound like your Tomo? Is the playfulness too much, too little, or about right? Should the happy/laughing reactions be this expressive, or more subtle?</p><p>Once the direction is accepted, the next slice will connect context, wording, delivery, and expression. These samples do not demonstrate that contextual selection yet.</p></section>
+<p><a href="./TomoCare_Voice_Animation_Checkpoint_B.md">Transition implementation and manual checks</a></p>
+</main><script>
+for (const video of document.querySelectorAll('[data-clip]')) {
+ video.src = (location.protocol === 'file:' ? '../public/media/tomo/motion/' : '/media/tomo/motion/') + video.dataset.clip;
+}
+</script></body></html>

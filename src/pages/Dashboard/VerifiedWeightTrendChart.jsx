@@ -1,4 +1,5 @@
-import { useId, useMemo, useState } from "react"
+import { EvidencePresentationContext } from "./evidencePresentationContext.js"
+import { useContext, useId, useMemo, useState } from "react"
 
 import { buildVerifiedWeightTrendChartModel } from "./verifiedWeightTrendPresentation.js"
 
@@ -7,8 +8,17 @@ export default function VerifiedWeightTrendChart({
     citations = [],
 }) {
     const chartId = useId()
-    const [selectedFactId, setSelectedFactId] = useState(null)
-    const [displayUnit, setDisplayUnit] = useState("lb")
+    const presentation = useContext(EvidencePresentationContext)
+    const [localState, setLocalState] = useState({ displayUnit: "lb", selectedFactId: null })
+    const state = presentation ? presentation.states.get(visualization) : localState
+    const displayUnit = state?.displayUnit || "lb"
+    const selectedFactId = state?.selectedFactId || null
+    function update(patch) {
+        if (presentation) presentation.update(visualization, patch)
+        else setLocalState((current) => ({ ...current, ...patch }))
+    }
+    const setSelectedFactId = (selectedFactId) => update({ selectedFactId })
+    const setDisplayUnit = (displayUnit) => update({ displayUnit })
     const model = useMemo(
         () =>
             buildVerifiedWeightTrendChartModel(visualization, citations, {

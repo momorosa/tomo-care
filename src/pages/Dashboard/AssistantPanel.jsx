@@ -1,3 +1,6 @@
+import { createPortal } from "react-dom"
+import { useRuntimeContext } from "../../runtime/RuntimeContext.jsx"
+import { EvidencePresentationContext } from "./evidencePresentationContext.js"
 import { useEffect, useMemo, useRef, useState } from "react"
 import tomoVoiceAvatar from "../../../assets/tomo-voice-avatar-placeholder.webp"
 import tomoLogo from "../../../assets/tomocare-logo.png"
@@ -25,6 +28,9 @@ import {
     getVerifiedSourcesLabel,
 } from "./citationPresentation.js"
 import RunwayAvatarMedia from "./RunwayAvatarMedia.jsx"
+import TranscriptDivider from "./TranscriptDivider.jsx"
+import { useTranscriptWidth } from "./useTranscriptWidth.js"
+import { answerBadge } from "./answerBadge.js"
 import {
     AVATAR_VOICE_PLAYBACK,
     playVoiceWithAvatarFallback,
@@ -47,6 +53,7 @@ const SUGGESTED_QUESTIONS = [
 
 export default function AssistantPanel({
     petId,
+    voiceControlTarget,
     initialQuestion = "",
     pendingActionCount = 0,
     pendingActions = [],
@@ -61,12 +68,24 @@ export default function AssistantPanel({
     const [mode, setMode] = useState(CONVERSATION_MODES.VOICE)
     const [question, setQuestion] = useState("")
     const [sessionTurns, setSessionTurns] = useState([])
+    const [evidenceStates, setEvidenceStates] = useState(() => new Map())
+    const evidencePresentation = {
+        states: evidenceStates,
+        update: (key, patch) => setEvidenceStates((current) => {
+            const next = new Map(current)
+            next.set(key, { ...current.get(key), ...patch })
+            return next
+        }),
+    }
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [voiceState, setVoiceState] = useState(VOICE_STATES.IDLE)
     const [voiceResponse, setVoiceResponse] = useState(null)
+    const [characterReaction, setCharacterReaction] = useState(null)
+    const characterSequenceRef = useRef(0)
     const [voiceMuted, setVoiceMuted] = useState(false)
     const [voiceTranscriptOpen, setVoiceTranscriptOpen] = useState(true)
+    const [transcriptRatio, setTranscriptRatio] = useState(0.5)
     const [pendingMenuOpen, setPendingMenuOpen] = useState(false)
     const [pendingActionLoading, setPendingActionLoading] = useState(null)
     const recorderRef = useRef(null)
@@ -199,6 +218,7 @@ export default function AssistantPanel({
     }
 
     function stopPlayback({ requiresReview = false } = {}) {
+        setCharacterReaction(null)
         playbackAttemptRef.current += 1
         const avatarStop = avatarMediaRef.current?.stopSpeech()
         avatarStop?.catch?.(() => null)
@@ -216,7 +236,11 @@ export default function AssistantPanel({
         nextVoiceResponse = voiceResponse,
         { requiresReview = false } = {}
     ) {
+        const reaction = nextVoiceResponse?.personality?.mode === "relational"
+            ? { id: ++characterSequenceRef.current, expression: nextVoiceResponse.personality.expression }
+            : null
         if (!nextVoiceResponse?.audioUrl || voiceMutedRef.current) {
+            setCharacterReaction(reaction)
             if (nextVoiceResponse?.latency) {
                 reportVoiceLatency(nextVoiceResponse.latency)
             }
@@ -230,6 +254,7 @@ export default function AssistantPanel({
         }
 
         stopPlayback({ requiresReview })
+        setCharacterReaction(reaction)
         const playbackAttempt = playbackAttemptRef.current
         const isCurrentPlayback = () =>
             playbackAttemptRef.current === playbackAttempt
@@ -286,6 +311,7 @@ export default function AssistantPanel({
                 } catch {
                     if (!isCurrentPlayback()) return
                     playbackRef.current = null
+                    setError("Tomo’s voice couldn’t start. Press Replay to hear this answer, or Start speaking to continue.")
                     if (nextVoiceResponse.latency) {
                         reportVoiceLatency(nextVoiceResponse.latency)
                     }
@@ -401,6 +427,7 @@ export default function AssistantPanel({
                     ? `data:${result.voice.content_type};base64,${result.voice.audio_base64}`
                     : null,
                 disclosure: result.voice.disclosure,
+                personality: result.personality,
                 requiresReview,
                 latency,
             }
@@ -515,6 +542,7 @@ export default function AssistantPanel({
         stopPlayback()
         avatarMediaRef.current?.end()
         setSessionTurns([])
+        setEvidenceStates(new Map())
         setVoiceResponse(null)
         setQuestion("")
         setError("")
@@ -530,6 +558,7 @@ export default function AssistantPanel({
     )
 
     return (
+        <EvidencePresentationContext.Provider value={evidencePresentation}>
         <section
             className={`tomo-conversation-panel tomo-conversation-panel--${mode}`}
             aria-label="Talk with Tomo"
@@ -635,13 +664,13 @@ export default function AssistantPanel({
                             active={mode === CONVERSATION_MODES.VOICE}
                             icon="graphic_eq"
                             label="Voice"
-                            onClick={() => setMode(CONVERSATION_MODES.VOICE)}
+                            onClick={() => { setCharacterReaction(null); setMode(CONVERSATION_MODES.VOICE) }}
                         />
                         <ModeButton
                             active={mode === CONVERSATION_MODES.CHAT}
                             icon="chat"
                             label="Chat"
-                            onClick={() => setMode(CONVERSATION_MODES.CHAT)}
+                            onClick={() => { setCharacterReaction(null); setMode(CONVERSATION_MODES.CHAT) }}
                         />
                     </div>
                 </div>
@@ -649,16 +678,20 @@ export default function AssistantPanel({
 
             {mode === CONVERSATION_MODES.VOICE ? (
                 <VoiceStage
+                    controlTarget={voiceControlTarget}
                     voiceState={voiceState}
                     sessionTurns={sessionTurns}
                     loading={loading}
                     transcriptOpen={voiceTranscriptOpen}
+                    transcriptRatio={transcriptRatio}
+                    onTranscriptResize={setTranscriptRatio}
                     reminderById={reminderById}
                     onNavigateAttention={navigateAttention}
                     error={error}
                     response={voiceResponse}
                     muted={voiceMuted}
                     avatarMediaRef={avatarMediaRef}
+                    characterReaction={characterReaction}
                     onClear={clearSession}
                     onToggleTranscript={() =>
                         setVoiceTranscriptOpen((open) => !open)
@@ -742,6 +775,7 @@ export default function AssistantPanel({
                 {getVoiceStateLabel(voiceState)}
             </p>
         </section>
+        </EvidencePresentationContext.Provider>
     )
 }
 
@@ -752,6 +786,8 @@ function ModeButton({ active, icon, label, onClick }) {
             className={`tomo-mode-switch__button ${active ? "tomo-mode-switch__button--active" : ""}`}
             onClick={onClick}
             aria-pressed={active}
+            aria-label={label}
+            title={label}
         >
             <span className="material-symbols-outlined text-base" aria-hidden="true">
                 {icon}
@@ -762,6 +798,9 @@ function ModeButton({ active, icon, label, onClick }) {
 }
 
 function VoiceStage({
+    transcriptRatio,
+    onTranscriptResize,
+    controlTarget,
     voiceState,
     sessionTurns,
     loading,
@@ -772,6 +811,7 @@ function VoiceStage({
     response,
     muted,
     avatarMediaRef,
+    characterReaction,
     onClear,
     onToggleTranscript,
     onVoiceButton,
@@ -780,12 +820,31 @@ function VoiceStage({
     onToggleMute,
     transcriptEndRef,
 }) {
+    const { stageRef, width, ratio } = useTranscriptWidth(transcriptRatio)
+    const controls = (
+        <VoiceControlDock
+            voiceState={voiceState}
+            loading={loading}
+            transcriptOpen={transcriptOpen}
+            response={response}
+            muted={muted}
+            error={error}
+            onToggleTranscript={onToggleTranscript}
+            onVoiceButton={onVoiceButton}
+            onReplay={onReplay}
+            onStop={onStop}
+            onToggleMute={onToggleMute}
+        />
+    )
+
     return (
         <section
             className={`tomo-voice-stage tomo-voice-stage--${voiceState} ${
                 transcriptOpen ? "tomo-voice-stage--transcript-open" : ""
             }`}
             aria-label="Voice conversation with Tomo"
+            ref={stageRef}
+            style={{ "--tomo-transcript-share": `${ratio * 100}%` }}
         >
             <div className="tomo-voice-stage__focus">
                 <div className="tomo-voice-stage__media">
@@ -795,30 +854,15 @@ function VoiceStage({
                         fallbackAlt="Tomo, Momo’s care companion"
                         voiceState={voiceState}
                         muted={muted}
+                        reaction={characterReaction}
                     />
                 </div>
                 <div className="tomo-voice-stage__veil" aria-hidden="true" />
-
-                <div className="tomo-voice-stage__status" aria-hidden="true">
-                    <VoiceStatusOrb voiceState={voiceState} />
-                    <span>{getVoiceStateLabel(voiceState)}</span>
-                </div>
-
-                <VoiceControlDock
-                    voiceState={voiceState}
-                    loading={loading}
-                    transcriptOpen={transcriptOpen}
-                    response={response}
-                    muted={muted}
-                    error={error}
-                    onToggleTranscript={onToggleTranscript}
-                    onVoiceButton={onVoiceButton}
-                    onReplay={onReplay}
-                    onStop={onStop}
-                    onToggleMute={onToggleMute}
-                />
             </div>
 
+            {controlTarget ? createPortal(controls, controlTarget) : controls}
+
+            {transcriptOpen && <TranscriptDivider stageRef={stageRef} width={width} ratio={ratio} onChange={onTranscriptResize} />}
             {transcriptOpen && (
                 <VoiceTranscriptSheet
                     sessionTurns={sessionTurns}
@@ -1040,18 +1084,6 @@ function SessionTranscript({
     )
 }
 
-function VoiceStatusOrb({ voiceState }) {
-    return (
-        <span className={`tomo-voice-status tomo-voice-status--${voiceState}`}>
-            <span className="tomo-voice-status__orb">
-                <span />
-                <span />
-                <span />
-            </span>
-        </span>
-    )
-}
-
 function VerifiedCareBoundary() {
     return (
         <p className="tomo-verified-boundary">
@@ -1105,28 +1137,9 @@ function UserTurn({ children }) {
 }
 
 function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
-    const isActionRequest = answer.answer_type === "action_request"
     const isPreparedAction = answer.answer_type === "action_prepared"
-    const isPreparedMessage = answer.answer_type === "message_draft_prepared"
-    const isAttentionSummary = answer.answer_type === "attention_summary"
     const isProfileSummary = answer.answer_type === "profile_summary"
-    const needsClarification = answer.answer_type === "clarification_needed"
-    const badgeLabel =
-        answer.answer_type === "social_response"
-            ? "Tomo"
-            : isProfileSummary
-              ? "Momo’s Profile"
-            : isAttentionSummary
-              ? "Needs attention"
-            : isPreparedMessage
-              ? "Draft ready"
-              : isPreparedAction
-                ? "Ready to review"
-                : needsClarification
-                  ? "Needs details"
-                  : isActionRequest
-                    ? "Approval required"
-                    : "Grounded answer"
+    const badge = answerBadge(answer.answer_type)
     const visibleCitations = getRecentVerifiedSources(answer.citations)
     const citationLabel = getVerifiedSourcesLabel({
         visibleCount: visibleCitations.length,
@@ -1142,12 +1155,10 @@ function AssistantTurn({ answer, reminderById, onNavigateAttention }) {
                 <p className="text-xs font-semibold text-tomo-text-h">Tomo</p>
                 <span
                     className={`tomo-badge ml-auto ${
-                        isActionRequest || needsClarification
-                            ? "tomo-badge--warning"
-                            : "tomo-badge--success"
+                        badge.warning ? "tomo-badge--warning" : "tomo-badge--success"
                     }`}
                 >
-                    {badgeLabel}
+                    {badge.label}
                 </span>
             </div>
 
@@ -1275,6 +1286,7 @@ function ProfileSummarySource({ answer, onNavigate }) {
 }
 
 function AttentionSummary({ items, onNavigate }) {
+    const runtime = useRuntimeContext()
     return (
         <section className="mt-4 space-y-3" aria-label="Items needing attention">
             {items.map((item) => (
@@ -1299,7 +1311,7 @@ function AttentionSummary({ items, onNavigate }) {
                         </span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                        {(item.navigation_targets || []).map((target) => (
+                        {(item.navigation_targets || []).filter((target) => runtime.mode !== "demo" || !["open_calendar_home", "open_calendar_event"].includes(target.kind)).map((target) => (
                             <button
                                 key={`${item.id}-${target.kind}`}
                                 type="button"

@@ -41,12 +41,16 @@ export const DEMO_RECORD_IDS = Object.freeze({
         "d3100000-0000-4000-8000-000000000003",
         "d3100000-0000-4000-8000-000000000004",
         "d3100000-0000-4000-8000-000000000005",
+        "d3100000-0000-4000-8000-000000000007",
+        "d3100000-0000-4000-8000-000000000008",
     ]),
     events: Object.freeze([
         "d3200000-0000-4000-8000-000000000001",
         "d3200000-0000-4000-8000-000000000002",
         "d3200000-0000-4000-8000-000000000003",
         "d3200000-0000-4000-8000-000000000004",
+        "d3200000-0000-4000-8000-000000000005",
+        "d3200000-0000-4000-8000-000000000006",
     ]),
     facts: Object.freeze([
         "d3300000-0000-4000-8000-000000000001",
@@ -54,9 +58,13 @@ export const DEMO_RECORD_IDS = Object.freeze({
         "d3300000-0000-4000-8000-000000000003",
         "d3300000-0000-4000-8000-000000000004",
         "d3300000-0000-4000-8000-000000000005",
+        "d3300000-0000-4000-8000-000000000006",
+        "d3300000-0000-4000-8000-000000000007",
     ]),
     costItems: Object.freeze([
         "d3400000-0000-4000-8000-000000000001",
+        "d3400000-0000-4000-8000-000000000002",
+        "d3400000-0000-4000-8000-000000000003",
     ]),
     providerContacts: Object.freeze([]),
     intakeDocument: DEMO_INTAKE_DOCUMENT_ID,
@@ -97,6 +105,65 @@ export const DEMO_RESET_TARGETS = Object.freeze({
     }),
 })
 
+// Fixed dates intentionally match the September 2026 invoice story. These are
+// sampled historical visits, not a complete treatment schedule or medical advice.
+export const DEMO_HISTORICAL_VISITS = Object.freeze([
+    Object.freeze({ date: "2026-05-07", weightKg: 13.6, medicationCost: 135, documentId: DEMO_RECORD_IDS.documents[5], eventId: DEMO_RECORD_IDS.events[4], factId: DEMO_RECORD_IDS.facts[5], costItemId: DEMO_RECORD_IDS.costItems[1] }),
+    Object.freeze({ date: "2026-07-07", weightKg: 13.4, medicationCost: 140, documentId: DEMO_RECORD_IDS.documents[6], eventId: DEMO_RECORD_IDS.events[5], factId: DEMO_RECORD_IDS.facts[6], costItemId: DEMO_RECORD_IDS.costItems[2] }),
+])
+
+export function buildDemoHistoricalVisits(careDate) {
+    assertIsoDate(careDate)
+    const timestamp = `${careDate}T12:00:00.000Z`
+    const tables = { documents: [], events: [], cost_items: [], facts: [] }
+    for (const visit of DEMO_HISTORICAL_VISITS) {
+        const audit = { pet_id: DEMO_PET_ID, status: "verified", created_at: timestamp, updated_at: timestamp }
+        const fixtureNote = "SAMPLE — DEMO DATA. Preloaded fictional visit; no PDF or extraction/human-verification session exists for this seed. Recorded costs are a medication subtotal only."
+        tables.documents.push({
+            ...audit, id: visit.documentId, doc_type: "receipt",
+            title: `SAMPLE — DEMO DATA — Preloaded Librela visit ${visit.date}`,
+            doc_date: visit.date, source_org: "Harborlight Veterinary Center",
+            source_person: "Dr. Avery Chen", file_url: null, raw_text: null,
+            text_extracted: {
+                doc_id: visit.documentId, pet_id: DEMO_PET_ID, doc_type: "receipt", doc_date: visit.date,
+                source_org: "Harborlight Veterinary Center", invoice_id: null,
+                summary: `Preloaded fictional visit: Librela administration, weight ${visit.weightKg} kg, recorded medication subtotal USD ${visit.medicationCost.toFixed(2)}. No PDF or AI extraction was used.`,
+                weight_measurement: { value: visit.weightKg, unit: "kg", value_kg: visit.weightKg,
+                    value_lb: round(visit.weightKg * 2.2046226218), measured_date: visit.date,
+                    source_field: "synthetic_fixture.weight", source_label: "Preloaded demo weight",
+                    extraction_method: "synthetic_fixture", source_context: fixtureNote },
+                events: [{ event_type: "injection", event_date: visit.date, details_json: { medication: "Librela", subtype: "Librela", description: fixtureNote } }],
+                cost_items: [{ service_date: visit.date, category: "medication", label: "Librela medication and administration", amount: visit.medicationCost, currency: "USD", notes: fixtureNote }],
+                totals: { paid: null, currency: "USD" }, labs: [], vaccine_evidence: [], notes: fixtureNote,
+            }, triage_result: null, remarks: fixtureNote,
+            external_refs: { ...demoExternalRefs("historical-librela-visit"), evidence_kind: "preloaded_synthetic_history", has_pdf: false },
+        })
+        tables.events.push({
+            ...audit, id: visit.eventId, doc_id: visit.documentId,
+            event_type: "injection", event_date: visit.date, event_start: null, event_end: null,
+            details_json: { subtype: "Librela", medication: "Librela", source_org: "Harborlight Veterinary Center",
+                description: fixtureNote, source: "synthetic_fixture", demo_owned: true, scenario_id: DEMO_SCENARIO_ID },
+        })
+        tables.cost_items.push({
+            ...audit, id: visit.costItemId, doc_id: visit.documentId,
+            service_date: visit.date, category: "medication",
+            item_name: "SAMPLE — DEMO DATA — Librela medication and administration",
+            quantity: 1, unit: "visit", amount: visit.medicationCost, currency: "USD", tax_amount: 0,
+            confidence: 1, verified_at: timestamp, verified_by: "demo-fixture",
+        })
+        tables.facts.push({
+            ...audit, id: visit.factId, doc_id: visit.documentId, fact_type: "weight", fact_date: visit.date,
+            value_json: { value: visit.weightKg, unit: "kg", value_kg: visit.weightKg,
+                value_lb: round(visit.weightKg * 2.2046226218), source_field: "synthetic_fixture.weight",
+                source_label: "Preloaded demo weight", extraction_method: "synthetic_fixture",
+                source_context: fixtureNote, schema_version: 1, rule_version: "verified_weight_v1",
+                demo_owned: true, scenario_id: DEMO_SCENARIO_ID },
+            confidence: 1, verified_at: timestamp, verified_by: "demo-fixture",
+        })
+    }
+    return tables
+}
+
 const WEIGHT_READINGS = Object.freeze([
     Object.freeze({ offsetDays: -330, valueKg: 13.8 }),
     Object.freeze({ offsetDays: -220, valueKg: 13.6 }),
@@ -108,6 +175,7 @@ export function buildDemoScenario(careDate) {
     assertIsoDate(careDate)
 
     const timestamp = `${careDate}T12:00:00.000Z`
+    const history = buildDemoHistoricalVisits(careDate)
     const weightDates = WEIGHT_READINGS.map(({ offsetDays }) =>
         addDaysToIsoDate(careDate, offsetDays)
     )
@@ -367,11 +435,11 @@ export function buildDemoScenario(careDate) {
                     updated_at: timestamp,
                 },
             ]),
-            documents: Object.freeze(documents),
-            events: Object.freeze(events),
-            cost_items: Object.freeze(costItems),
+            documents: Object.freeze([...documents, ...history.documents]),
+            events: Object.freeze([...events, ...history.events]),
+            cost_items: Object.freeze([...costItems, ...history.cost_items]),
             labs: Object.freeze([]),
-            facts: Object.freeze(facts),
+            facts: Object.freeze([...facts, ...history.facts]),
             provider_contacts: Object.freeze([]),
             orchestration_runs: Object.freeze([]),
             care_actions: Object.freeze([]),

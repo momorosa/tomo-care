@@ -1,0 +1,62 @@
+# Integrated Journey checkpoint — September 19, 2026
+
+Status: accepted and closed September 29, 2026. Rosa completed the end-to-end recording and explicitly approved all manual tests, including the integrated fresh-source journey. See [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md). The findings below describe the earlier September 19 review; its pending language does not reopen acceptance.
+
+The review covered the three existing stories: source to trusted records, trusted records to useful answers, and governed follow-through. It preserved the current demo dataset. No reset, inbox import, verification, new reminder, Calendar operation, outbound message, microphone capture or live avatar session was performed.
+
+## Findings and repairs
+
+- **October scope explanation:** the correct October reminder was accompanied by “tomorrow-only” limitation text. The explanation now describes the selected future window; tomorrow questions retain their specific explanation. A regression test covers October.
+- **Inbox recovery (P11):** text-processing failure no longer suggests OCR as an early diagnosis. The message explains that the PDF is saved, trusted records are unchanged, and the next steps are source inspection and retry. The processing-stage identifier remains available under collapsed **Technical details**.
+- **Unavailable demo Calendar controls:** reminder cards offered Calendar sync and Attention offered Calendar navigation even though demo execution is intentionally blocked. Those controls were hidden in demo mode at this checkpoint. The subsequently approved September 22 slice adds one separately guarded Librela action after dedicated-calendar setup. Private-care controls and the server’s existing provider boundary are unchanged.
+- **Outdated verification test:** one older test expected saving a correction to lead to approval. The app already correctly requires a separate explicit verification action. The test now protects that accepted boundary; no approval behavior changed.
+
+## Verified in this pass
+
+| Journey step | Evidence | Result |
+| --- | --- | --- |
+| Correct candidate, then explicitly verify | Existing service/route tests plus the shipped-component browser fixture | Correction saved as SAMPLE-002 and stayed unverified. Confirmation states no follow-up actions exist yet; optional next steps appear afterward. Fixture callbacks do not exercise live extraction or database approval. |
+| October Attention | Actual demo Chat | Librela reminder opens October 19, due around October 26. Correct future-window limitation. **Open reminder** focuses and expands the governing reminder. |
+| Missing evidence | Actual demo Chat asking whether Rabies was administered September 7 | **Missing verified data**; Tomo does not infer vaccine administration. |
+| Voice/Chat continuity | Actual demo mode switch | October Attention and the missing-evidence exchange remain in the same transcript. This is not a new microphone/playback acceptance. |
+| Appointment draft | Actual demo assistant and dialog | Names the fictional clinic, September 7 injection and October 26 due date. Editable, review-only, no recipient destination or sending/approval action. |
+| Compact draft usability | Shipped-component fixture at 390 × 600 | Keyboard reaches the field, Copy and Done through scrolling. Focus wraps to Close; Escape dismisses and restores focus to the opener. Viewport restored afterward. |
+| Regression coverage | Automated checks | 721 tests passed, zero failures. Focused ESLint and production build passed; existing LiveKit bundle-size warning remains. |
+
+The live demo currently has the existing Librela reminder but **no insurance reminder**. A one-item October answer is therefore correct for this starting state. It is not evidence that the insurance story failed.
+
+The prior accepted three-point history and spending checks remain accepted. Full assistive-technology speech, measured contrast, native 200% zoom, Reduced Motion perception, fresh Gmail-to-verification replay and combined live audio are not newly certified by this pass. Two document-list requests intermittently returned “JWT issued at future” during this pass (verified archive, then pending review). Other care requests succeeded. September 20 follow-up: the [database-read recovery](./TomoCare_Database_Read_Recovery.md) adds a bounded retry for the exact read rejection and honest document-list loading/error states. The hosted rejection was not reproduced in 24 probes; its underlying cause remains unproven. No credentials or system-clock settings were changed.
+
+## Rosa’s minimum integrated checks
+
+Start `npm run dev:demo`, then open the displayed Vite URL and confirm **Demo data**. Keep that running if you separately start `npm run dev:demo:avatar` for optional live animation; the avatar command starts only the worker.
+
+### 1. Current state: useful answers and honest uncertainty
+
+No reset needed. Ask about medication spending and weight history, then ask whether the September source proves Rabies administration. Confirm the three 2026 weights and $416.50 recorded medication total in this current dataset; the Rabies answer must not claim administration. Select a chart source, switch Voice/Chat, and reopen the transcript. Evidence and conversation should remain available. Listen to one answer and try Stop or Replay.
+
+### 2. Current state: Attention to an editable draft
+
+Ask “What needs my attention in October?” Expect the October 19 Librela reminder and October 26 due date, with no “tomorrow-only” wording. Open the reminder; demo Calendar controls stay hidden until the dedicated calendar is configured. Once configured, only the approved Librela reminder offers **Add to demo calendar**; see the Calendar checkpoint for its separate acceptance checks. Ask Tomo to draft a message requesting Momo’s next Librela appointment. Edit and copy the draft; confirm the dates and **Review-only demo draft** boundary. Nothing is sent or booked. Try Tab, Shift+Tab and Escape in a short window, then native 200% browser zoom. Use the existing fixture for repeatable dialog checks if helpful.
+
+### 3. Final fresh-source rehearsal
+
+This is the remaining end-to-end acceptance before capture. Use the receipt-only replay to preserve the accepted May/July history and unrelated demo state. Stop both the app and avatar worker, preview the scope, then apply and restart:
+
+```bash
+npm run demo:reset-receipt -- --project-ref gohzjjqsbtwavjuhjdwj
+npm run demo:reset-receipt -- --project-ref gohzjjqsbtwavjuhjdwj --apply
+npm run dev:demo
+```
+
+Check inbox; review the September synthetic PDF, correct the missing invoice number from the source (`HVC-DEMO-090726`), save/recheck, and verify separately. Confirm that only explicit verification adds trusted records. Continue to optional actions and create both the Librela and insurance reminders. October Attention should now include insurance on October 7 and Librela on October 19. Prepare the review-only draft and compare its dates with the source and reminder.
+
+**Receipt-only replay:** removes September’s imported document, saved PDF, derived records, source-linked drafts/actions/reminders and owned demo Calendar entry. The Gmail email stays available for Check inbox. May/July remain; after September verification, the accepted dataset returns to three weights and $416.50 medication spending. See [receipt replay instructions](./TomoCare_Demo_Receipt_Replay.md), including the separate avatar worker command.
+
+**Full reset is a separate option, not required for this recording:** it restores the older baseline plus May/July history. After September verification, recorded medication spending becomes $559.25, and all-time weight history has seven points (six dated in 2026 at this checkpoint). Do not expect the current three-point/$416.50 dataset after a full reset. The new historical visits remain part of the reset manifest.
+
+Report pass/fail for these three checks and any moment where the next step, evidence or approval state felt unclear. There is no need to repeat the already accepted five-minute avatar-expiry test unless a new issue appears. Broader voice identity and pose matching remain deferred product refinements.
+
+## Final closeout — September 29
+
+Rosa accepted all manual tests and retained the recording/screenshots. The [Demo track closeout and real-care handover](./TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md) records evidence, final engineering validation, the frozen release and the owner-requested real-care pause.

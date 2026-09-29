@@ -152,7 +152,7 @@ export function createOpenAiVoiceProvider({
             return transcript
         },
 
-        async synthesize({ text, answerType, personalityMode }) {
+        async synthesize({ text, answerType, personalityMode, personalityTone }) {
             requireApiKey(apiKey)
 
             if (!text?.trim()) {
@@ -179,7 +179,8 @@ export function createOpenAiVoiceProvider({
                         input: text,
                         instructions: getTomoSpeechInstructions(
                             answerType,
-                            personalityMode
+                            personalityMode,
+                            personalityTone
                         ),
                         response_format: "mp3",
                     }),

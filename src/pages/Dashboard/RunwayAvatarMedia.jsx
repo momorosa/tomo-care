@@ -14,7 +14,16 @@ import {
     normalizeAvatarPresentationReason,
 } from "./avatarPresentation.js"
 import TomoMotionMedia from "./TomoMotionMedia.jsx"
-import { TOMO_MOTION_TRANSITION_MS } from "./tomoMotionSequence.js"
+import {
+    AVATAR_HANDOFF_MS,
+    captureAvatarFrame,
+    createAvatarVisualHandoff,
+} from "./avatarVisualHandoff.js"
+
+async function connectLiveAvatar(options) {
+    const { connectRunwayAvatar } = await import("./runwayAvatarClient.js")
+    return connectRunwayAvatar(options)
+}
 
 const AVATAR_STARTUP_TIMEOUT_MS = 35_000
 const AVATAR_CANCELLED_REASON = "avatar_cancelled"
@@ -24,10 +33,18 @@ function prefersReducedMotion() {
 }
 
 const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
-    { fallbackSrc, fallbackAlt, voiceState, muted = false },
+    {
+        fallbackSrc,
+        fallbackAlt,
+        voiceState,
+        reaction,
+        muted = false,
+        createSession = createRunwayAvatarSession,
+        connectAvatar = connectLiveAvatar,
+    },
     ref
 ) {
-    const initialReducedMotion = useRef(prefersReducedMotion()).current
+    const [initialReducedMotion] = useState(prefersReducedMotion)
     const [presentationState, setPresentationState] = useState(
         AVATAR_PRESENTATION_STATES.LOCAL_ONLY
     )
@@ -39,8 +56,9 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     const [reducedMotion, setReducedMotion] = useState(initialReducedMotion)
     const [videoReady, setVideoReady] = useState(false)
     const [liveSpeech, setLiveSpeech] = useState(false)
-    const [displayLive, setDisplayLive] = useState(false)
-    const [transitionCovered, setTransitionCovered] = useState(false)
+    const [cancelledReactionId, setCancelledReactionId] = useState(null)
+    const [handoff, setHandoff] = useState({ displayLive: false, phase: "steady" })
+    const { displayLive } = handoff
     const clientRef = useRef(null)
     const presentationRef = useRef({
         state: AVATAR_PRESENTATION_STATES.LOCAL_ONLY,
@@ -52,11 +70,35 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     const startupControllerRef = useRef(null)
     const startupTimerRef = useRef(null)
     const durationTimerRef = useRef(null)
-    const transitionTimerRef = useRef(null)
     const videoAttemptRef = useRef(null)
     const videoReadyRef = useRef(false)
     const videoRef = useRef(null)
     const audioRef = useRef(null)
+    const stillRef = useRef(null)
+    const bridgeRef = useRef(null)
+    const localVideoRef = useRef(null)
+    const localReadyRef = useRef(false)
+    const reducedMotionRef = useRef(initialReducedMotion)
+    const speechAttemptRef = useRef(0)
+    const handoffRef = useRef(null)
+
+    useEffect(() => {
+        handoffRef.current = createAvatarVisualHandoff({
+            captureOutgoing: (fromLive) => captureAvatarFrame(
+                bridgeRef.current,
+                fromLive ? videoRef.current : localVideoRef.current || stillRef.current
+            ),
+            isReady: (toLive) => toLive ? videoReadyRef.current : localReadyRef.current,
+            onChange: setHandoff,
+        })
+        return () => {
+            handoffRef.current?.dispose()
+            handoffRef.current = null
+        }
+    }, [])
+
+    const handleLocalFrame = useCallback((video) => { localVideoRef.current = video }, [])
+    const handleLocalReady = useCallback((ready) => { localReadyRef.current = ready }, [])
 
     const updatePresentation = useCallback(function updatePresentation(
         nextState,
@@ -73,10 +115,8 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     const clearAvatarTimers = useCallback(function clearAvatarTimers() {
         clearTimeout(startupTimerRef.current)
         clearTimeout(durationTimerRef.current)
-        clearTimeout(transitionTimerRef.current)
         startupTimerRef.current = null
         durationTimerRef.current = null
-        transitionTimerRef.current = null
     }, [])
 
     const clearAttachedMedia = useCallback(function clearAttachedMedia() {
@@ -93,6 +133,14 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             nextReason = null,
             updateUi = true,
         } = {}) {
+            // Preserve the visible frame before track detach; disconnect/audio cleanup stays immediate.
+            if (updateUi) {
+                handoffRef.current?.request(false, {
+                    urgent: true,
+                    immediate: reducedMotionRef.current,
+                })
+            }
+            speechAttemptRef.current += 1
             attemptRef.current += 1
             const nextAttempt = attemptRef.current
             const controller = startupControllerRef.current
@@ -101,8 +149,9 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             startupControllerRef.current = null
             clientRef.current = null
             clearAvatarTimers()
-            controller?.abort()
+            // Preserve the actual end reason before aborting the connection signal.
             client?.disconnect({ reason: disconnectReason })
+            controller?.abort()
             clearAttachedMedia()
             videoAttemptRef.current = null
             videoReadyRef.current = false
@@ -110,9 +159,14 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             if (updateUi) {
                 setVideoReady(false)
                 setLiveSpeech(false)
-                setDisplayLive(false)
-                setTransitionCovered(false)
                 updatePresentation(nextState, nextReason)
+                if (nextReason && nextReason !== AVATAR_PRESENTATION_REASONS.REDUCED_MOTION) {
+                    console.info("[TomoCare animation]", {
+                        state: nextState,
+                        reason: normalizeAvatarPresentationReason(nextReason),
+                        voice: "local",
+                    })
+                }
             }
 
             return nextAttempt
@@ -144,6 +198,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
         if (!query) return undefined
 
         const handleChange = (event) => {
+            reducedMotionRef.current = event.matches
             setReducedMotion(event.matches)
 
             if (event.matches) {
@@ -175,18 +230,11 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     const wantsLiveSpeech = live && videoReady && liveSpeech
 
     useEffect(() => {
-        clearTimeout(transitionTimerRef.current)
-
-        if (wantsLiveSpeech === displayLive) {
-            setTransitionCovered(false)
-            return
-        }
-
-        setTransitionCovered(true)
-        transitionTimerRef.current = setTimeout(() => {
-            setDisplayLive(wantsLiveSpeech)
-        }, TOMO_MOTION_TRANSITION_MS.COVER)
-    }, [displayLive, wantsLiveSpeech])
+        handoffRef.current?.request(wantsLiveSpeech, {
+            settleMs: !wantsLiveSpeech && live ? AVATAR_HANDOFF_MS.SETTLE : 0,
+            immediate: reducedMotion,
+        })
+    }, [live, reducedMotion, wantsLiveSpeech])
 
     useImperativeHandle(ref, () => ({
         isReady() {
@@ -200,6 +248,10 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
         async speak(audioUrl) {
             const client = clientRef.current
             const attemptId = attemptRef.current
+            const speechAttempt = ++speechAttemptRef.current
+            const isCurrentSpeech = () =>
+                attemptId === attemptRef.current &&
+                speechAttempt === speechAttemptRef.current
 
             if (
                 presentationRef.current.state !==
@@ -212,15 +264,15 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             try {
                 const result = await client.sendSpeech(audioUrl, {
                     onPlaybackStarted() {
-                        if (attemptId === attemptRef.current) {
+                        if (isCurrentSpeech()) {
                             setLiveSpeech(true)
                         }
                     },
                 })
-                if (attemptId === attemptRef.current) setLiveSpeech(false)
+                if (isCurrentSpeech()) setLiveSpeech(false)
                 return result
             } catch (error) {
-                if (attemptId === attemptRef.current) {
+                if (isCurrentSpeech()) {
                     cleanupAvatarResources({
                         disconnectReason:
                             AVATAR_PRESENTATION_REASONS.AVATAR_PLAYBACK_FAILED,
@@ -235,6 +287,13 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             }
         },
         stopSpeech() {
+            setCancelledReactionId(reaction?.id)
+            speechAttemptRef.current += 1
+            setLiveSpeech(false)
+            handoffRef.current?.request(false, {
+                urgent: true,
+                immediate: reducedMotionRef.current,
+            })
             return clientRef.current?.stopSpeech()
         },
         end() {
@@ -271,7 +330,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
         }, AVATAR_STARTUP_TIMEOUT_MS)
 
         try {
-            const session = await createRunwayAvatarSession({
+            const session = await createSession({
                 signal: controller.signal,
             })
             if (attemptId !== attemptRef.current) return
@@ -291,12 +350,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                 }, maxDurationSeconds * 1000)
             }
 
-            const { connectRunwayAvatar } = await import(
-                "./runwayAvatarClient.js"
-            )
-            if (attemptId !== attemptRef.current) return
-
-            const client = await connectRunwayAvatar({
+            const client = await connectAvatar({
                 session,
                 signal: controller.signal,
                 onVideoTrack(track) {
@@ -312,15 +366,16 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                         track.attach(audioRef.current)
                     }
                 },
-                onDisconnected() {
+                onDisconnected({ reason = "avatar_disconnected" } = {}) {
                     if (attemptId !== attemptRef.current) return
-
+                    const safeReason = normalizeAvatarPresentationReason(reason,
+                        AVATAR_PRESENTATION_REASONS.AVATAR_DISCONNECTED)
                     cleanupAvatarResources({
-                        disconnectReason:
-                            AVATAR_PRESENTATION_REASONS.AVATAR_DISCONNECTED,
-                        nextState: AVATAR_PRESENTATION_STATES.FAILED,
-                        nextReason:
-                            AVATAR_PRESENTATION_REASONS.AVATAR_DISCONNECTED,
+                        disconnectReason: safeReason,
+                        nextState: safeReason === AVATAR_PRESENTATION_REASONS.USER_ENDED
+                            ? AVATAR_PRESENTATION_STATES.ENDED
+                            : AVATAR_PRESENTATION_STATES.FAILED,
+                        nextReason: safeReason,
                     })
                 },
             })
@@ -355,6 +410,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
     }
 
     function endLiveAnimation() {
+        setCancelledReactionId(reaction?.id)
         cleanupAvatarResources({
             disconnectReason: AVATAR_PRESENTATION_REASONS.USER_ENDED,
             nextState: AVATAR_PRESENTATION_STATES.ENDED,
@@ -374,6 +430,7 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
                 displayLive ? "tomo-avatar-media--speaking" : ""
             }`}
             data-avatar-media={displayLive ? "runway-live" : "placeholder"}
+            data-avatar-transition={handoff.phase}
             data-avatar-state={presentation.state}
             data-avatar-reason={presentation.reason || undefined}
             aria-busy={
@@ -381,14 +438,19 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             }
         >
             <img
+                ref={stillRef}
                 src={fallbackSrc}
                 alt={fallbackAlt}
                 className="tomo-voice-stage__avatar tomo-avatar-media__fallback"
             />
             <TomoMotionMedia
                 voiceState={voiceState}
+                reaction={reaction?.id === cancelledReactionId ? null : reaction}
+                deferReaction={live && voiceState === "speaking"}
                 hidden={displayLive}
                 disabled={reducedMotion}
+                onDisplayReady={handleLocalFrame}
+                onReadyChange={handleLocalReady}
             />
             <video
                 ref={videoRef}
@@ -406,12 +468,9 @@ const RunwayAvatarMedia = forwardRef(function RunwayAvatarMedia(
             />
             <audio ref={audioRef} autoPlay muted={muted} />
 
-            <div
-                className={`tomo-avatar-media__transition ${
-                    transitionCovered
-                        ? "tomo-avatar-media__transition--covered"
-                        : ""
-                }`}
+            <canvas
+                ref={bridgeRef}
+                className="tomo-avatar-media__bridge"
                 aria-hidden="true"
             />
 

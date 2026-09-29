@@ -93,3 +93,20 @@ test("keeps thinking footage visible until live avatar playback actually starts"
         TOMO_MOTION_PHASES.THINKING_B
     )
 })
+
+
+test("only bounded answer cues choose one-shot expressions", async () => {
+    const { getReactionPhase, canShowReaction } = await import("./tomoMotionSequence.js")
+    assert.equal(getReactionPhase({ id: 1, expression: "pleased" }), TOMO_MOTION_PHASES.PLEASED)
+    assert.equal(getReactionPhase({ id: 2, expression: "amused" }), TOMO_MOTION_PHASES.AMUSED)
+    for (const expression of ["attentive", "neutral", "https://untrusted/clip", "__proto__"]) {
+        assert.equal(getReactionPhase({ id: 3, expression }), null)
+    }
+    assert.equal(getReactionPhase({ expression: "pleased" }), null)
+    for (const state of [VOICE_STATES.LISTENING, VOICE_STATES.THINKING, VOICE_STATES.WAITING_FOR_REVIEW, VOICE_STATES.BLOCKED]) {
+        assert.equal(canShowReaction(state), false)
+    }
+    assert.equal(canShowReaction(VOICE_STATES.IDLE), true)
+    assert.equal(TOMO_MOTION_CLIPS[TOMO_MOTION_PHASES.PLEASED].loop, false)
+    assert.equal(TOMO_MOTION_CLIPS[TOMO_MOTION_PHASES.AMUSED].loop, false)
+})

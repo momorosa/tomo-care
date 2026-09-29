@@ -70,7 +70,7 @@ const PLAN_CONFIG = {
         scope: "verified_documents",
     },
     spend_summary: {
-        subjects: ["librela"],
+        subjects: ["librela", "medications"],
         scope: "direct_librela_line_items",
     },
     vaccine_record_lookup: {
@@ -230,8 +230,9 @@ function semanticPlan(interpretation, question, currentCareDate) {
         return null
     }
 
-    const scope =
-        interpretation.intent === "spend_summary" &&
+    const scope = interpretation.intent === "spend_summary" && interpretation.subject === "medications"
+        ? "verified_medication_line_items"
+        : interpretation.intent === "spend_summary" &&
         interpretation.cost_scope === "whole_visit"
             ? "librela_visit_total"
             : config.scope
@@ -267,7 +268,7 @@ function semanticMetadata(interpretation, plan) {
         confidence: interpretation.confidence,
         used_previous_context: previous,
         interpretation_label:
-            plan.event_offset === 1
+            plan.subject === "medications" ? "Verified medication spending" : plan.event_offset === 1
                 ? "Previous verified Librela injection"
                 : INTERPRETATION_LABELS[plan.intent],
         ...personalityMetadata(interpretation),
@@ -362,7 +363,7 @@ export async function resolveAssistantPlan({
                         mode: "deterministic_with_semantic_language",
                         confidence: interpretation.confidence || "low",
                         used_previous_context: false,
-                        interpretation_label:
+                        interpretation_label: deterministicPlan.subject === "medications" ? "Verified medication spending" :
                             INTERPRETATION_LABELS[
                                 deterministicPlan.intent
                             ] || null,

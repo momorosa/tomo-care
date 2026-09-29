@@ -1,3 +1,4 @@
+import Modal from "../../components/Modal.jsx"
 import { useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import momoPortrait from "../../../assets/momoPic.png"
@@ -10,6 +11,7 @@ import { getCompactReminderPresentation } from "./reminderPresentation.js"
 import {
     getCalendarStatusMessage,
     getReminderCalendarControl,
+    getDemoReminderCalendarControl,
 } from "./calendarRecovery.js"
 
 const NAV_ITEMS = [
@@ -49,7 +51,7 @@ export function CareNavigation({
                 )}
                 <button
                     type="button"
-                    className="tomo-icon-button ml-auto"
+                    className="tomo-icon-button tomo-care-nav__toggle ml-auto"
                     onClick={collapsed ? onExpand : onCollapse}
                     aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                     title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -77,7 +79,8 @@ export function CareNavigation({
                             className={`tomo-care-nav__item ${selected ? "tomo-care-nav__item--active" : ""}`}
                             onClick={() => onSelect(item.section)}
                             aria-current={selected ? "page" : undefined}
-                            title={collapsed ? item.label : undefined}
+                            title={item.label}
+                            aria-label={count > 0 ? `${item.label} (${count})` : item.label}
                         >
                             <span
                                 className="material-symbols-outlined shrink-0"
@@ -85,15 +88,11 @@ export function CareNavigation({
                             >
                                 {item.icon}
                             </span>
-                            {!collapsed && (
-                                <>
-                                    <span className="min-w-0 flex-1 truncate text-left">
-                                        {item.label}
-                                    </span>
-                                    {count > 0 && (
-                                        <span className="tomo-nav-count">{count}</span>
-                                    )}
-                                </>
+                            <span className="min-w-0 flex-1 truncate text-left">
+                                {item.label}
+                            </span>
+                            {count > 0 && (
+                                <span className="tomo-nav-count">{count}</span>
                             )}
                         </button>
                     )
@@ -108,7 +107,7 @@ export function CareNavigation({
                     >
                         verified_user
                     </span>
-                    {!collapsed && <span>Approval-gated</span>}
+                    <span className="tomo-care-nav__footer-label">Approval-gated</span>
                 </div>
             </div>
         </nav>
@@ -116,6 +115,8 @@ export function CareNavigation({
 }
 
 export function CareContextDrawer({
+    overlay = false,
+    voiceControlsRef,
     section,
     reminders,
     loadingReminders,
@@ -123,6 +124,10 @@ export function CareContextDrawer({
     refreshingReminders,
     reviewDocuments,
     verifiedDocuments,
+    reviewLoadState = "ready",
+    verifiedLoadState = "ready",
+    onReloadReviewDocuments,
+    onReloadVerifiedDocuments,
     careSummary,
     inboxResult,
     inboxError,
@@ -136,7 +141,7 @@ export function CareContextDrawer({
     onMarkFiled,
     onSyncCalendar,
 }) {
-    return (
+    const content = (
         <aside className="tomo-context-drawer" aria-label="Selected care section">
             <div className="tomo-context-drawer__header">
                 <ContextHeading section={section} />
@@ -153,6 +158,7 @@ export function CareContextDrawer({
                 </button>
             </div>
 
+            {voiceControlsRef && <div className="tomo-care-voice-controls" ref={voiceControlsRef} />}
             <div className="tomo-context-drawer__body">
                 {section === HOME_SECTIONS.PROFILE && (
                     <ProfileContext
@@ -180,6 +186,8 @@ export function CareContextDrawer({
                 {section === HOME_SECTIONS.INBOX && (
                     <InboxContext
                         documents={reviewDocuments}
+                        loadState={reviewLoadState}
+                        onReload={onReloadReviewDocuments}
                         result={inboxResult}
                         error={inboxError}
                         checking={checkingInbox}
@@ -188,11 +196,17 @@ export function CareContextDrawer({
                 )}
 
                 {section === HOME_SECTIONS.VERIFIED && (
-                    <VerifiedContext documents={verifiedDocuments} />
+                    <VerifiedContext documents={verifiedDocuments} loadState={verifiedLoadState} onReload={onReloadVerifiedDocuments} />
                 )}
             </div>
         </aside>
     )
+    return overlay ? (
+        <Modal label="Care details" onDismiss={onClose} className="tomo-care-modal">
+            {content}
+        </Modal>
+    ) : content
+
 }
 
 function ContextHeading({ section }) {
@@ -530,7 +544,11 @@ function CalendarControl({
     onSync,
     onClick,
 }) {
-    const control = getReminderCalendarControl(reminder, transientState)
+    const runtime = useRuntimeContext()
+    const control = runtime.mode === "demo"
+        ? getDemoReminderCalendarControl(reminder, transientState)
+        : getReminderCalendarControl(reminder, transientState)
+    if (!control) return null
     const content = (
         <>
             <span
@@ -539,7 +557,12 @@ function CalendarControl({
             >
                 calendar_month
             </span>
-            {control.label}
+            <span>
+                {control.label}
+                {runtime.mode === "demo" && control.kind === "sync" && (
+                    <span className="block text-xs font-normal opacity-80">Synthetic calendar · no alerts</span>
+                )}
+            </span>
         </>
     )
 
@@ -602,23 +625,24 @@ function CalendarReconnectGuidance() {
     )
 }
 
-function InboxContext({ documents, result, error, checking, onCheck }) {
+function InboxContext({ documents, result, error, checking, onCheck, loadState = "ready", onReload }) {
     const readyCount = documents.length
 
     return (
         <div>
             <div className="tomo-compact-record">
-                <p className="text-3xl font-semibold text-tomo-text-h">{readyCount}</p>
+                <p className="text-3xl font-semibold text-tomo-text-h">{loadState === "ready" ? readyCount : "—"}</p>
                 <p className="mt-1 text-sm text-tomo-text">
-                    {readyCount === 1
-                        ? "document ready for review"
-                        : "documents ready for review"}
+                    {loadState === "ready"
+                        ? readyCount === 1 ? "document ready for review" : "documents ready for review"
+                        : "Review count unavailable"}
                 </p>
                 <p className="mt-3 text-xs leading-5 text-tomo-text">
                     Nothing enters Momo’s trusted record until you verify it.
                 </p>
             </div>
 
+            <DocumentLoadNotice state={loadState} hasRecords={documents.length > 0} onReload={onReload} />
             <button
                 type="button"
                 className={`tomo-btn tomo-btn-primary tomo-inbox-check mt-4 w-full text-sm${
@@ -725,9 +749,10 @@ function InboxContext({ documents, result, error, checking, onCheck }) {
                                         </Link>
                                     </div>
                                     {doc.failedStep && (
-                                        <p className="mt-2 text-[11px] text-tomo-text">
-                                            Processing stage: {doc.failedStep}
-                                        </p>
+                                        <details className="mt-2 text-[11px] text-tomo-text">
+                                            <summary className="cursor-pointer">Technical details</summary>
+                                            <p className="mt-1">Processing stage: {doc.failedStep}</p>
+                                        </details>
                                     )}
                                 </div>
                             ))}
@@ -761,13 +786,14 @@ function InboxContext({ documents, result, error, checking, onCheck }) {
     )
 }
 
-function VerifiedContext({ documents }) {
-    if (documents.length === 0) {
+function VerifiedContext({ documents, loadState = "ready", onReload }) {
+    if (documents.length === 0 && loadState === "ready") {
         return <p className="text-sm text-tomo-text">No verified records yet.</p>
     }
 
     return (
         <div className="space-y-2">
+            <DocumentLoadNotice state={loadState} hasRecords={documents.length > 0} onReload={onReload} />
             {documents.map((doc) => (
                 <Link key={doc.id} to={`/review/${doc.id}`} className="tomo-compact-link">
                     <span className="min-w-0">
@@ -787,6 +813,18 @@ function VerifiedContext({ documents }) {
                     </span>
                 </Link>
             ))}
+        </div>
+    )
+}
+
+function DocumentLoadNotice({ state, hasRecords, onReload }) {
+    if (state === "loading") return <p role="status" className="mt-3 text-sm text-tomo-text">Loading documents…</p>
+    if (state !== "error") return null
+    return (
+        <div role="alert" className="mt-3 rounded-xl border border-tomo-warning/30 p-3 text-sm text-tomo-text">
+            <p className="font-medium text-tomo-text-h">Couldn’t load documents</p>
+            <p className="mt-1">{hasRecords ? "Previously loaded records are shown; this list may be out of date." : "The document list is unavailable. This does not mean there are no records."}</p>
+            <button type="button" className="tomo-btn tomo-btn-secondary mt-3 text-sm" onClick={onReload}>Retry loading documents</button>
         </div>
     )
 }

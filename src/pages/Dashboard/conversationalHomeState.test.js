@@ -58,3 +58,11 @@ test("conversation exchanges accumulate for the current session", () => {
     assert.equal(second[0].text, "First question")
     assert.equal(second[3].answer.answer, "Second answer")
 })
+
+ test("compact screens start with care closed but an explicit selection opens it", () => {
+    const initial = createConversationalHomeState({ compact: true })
+    assert.equal(initial.drawerOpen, false)
+    const selected = reduceConversationalHome(initial, { type: "select_section", section: HOME_SECTIONS.INBOX })
+    assert.equal(selected.drawerOpen, true)
+    assert.equal(selected.activeSection, HOME_SECTIONS.INBOX)
+})

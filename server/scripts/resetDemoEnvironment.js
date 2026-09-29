@@ -87,10 +87,13 @@ export async function resetDemoEnvironment({
     runtime,
     scenario,
     repository,
+    beforeReset = async () => {},
 }) {
     validateResetPlan(scenario)
     assertRepository(repository)
 
+    // External cleanup must succeed before any local source or ownership reference is removed.
+    await beforeReset()
     await repository.removeStorageObjects(DEMO_RESET_TARGETS.storage)
     await repository.deleteDemoOwnedRecords({
         petId: DEMO_PET_ID,
@@ -328,7 +331,10 @@ export async function runDemoReset({
     })
     const repository = repositoryFactory(client)
 
-    return resetDemoEnvironment({ ...prepared, repository })
+    return resetDemoEnvironment({ ...prepared, repository, beforeReset: async () => {
+        const { prepareDemoCalendarReset } = await import("../demo/demoCalendarReset.js")
+        await prepareDemoCalendarReset({ client, env })
+    } })
 }
 
 function getConfirmedProjectRef(argv) {

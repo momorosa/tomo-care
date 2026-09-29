@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
+import { useCallback, useEffect, useReducer, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
+import { useMediaQuery } from "../../components/useMediaQuery.js"
 import AssistantPanel from "./AssistantPanel.jsx"
 import { CareContextDrawer, CareNavigation } from "./CareSidebar.jsx"
 import CareActionDialog from "./CareActionDialog.jsx"
@@ -77,6 +78,8 @@ export default function Dashboard() {
     const navigate = useNavigate()
     const location = useLocation()
     const runtime = useRuntimeContext()
+    const compactLayout = useMediaQuery("(max-width: 1199px)")
+    const [careVoiceTarget, setCareVoiceTarget] = useState(null)
     const [initialAssistantQuestion] = useState(() =>
         typeof location.state?.assistantPrompt === "string"
             ? location.state.assistantPrompt
@@ -85,10 +88,12 @@ export default function Dashboard() {
     const [homeLayout, dispatchHomeLayout] = useReducer(
         reduceConversationalHome,
         undefined,
-        createConversationalHomeState
+        () => createConversationalHomeState({ compact: window.matchMedia("(max-width: 1199px)").matches })
     )
 
     const [pendingReviewDocs, setPendingReviewDocs] = useState([])
+    const [reviewLoadState, setReviewLoadState] = useState("loading")
+    const [verifiedLoadState, setVerifiedLoadState] = useState("loading")
     const [reminders, setReminders] = useState([])
     const [verifiedDocuments, setVerifiedDocuments] = useState([])
     const [careSummary, setCareSummary] = useState({})
@@ -117,19 +122,25 @@ export default function Dashboard() {
     }, [location.pathname, location.state?.assistantPrompt, navigate])
 
     const loadPendingReviewDocs = useCallback(async () => {
+        setReviewLoadState("loading")
         try {
             const documents = await fetchPendingReviewDocuments(PET_SCOPE)
             setPendingReviewDocs(documents)
+            setReviewLoadState("ready")
         } catch (err) {
+            setReviewLoadState("error")
             console.error("[dashboard] pending review load failed:", err)
         }
     }, [])
 
     const loadVerifiedDocuments = useCallback(async () => {
+        setVerifiedLoadState("loading")
         try {
             const documents = await fetchVerifiedDocuments(PET_SCOPE)
             setVerifiedDocuments(documents)
+            setVerifiedLoadState("ready")
         } catch (err) {
+            setVerifiedLoadState("error")
             console.error("[dashboard] verified documents load failed:", err)
         }
     }, [])
@@ -271,15 +282,8 @@ export default function Dashboard() {
         }
     }, [])
 
-    const latestReviewDocuments = useMemo(
-        () => normalizeReviewDocuments(result),
-        [result]
-    )
-
-    const reviewDocuments =
-        latestReviewDocuments.length > 0
-            ? latestReviewDocuments
-            : pendingReviewDocs
+    // A successful reload must replace the list, including an empty result.
+    const reviewDocuments = pendingReviewDocs
 
     async function checkInbox() {
         setCheckingInbox(true)
@@ -291,8 +295,10 @@ export default function Dashboard() {
 
             setResult(data)
 
-            if (data.reviewDocuments?.length > 0) {
-                setPendingReviewDocs(data.reviewDocuments)
+            const incomingDocuments = normalizeReviewDocuments(data)
+            if (incomingDocuments.length > 0) {
+                setPendingReviewDocs(incomingDocuments)
+                setReviewLoadState("ready")
             } else {
                 await loadPendingReviewDocs()
             }
@@ -316,7 +322,7 @@ export default function Dashboard() {
         }))
 
         try {
-            const result = await syncReminderToGoogleCalendar(reminder.id)
+            const result = await syncReminderToGoogleCalendar(reminder.id, runtime.mode)
             await loadReminders({ silent: true })
 
             setCalendarSyncByReminder((current) => ({
@@ -1016,6 +1022,8 @@ export default function Dashboard() {
 
                 {homeLayout.drawerOpen && (
                     <CareContextDrawer
+                        overlay={compactLayout}
+                        voiceControlsRef={compactLayout ? setCareVoiceTarget : undefined}
                         section={homeLayout.activeSection}
                         reminders={reminders}
                         loadingReminders={loadingReminders}
@@ -1023,6 +1031,10 @@ export default function Dashboard() {
                         refreshingReminders={refreshingReminders}
                         reviewDocuments={reviewDocuments}
                         verifiedDocuments={verifiedDocuments}
+                        reviewLoadState={reviewLoadState}
+                        verifiedLoadState={verifiedLoadState}
+                        onReloadReviewDocuments={loadPendingReviewDocs}
+                        onReloadVerifiedDocuments={loadVerifiedDocuments}
                         careSummary={careSummary}
                         inboxResult={result}
                         inboxError={error}
@@ -1053,6 +1065,7 @@ export default function Dashboard() {
                 )}
 
                 <AssistantPanel
+                    voiceControlTarget={careVoiceTarget}
                     petId={PET_SCOPE}
                     initialQuestion={initialAssistantQuestion}
                     reminders={reminders}

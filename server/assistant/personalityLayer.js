@@ -28,6 +28,10 @@ const RESTRAINED_ANSWER_TYPES = new Set([
     "action_request",
     "clarification_needed",
     "message_draft_prepared",
+    "safety_boundary",
+    "no_trusted_data",
+    "unsupported_question",
+    "governed_action_status",
 ])
 
 const ROYAL_CUES = [
@@ -57,7 +61,7 @@ function normalizeQuestion(question) {
 }
 
 function includesCue(question, cues) {
-    return cues.some((cue) => question.includes(cue))
+    return cues.some((cue) => new RegExp(`\\b${cue}\\b`).test(question))
 }
 
 function detectLocalSignals(question) {
@@ -186,15 +190,35 @@ export function applyPersonalityFraming({
 
     const localSignals = detectLocalSignals(question)
     const semanticSignals = getSemanticSignals(semanticInterpretation)
-    const restrained = isRestrained({
+    const careBoundary = isRestrained({
         queryPlan,
         response,
         semanticSignals,
     })
-    const tone =
+    // An obvious concern must not be eclipsed by thanks or a playful model label.
+    const sensitiveTone = ["concerned", "frustrated"].find((value) =>
+        [localSignals.tone, semanticSignals.tone].includes(value)
+    )
+    const uncertainTone = semanticInterpretation?.confidence === "low"
+    const tone = sensitiveTone || (uncertainTone ? "neutral" :
         semanticSignals.tone !== "neutral"
             ? semanticSignals.tone
-            : localSignals.tone
+            : localSignals.tone !== "neutral"
+              ? localSignals.tone
+              : queryPlan?.subject === "thanks" || queryPlan?.subject === "positive_feedback"
+                ? "appreciative"
+                : "neutral"
+    )
+    const restrained = careBoundary || Boolean(sensitiveTone)
+    const expression = restrained
+        ? "attentive"
+        : response.answer_type !== "social_response" || semanticInterpretation?.confidence === "low"
+          ? "neutral"
+          : tone === "playful"
+            ? "amused"
+            : tone === "appreciative"
+              ? "pleased"
+              : "neutral"
     const addressedTomo =
         semanticSignals.addressed_tomo || localSignals.addressed_tomo
     const relationshipCue = localSignals.relationship_cue
@@ -205,7 +229,8 @@ export function applyPersonalityFraming({
         response.answer.trim().length > 0
     const modelLanguageWasRequested =
         semanticInterpretation?.language_generation === "requested"
-    const generatedSocialResponse = getGeneratedSocialResponse({
+    const mismatchedSensitiveTone = sensitiveTone && semanticSignals.tone !== sensitiveTone
+    const generatedSocialResponse = (uncertainTone || mismatchedSensitiveTone || (restrained && !sensitiveTone)) ? null : getGeneratedSocialResponse({
         queryPlan,
         semanticInterpretation,
     })
@@ -224,7 +249,12 @@ export function applyPersonalityFraming({
             : null
     const opening = generatedFraming.opening || fallbackOpening
     const closing = generatedFraming.closing
-    const baseAnswer = generatedSocialResponse || response.answer
+    const sensitiveSocialFallback = response.answer_type === "social_response" && restrained
+        ? tone === "frustrated"
+            ? "I missed the mark. What should I understand differently?"
+            : "I’m listening, Rosa. What’s worrying you about Momo?"
+        : null
+    const baseAnswer = generatedSocialResponse || sensitiveSocialFallback || response.answer
     const answer = [opening, baseAnswer, closing].filter(Boolean).join(" ")
     const generatedLanguage = generatedSocialResponse
         ? "social_response"
@@ -238,6 +268,7 @@ export function applyPersonalityFraming({
         personality: {
             profile_version: TOMO_RELATIONSHIP_PROFILE_V2.version,
             tone,
+            expression,
             mode: restrained ? "restrained" : "relational",
             addressed_tomo: addressedTomo,
             relationship_cue: relationshipCue,

@@ -1,3 +1,4 @@
+import Modal from "../../components/Modal.jsx"
 import { useState } from "react"
 import { formatDisplayDate } from "../../lib/displayDate.js"
 
@@ -92,15 +93,10 @@ export default function LibrelaAppointmentMessageDialog({
     }
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6"
-            role="presentation"
-        >
+        <Modal labelledBy="librela-message-title" onDismiss={onDismiss} busy={busy}>
             <section
-                role="dialog"
-                aria-modal="true"
                 aria-labelledby="librela-message-title"
-                className="max-h-[92svh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-tomo-border bg-[#1b1c23] shadow-2xl md:rounded-3xl"
+                className="tomo-modal__panel max-h-[92svh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-tomo-border bg-[#1b1c23] shadow-2xl md:rounded-3xl"
             >
                 <div className="border-b border-tomo-border px-6 py-5 md:px-7">
                     <div className="flex items-start justify-between gap-4">
@@ -292,7 +288,7 @@ export default function LibrelaAppointmentMessageDialog({
                     />
                 </div>
             </section>
-        </div>
+        </Modal>
     )
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useId, useMemo, useRef } from "react"
 import { formatDisplayDate } from "../../lib/displayDate.js"
 import { formatDisplayMoney } from "./formatDisplayMoney.js"
 import { stopWheelIfScrollable } from "./stopWheelIfScrollable.js"
@@ -298,7 +298,7 @@ export default function WorkingPanel({
     }
 
     return (
-        <div className="col-span-12 md:col-span-3 min-h-0 rounded-xl tomo-surface flex flex-col">
+        <div className="tomo-working-panel col-span-12 md:col-span-3 min-h-0 rounded-xl tomo-surface flex flex-col">
             <div className="shrink-0 px-4 py-3 border-b border-tomo-border">
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-tomo-text-h">Working panel</p>
@@ -488,7 +488,7 @@ export default function WorkingPanel({
                             </div>
                         ) : (
                             <>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="tomo-correction-actions">
                                     <button
                                         className="tomo-btn tomo-btn-secondary w-full"
                                         onClick={onCancelEdit || undefined}
@@ -1119,6 +1119,7 @@ function FieldEdit({
     focusOnMount = false,
 }) {
     const inputRef = useRef(null)
+    const inputId = useId()
 
     useEffect(() => {
         if (!focusOnMount || !inputRef.current) return
@@ -1128,9 +1129,10 @@ function FieldEdit({
 
     return (
         <div>
-            <p className="text-xs text-tomo-text">{label}</p>
+            <label htmlFor={inputId} className="text-xs text-tomo-text">{label}</label>
 
             <input
+                id={inputId}
                 ref={inputRef}
                 type={type}
                 className="mt-1 w-full rounded-lg border border-tomo-border bg-transparent px-3 py-2 text-sm text-tomo-text-h outline-none focus:border-tomo-accent"

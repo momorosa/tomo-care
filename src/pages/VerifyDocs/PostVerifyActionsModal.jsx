@@ -1,3 +1,4 @@
+import Modal from "../../components/Modal.jsx"
 import { useState } from "react"
 import { getSavedOnlyCalendarButton } from "./postVerifyCalendarRecovery.js"
 
@@ -72,11 +73,9 @@ function OpenPostVerifyActionsModal({
 
     if (step === "confirmation") {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+            <Modal labelledBy="verification-confirmation-title" onDismiss={onClose}>
                 <div
-                    className="w-full max-w-[560px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]"
-                    role="dialog"
-                    aria-modal="true"
+                    className="tomo-modal__panel w-full max-w-[560px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]"
                     aria-labelledby="verification-confirmation-title"
                 >
                     <p className="tomo-section-label mb-3">
@@ -121,16 +120,14 @@ function OpenPostVerifyActionsModal({
                         </button>
                     </div>
                 </div>
-            </div>
+            </Modal>
         )
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <Modal labelledBy="post-verify-actions-title" onDismiss={onClose} busy={actionInFlight}>
             <div
-                className="w-full max-w-[640px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]"
-                role="dialog"
-                aria-modal="true"
+                className="tomo-modal__panel w-full max-w-[640px] rounded-3xl border border-tomo-border bg-[#191a21] p-6 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)]"
                 aria-labelledby="post-verify-actions-title"
             >
                 <div className="mb-5">
@@ -240,7 +237,7 @@ function OpenPostVerifyActionsModal({
                     />
                 </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="tomo-modal__actions mt-6 flex justify-end">
                     <button
                         type="button"
                         className="tomo-btn tomo-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
@@ -251,7 +248,7 @@ function OpenPostVerifyActionsModal({
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     )
 }
 

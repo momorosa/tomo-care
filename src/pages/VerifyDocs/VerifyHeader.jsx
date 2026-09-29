@@ -13,7 +13,7 @@ export default function VerifyHeader({
   const showCounter = flaggedTotal > 0 && !triageLoading
 
   return (
-    <div className="flex items-start justify-between gap-4 mb-4">
+    <div className="tomo-verification-header flex items-start justify-between gap-4 mb-4">
       <div>
         <h1 className="text-2xl md:text-3xl font-semibold text-tomo-text-h">
           Verify & Save
@@ -41,7 +41,7 @@ export default function VerifyHeader({
           )}
 
           <button
-            className="tomo-btn tomo-btn-primary disabled:opacity-40 disabled:hover:cursor-not-allowed"
+            className="tomo-btn tomo-btn-primary whitespace-nowrap disabled:opacity-40 disabled:hover:cursor-not-allowed"
             onClick={onApprove}
             disabled={!canApprove || approving}
           >

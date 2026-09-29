@@ -9,6 +9,8 @@ const SOCIAL_INTENTS = new Set([
 
 const FACT_OR_ACTION_PATTERNS = [
     /\d/u,
+    /\b(?:momo|she|he|your pet)\s+(?:is|seems|looks|will be)\s+(?:(?:perfectly|completely|totally)\s+)?(?:fine|safe|healthy|okay|ok|better)\b/iu,
+    /\b(?:nothing to worry about|no need to worry|everything (?:is|will be) (?:fine|okay|ok)|i (?:remember|recall) when)\b/iu,
     /[$€£¥]/u,
     /https?:\/\/|www\./iu,
     /\b(?:according to|the records? (?:show|say)|verified|citation|source)\b/iu,

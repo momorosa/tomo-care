@@ -329,3 +329,18 @@ test("passes only bounded prior intent and subject into a voice follow-up", asyn
     assert.equal("answer" in answerCalls[0].conversationContext, false)
     assert.equal("citations" in answerCalls[0].conversationContext, false)
 })
+
+
+test("passes the same bounded personality to speech and the avatar response", async () => {
+    const voiceProvider = createVoiceProvider()
+    const personality = { mode: "relational", tone: "appreciative", expression: "pleased" }
+    const result = await answerVoiceQuestion({
+        petId: "fixture-pet", audioBuffer: Buffer.from("fixture"), contentType: "audio/webm",
+        dependencies: {
+            voiceProvider,
+            answerQuestion: async () => ({ answer_type: "social_response", answer: "I’m glad that helped.", personality }),
+        },
+    })
+    assert.deepEqual(result.personality, personality)
+    assert.equal(voiceProvider.calls.find(call => call.method === "synthesize").input.personalityTone, "appreciative")
+})

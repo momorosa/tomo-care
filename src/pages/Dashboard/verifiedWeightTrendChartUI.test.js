@@ -65,7 +65,7 @@ test("offers lb-first display selection and keeps the source action on its own r
         readFile(cssUrl, "utf8"),
     ])
 
-    assert.match(chartSource, /useState\("lb"\)/)
+    assert.match(chartSource, /displayUnit = state\?\.displayUnit \|\| "lb"/)
     assert.match(chartSource, /aria-label="Weight display unit"/)
     assert.match(chartSource, /\["lb", "kg"\]/)
     assert.match(

@@ -1,3 +1,4 @@
+import { useMediaQuery } from "../../components/useMediaQuery.js"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import VerifyHeader from "./VerifyHeader.jsx"
@@ -23,6 +24,8 @@ export default function VerifyDocs() {
     const { docId } = useParams()
     const navigate = useNavigate()
     const runtime = useRuntimeContext()
+    const wideLayout = useMediaQuery("(min-width: 1200px)")
+    const [queueOpen, setQueueOpen] = useState(false)
 
     const [docs, setDocs] = useState([])
     const [selectedId, setSelectedId] = useState(null)
@@ -147,13 +150,18 @@ export default function VerifyDocs() {
         setCounts(EMPTY_COUNTS)
         setViewUrl(null)
 
-        Promise.all([api.fetchDocument(selectedId), api.fetchViewUrl(selectedId)])
-            .then(([{ doc, counts: nextCounts }, url]) => {
+        api.fetchDocument(selectedId)
+            .then(async ({ doc, counts: nextCounts }) => {
                 if (ignore) return
 
                 setDetail(doc)
                 setCounts(nextCounts)
-                setViewUrl(url)
+                // Preloaded history has no PDF by design. Keep its audit record readable.
+                if (doc.file_url) {
+                    const url = await api.fetchViewUrl(selectedId)
+                    if (ignore) return
+                    setViewUrl(url)
+                }
 
                 if (
                     doc.status === "verified" ||
@@ -351,8 +359,8 @@ export default function VerifyDocs() {
         : flaggedFields.filter((f) => triage.acceptedPaths.has(f.path)).length
 
     return (
-        <main className="h-[calc(100svh-64px)] w-screen overflow-hidden bg-tomo-bg">
-            <div className="max-w-[1536px] mx-auto h-full px-4 md:px-8 py-6 flex flex-col min-h-0">
+        <main className="tomo-verification bg-tomo-bg">
+            <div className="tomo-verification__inner">
                 <VerifyHeader
                     statusPill={null}
                     approving={approving}
@@ -411,7 +419,15 @@ export default function VerifyDocs() {
                     }
                 />
 
-                <div className="mt-4 grid grid-cols-12 gap-4 flex-1 min-h-0">
+                <p className="tomo-verification-guidance">
+                    For careful verification, use a laptop or larger screen to compare the PDF
+                    with each entry side by side. You can still review here; AI checks support
+                    your review, and adding information to the care record requires your approval.
+                </p>
+                <div className="tomo-verification-grid">
+                    <details className="tomo-review-queue" open={wideLayout || queueOpen}
+                        onToggle={(event) => { if (!wideLayout) setQueueOpen(event.currentTarget.open) }}>
+                    <summary>Documents · review queue</summary>
                     <ReviewQueuePanel
                         docs={docs}
                         selectedId={selectedId}
@@ -419,7 +435,11 @@ export default function VerifyDocs() {
                         loading={loading}
                     />
 
+                    </details>
+
                     <SourcePreviewPanel
+                        document={detail}
+                        demoMode={runtime.mode === "demo"}
                         viewUrl={viewUrl}
                         fileUrl={selectedDoc?.file_url || detail?.file_url}
                     />

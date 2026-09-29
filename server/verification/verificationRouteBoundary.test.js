@@ -24,7 +24,7 @@ test("document approval enforces assessment fingerprint and accepted blockers", 
     assert.match(source, /Verified records must use the governed repair workflow/)
 })
 
-test("dirty save reruns review before any promotion attempt", async () => {
+test("dirty save reruns review and requires a separate explicit verification", async () => {
     const [page, panel] = await Promise.all([
         readFile(verifyDocsUrl, "utf8"),
         readFile(workingPanelUrl, "utf8"),
@@ -39,12 +39,16 @@ test("dirty save reruns review before any promotion attempt", async () => {
     const preservationIndex = page.indexOf(
         "preserveUnchangedAcceptedPaths({"
     )
-    const approvalIndex = page.indexOf("await approveDoc({")
+    const correctionStart = page.indexOf("async function saveAndRecheck()")
+    const correctionEnd = page.indexOf("async function retryVerificationReview()", correctionStart)
+    assert.ok(correctionStart >= 0 && correctionEnd > correctionStart)
+    const correctionHandler = page.slice(correctionStart, correctionEnd)
 
     assert.ok(patchIndex >= 0)
     assert.ok(forcedReviewIndex > patchIndex)
     assert.ok(preservationIndex > forcedReviewIndex)
-    assert.ok(approvalIndex > forcedReviewIndex)
+    assert.doesNotMatch(correctionHandler, /approveDoc\(|approveDocument\(/)
+    assert.match(correctionHandler, /status: "needs_review"/)
     assert.match(page, /acceptedPaths: preservedAcceptedPaths/)
-    assert.match(panel, /Save &amp; recheck/)
+    assert.match(panel, /Save correction &amp; recheck/)
 })

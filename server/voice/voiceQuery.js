@@ -50,6 +50,7 @@ export async function answerVoiceQuestion({
             text: spokenAnswer,
             answerType: assistantResponse.answer_type,
             personalityMode: assistantResponse.personality?.mode,
+            personalityTone: assistantResponse.personality?.tone,
         })
     } catch (err) {
         speechError = {

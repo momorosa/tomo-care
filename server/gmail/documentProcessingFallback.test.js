@@ -35,6 +35,7 @@ test("explains unreadable text without exposing provider errors", () => {
     const presentation = getProcessingFailurePresentation("populate_raw_text")
 
     assert.match(presentation.title, /could not read its text/i)
-    assert.match(presentation.message, /OCR/i)
+    assert.match(presentation.message, /Nothing from this document has entered/)
+    assert.doesNotMatch(presentation.message, /OCR|scan|python|traceback/i)
     assert.equal(presentation.nextAction, "open_source_or_retry")
 })

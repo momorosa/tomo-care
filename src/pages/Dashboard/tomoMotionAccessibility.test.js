@@ -15,7 +15,7 @@ test("uses local motion for non-speaking states and live video only for playback
     assert.match(avatarSource, /onPlaybackStarted/)
     assert.match(avatarSource, /wantsLiveSpeech/)
     assert.match(avatarSource, /displayLive/)
-    assert.match(avatarSource, /tomo-avatar-media__transition--covered/)
+    assert.match(avatarSource, /tomo-avatar-media__bridge/)
     assert.match(avatarSource, /<TomoMotionMedia/)
     assert.match(motionSource, /tomo-avatar-media__motion--visible/)
     assert.match(motionSource, /renderedPhases\.map/)
@@ -23,8 +23,9 @@ test("uses local motion for non-speaking states and live video only for playback
     assert.doesNotMatch(motionSource, /local-transition/)
     assert.doesNotMatch(css, /tomo-avatar-media__local-transition/)
     assert.match(css, /.tomo-avatar-media--speaking .tomo-avatar-media__video/)
-    assert.match(css, /transition: opacity 120ms ease-out/)
-    assert.doesNotMatch(css, /transition: opacity 220ms ease-out/)
+    assert.match(css, /tomo-handoff-depart/)
+    assert.match(css, /tomo-handoff-arrive/)
+    assert.doesNotMatch(css, /tomo-avatar-media__transition--covered/)
 })
 
 test("preserves the still fallback and disables MP4 motion for reduced motion", async () => {

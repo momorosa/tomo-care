@@ -6,11 +6,13 @@ TomoCare is a personal AI build for one real user: my dog, Momo.
 
 It ingests vet receipts, lab reports, and visit notes; extracts the facts that matter; and only after human verification promotes them into structured records the system can reason over and act on. Today, that includes verified timelines, cost records, reminders, grounded answers, approval-gated actions, voice interaction, and an optional animated Tomo. The larger goal is to explore how governed AI systems can handle high-stakes document workflows with provenance, approval gates, and durable memory.
 
-**Status:** Work in progress. Phases 0–2 and 3A–3D are shipped. Phase 3E is in progress through 3E.9, including lifecycle hardening for Librela, Simparica, and Adequan; governed attention and navigation; governed Profile grounding and microchip retrieval; risk-weighted Verification Intelligence; the governed Tomo manager with Verification Intelligence and Care Operations specialists; the verified Rabies evidence foundation; and a source-linked verified weight-trend visualization shared across Chat and Voice. Phase 3F's native Apple Messages handoff, Animate Tomo reliability and recovery, the separate resettable demo environment, the synthetic-document/demo-safe Gmail source-to-memory journey, and the governed follow-through demo checkpoint are also shipped. The next bounded slice is Final Voice, Animation, and End-to-End UI Polish.
+**Status:** Demo track complete and owner-accepted on September 29, 2026. End-to-end recording and screenshots are captured; the accepted checkpoint is `demo-v1.0.0`. Real-care development is paused until Rosa explicitly resumes it. Start with the [Demo track closeout and real-care handover](./docs/TomoCare_Demo_Track_Closeout_and_Real_Care_Handover.md).
 
 Project direction and current-state details live in the [TomoCare Operating Brief](./docs/TomoCare_Operating_Brief.md), [Product Roadmap and Portfolio Checkpoint](./docs/TomoCare_Product_Roadmap_and_Portfolio_Checkpoint.md), [Multi-Agent Orchestration Decision and Build Plan](./docs/TomoCare_Multi_Agent_Orchestration_Decision_and_Build_Plan.md), [Governed follow-through closeout and final polish handover](./docs/Governed_Follow_Through_Closeout_and_Final_Polish_Handover.md), and [Demo Environment Setup and Reset](./docs/Demo_Environment_Setup_and_Reset.md).
 
 For laptop setup, read-only connection checks, and choosing Private care or Demo data, see [Local Setup and Inbox Isolation](./docs/Local_Setup_and_Inbox_Isolation.md).
+
+The [Consolidated Polish Register](./docs/TomoCare_Final_Polish_Register.md) preserves the accepted polish history and deferred product refinements; its September 29 closeout supersedes earlier pending items.
 
 ![TomoCare system diagram](./assets/tomoCare-system-diagram.png)
 

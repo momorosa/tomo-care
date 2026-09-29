@@ -21,11 +21,11 @@ test("builds one deterministic fictional scenario from the care date", () => {
     assert.deepEqual(Object.keys(first.tables).sort(), [...DEMO_OWNED_TABLES].sort())
     assert.deepEqual(getDemoScenarioCounts(first), {
         pets: 1,
-        documents: 5,
-        events: 4,
-        cost_items: 1,
+        documents: 7,
+        events: 6,
+        cost_items: 3,
         labs: 0,
-        facts: 5,
+        facts: 7,
         provider_contacts: 0,
         orchestration_runs: 0,
         care_actions: 0,
